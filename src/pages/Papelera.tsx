@@ -114,7 +114,7 @@ export default function Papelera() {
               <div>
                 <h3 className="font-semibold text-gray-900">{contract.propiedad.direccion}</h3>
                 <p className="text-sm text-gray-500">
-                  Inquilino: {contract.inquilino.nombreCompleto} | Propietario: {contract.propietario.nombreCompleto}
+                  Inquilino: {contract.inquilinos.find((i: any) => i.esPrincipal)?.persona.nombreCompleto || '-'} | Propietario: {contract.propietarios.find((p: any) => p.esPrincipal)?.persona.nombreCompleto || '-'}
                 </p>
               </div>
 

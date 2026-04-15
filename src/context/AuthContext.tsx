@@ -6,6 +6,7 @@ interface AuthContextType {
     isAuthenticated: boolean;
     login: (token: string, user: User) => void;
     logout: () => void;
+    updateInmobiliaria: (nombre: string) => void;
     loading: boolean;
 }
 
@@ -52,8 +53,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsAuthenticated(false);
     };
 
+    const updateInmobiliaria = (nombre: string) => {
+        if (!user) return;
+        const updatedUser = {
+            ...user,
+            inmobiliaria: { ...user.inmobiliaria, nombre }
+        };
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+    };
+
     return (
-        <AuthContext.Provider value={{ user, isAuthenticated, login, logout, loading }}>
+        <AuthContext.Provider value={{ user, isAuthenticated, login, logout, updateInmobiliaria, loading }}>
             {children}
         </AuthContext.Provider>
     );

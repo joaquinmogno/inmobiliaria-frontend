@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { useLocation } from "react-router-dom";
 import { contractsService, type Contract } from "../services/contracts.service";
 import { getFileUrl } from "../services/api";
-import { ownersService } from "../services/owners.service";
-import { tenantsService } from "../services/tenants.service";
-import { propertiesService } from "../services/properties.service";
 import {
   PlusIcon,
   MagnifyingGlassIcon,
@@ -13,6 +12,7 @@ import {
   TrashIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  PencilSquareIcon,
 } from "@heroicons/react/24/outline";
 import NewContractModal from "../components/NewContractModal";
 import ContractDetailsModal from "../components/ContractDetailsModal";
@@ -24,6 +24,7 @@ import { toast } from "react-hot-toast";
 export default function Contratos() {
   const [contractsList, setContractsList] = useState<Contract[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
   const [, setIsLoading] = useState(true);
@@ -32,15 +33,32 @@ export default function Contratos() {
   const [contractToDelete, setContractToDelete] = useState<number | null>(null);
 
   const [showExpired, setShowExpired] = useState(false);
+  
+  const location = useLocation();
 
   useEffect(() => {
-    refreshData();
-  }, []);
+    if (location.state?.openNewContractModal) {
+      setEditingContract(null);
+      setIsModalOpen(true);
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
-  const refreshData = async () => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    refreshData(debouncedSearch);
+  }, [debouncedSearch]);
+
+  const refreshData = async (searchQuery: string = "") => {
     setIsLoading(true);
     try {
-      const data = await contractsService.getAll();
+      const data = await contractsService.getAll(searchQuery);
       setContractsList(data);
     } catch (error) {
       console.error("Error loading contracts:", error);
@@ -64,22 +82,6 @@ export default function Contratos() {
     .filter((contract) => {
       const expired = isExpired(contract.fechaFin);
       return showExpired ? expired : !expired;
-    })
-    .filter((contract) => {
-      const searchLower = searchTerm.toLowerCase();
-      const address = contract.propiedad.direccion.toLowerCase();
-      const owner = contract.propietario.nombreCompleto.toLowerCase();
-      const tenant = contract.inquilino.nombreCompleto.toLowerCase();
-      const ownerPhone = contract.propietario.telefono.toLowerCase();
-      const tenantPhone = contract.inquilino.telefono.toLowerCase();
-
-      return (
-        address.includes(searchLower) ||
-        owner.includes(searchLower) ||
-        tenant.includes(searchLower) ||
-        ownerPhone.includes(searchLower) ||
-        tenantPhone.includes(searchLower)
-      );
     });
 
   // Pagination logic
@@ -109,64 +111,89 @@ export default function Contratos() {
   };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingContract, setEditingContract] = useState<Contract | null>(null);
+
+  const handleEdit = (contract: Contract) => {
+    setEditingContract(contract);
+    setIsModalOpen(true);
+    setActiveMenuId(null);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setEditingContract(null);
+  };
 
   const handleSaveContract = async (data: any) => {
     try {
       setIsLoading(true);
 
-      // 1. Create Owner
-      const owner = await ownersService.create({
-        nombreCompleto: data.ownerName,
-        telefono: data.ownerPhone,
-        email: null // Modal doesn't have email yet
-      });
-
-      // 2. Create Property
-      const property = await propertiesService.create({
-        direccion: data.address,
-        piso: data.floor || null,
-        departamento: data.unit || null,
-        propietarioId: owner.id
-      });
-
-      // 3. Create Tenant
-      const tenant = await tenantsService.create({
-        nombreCompleto: data.tenantName,
-        telefono: data.tenantPhone,
-        email: null // Modal doesn't have email yet
-      });
-
-      // 4. Create Contract
       const formData = new FormData();
       formData.append('fechaInicio', data.startDate);
       formData.append('fechaFin', data.endDate);
       formData.append('fechaActualizacion', data.updateDate);
       formData.append('observaciones', data.observations || '');
-      formData.append('propiedadId', property.id.toString());
-      formData.append('propietarioId', owner.id.toString());
-      formData.append('inquilinoId', tenant.id.toString());
-
+      formData.append('montoAlquiler', data.montoAlquiler);
+      formData.append('montoHonorarios', data.montoHonorarios || '0');
+      formData.append('porcentajeHonorarios', data.porcentajeHonorarios || '');
+      formData.append('pagaHonorarios', data.pagaHonorarios || 'INQUILINO');
+      formData.append('diaVencimiento', data.diaVencimiento || '10');
+      formData.append('porcentajeActualizacion', data.porcentajeActualizacion || '');
+      formData.append('tipoAjuste', data.tipoAjuste || '');
+      formData.append('administrado', data.administrado.toString());
       if (data.file) {
         formData.append('pdf', data.file);
       }
 
-      const contract = await contractsService.create(formData);
+      if (editingContract) {
+        // Update Logic
+        await contractsService.update(editingContract.id, formData);
 
-      // 5. Upload additional files
-      if (data.additionalFiles && data.additionalFiles.length > 0) {
-        for (const file of data.additionalFiles) {
-          await contractsService.addAttachment(contract.id, file);
+        // Upload additional files if any
+        if (data.additionalFiles && data.additionalFiles.length > 0) {
+          for (const file of data.additionalFiles) {
+            await contractsService.addAttachment(editingContract.id, file);
+          }
         }
+
+        toast.success("Contrato actualizado correctamente");
+      } else {
+        // Create Logic
+        formData.append('propiedadId', data.propertyId.toString());
+        
+        // Append all owner and tenant IDs
+        data.propietarioIds.forEach((id: number) => {
+            formData.append('propietarioIds', id.toString());
+        });
+        data.inquilinoIds.forEach((id: number) => {
+            formData.append('inquilinoIds', id.toString());
+        });
+
+        if (data.honorarioInicial) {
+            formData.append('honorarioInicial', data.honorarioInicial.toString());
+        }
+        if (data.honorarioInicialMetodoPago) {
+            formData.append('honorarioInicialMetodoPago', data.honorarioInicialMetodoPago);
+        }
+
+        const contract = await contractsService.create(formData);
+
+        // Upload additional files
+        if (data.additionalFiles && data.additionalFiles.length > 0) {
+          for (const file of data.additionalFiles) {
+            await contractsService.addAttachment(contract.id, file);
+          }
+        }
+
+        toast.success("Contrato creado correctamente");
       }
 
-      toast.success("Contrato creado correctamente");
-      await refreshData();
-      setIsModalOpen(false);
+      await refreshData(debouncedSearch);
+      handleCloseModal();
     } catch (error) {
       console.error("Error al guardar el contrato:", error);
       toast.error("Hubo un error al guardar el contrato. Por favor, intente nuevamente.");
     } finally {
-
       setIsLoading(false);
     }
   };
@@ -192,7 +219,7 @@ export default function Contratos() {
       try {
         await contractsService.delete(contractToDelete);
         toast.success("Contrato eliminado correctamente");
-        refreshData();
+        refreshData(debouncedSearch);
         setActiveMenuId(null);
       } catch (error) {
 
@@ -242,7 +269,10 @@ export default function Contratos() {
           </button>
           {!showExpired && (
             <button
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                setEditingContract(null);
+                setIsModalOpen(true);
+              }}
               className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm font-medium cursor-pointer"
             >
               <PlusIcon className="w-5 h-5" />
@@ -254,8 +284,9 @@ export default function Contratos() {
 
       <NewContractModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleCloseModal}
         onSave={handleSaveContract}
+        editingContract={editingContract}
       />
 
       <ContractDetailsModal
@@ -295,10 +326,10 @@ export default function Contratos() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 min-h-[400px]">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+            <thead className="bg-gray-50 whitespace-nowrap">
               <tr>
                 <th
                   scope="col"
@@ -330,6 +361,12 @@ export default function Contratos() {
                 >
                   Contacto Propietario
                 </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                >
+                  Alquiler
+                </th>
                 <th scope="col" className="relative px-6 py-3">
                   <span className="sr-only">Acciones</span>
                 </th>
@@ -346,49 +383,69 @@ export default function Contratos() {
                       <div className="text-sm font-medium text-gray-900">
                         {formatAddress(contract.propiedad)}
                       </div>
-                      {showExpired && (
+                        {showExpired && (
                         <div className="text-xs text-red-600 font-medium mt-1 bg-red-50 inline-block px-2 py-0.5 rounded border border-red-100">
                           Venció el {new Date(contract.fechaFin).toLocaleDateString("es-AR")}
                         </div>
                       )}
-                    </td>
+                      {!showExpired && (
+                        <div className={`text-[10px] font-bold mt-1 inline-block px-2 py-0.5 rounded border ${contract.administrado ? 'bg-green-50 text-green-700 border-green-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
+                          {contract.administrado ? 'ADMINISTRADO' : 'GESTIÓN ÚNICA'}
+                        </div>
+                      )}
+                   </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {contract.inquilino.nombreCompleto}
+                        {contract.inquilinos.find(i => i.esPrincipal)?.persona.nombreCompleto || "Sin inquilino"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {contract.propietario.nombreCompleto}
+                        {contract.propietarios.find(p => p.esPrincipal)?.persona.nombreCompleto || "Sin propietario"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-500">
-                        <WhatsAppLink phone={contract.inquilino.telefono} />
+                        <WhatsAppLink phone={contract.inquilinos.find(i => i.esPrincipal)?.persona.telefono || ""} />
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-500">
-                        <WhatsAppLink phone={contract.propietario.telefono} />
+                        <WhatsAppLink phone={contract.propietarios.find(p => p.esPrincipal)?.persona.telefono || ""} />
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-bold text-gray-900">
+                        ${Number(contract.montoAlquiler).toLocaleString('es-AR')}
                       </div>
                     </td>
 
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium relative">
-                      <button
-                        onClick={() => toggleMenu(contract.id)}
-                        className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
-                      >
-                        <EllipsisVerticalIcon className="w-5 h-5" />
-                      </button>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="relative inline-block text-left" id={`menu-button-${contract.id}`}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleMenu(contract.id);
+                          }}
+                          className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+                        >
+                          <EllipsisVerticalIcon className="w-5 h-5" />
+                        </button>
 
-                      {/* Dropdown Menu */}
-                      {activeMenuId === contract.id && (
-                        <>
-                          <div
-                            className="fixed inset-0 z-10"
-                            onClick={() => setActiveMenuId(null)}
-                          />
-                          <div className="absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-20 py-1">
+                        {/* Dropdown Menu via Portal */}
+                        {activeMenuId === contract.id && createPortal(
+                          <>
+                            <div
+                              className="fixed inset-0 z-[100]"
+                              onClick={() => setActiveMenuId(null)}
+                            />
+                            <div 
+                              className="absolute w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-[101] py-1"
+                              style={{
+                                top: (document.getElementById(`menu-button-${contract.id}`)?.getBoundingClientRect().bottom || 0) + window.scrollY + 8,
+                                left: (document.getElementById(`menu-button-${contract.id}`)?.getBoundingClientRect().right || 0) - 192,
+                              }}
+                            >
                             <button
                               className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"
                               onClick={() => handleViewDetails(contract)}
@@ -407,6 +464,13 @@ export default function Contratos() {
                               Ver contrato
                             </button>
                             <button
+                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"
+                              onClick={() => handleEdit(contract)}
+                            >
+                              <PencilSquareIcon className="w-4 h-4 text-gray-500" />
+                              Editar
+                            </button>
+                            <button
                               className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
                               onClick={() => handleDelete(contract.id)}
                             >
@@ -414,9 +478,11 @@ export default function Contratos() {
                               Eliminar
                             </button>
                           </div>
-                        </>
+                        </>,
+                        document.body
                       )}
-                    </td>
+                    </div>
+                  </td>
                   </tr>
                 ))
               ) : (

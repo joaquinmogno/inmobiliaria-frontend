@@ -1,4 +1,5 @@
-const BASE_URL = 'http://localhost:3000/api';
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const SERVER_URL = BASE_URL.replace('/api', '');
 
 interface RequestOptions extends RequestInit {
     params?: Record<string, string>;
@@ -57,15 +58,15 @@ const api = {
         request<T>(url, { ...options, method: 'POST', body: body instanceof FormData ? body : JSON.stringify(body) }),
     put: <T>(url: string, body?: any, options?: RequestOptions) =>
         request<T>(url, { ...options, method: 'PUT', body: body instanceof FormData ? body : JSON.stringify(body) }),
+    patch: <T>(url: string, body?: any, options?: RequestOptions) =>
+        request<T>(url, { ...options, method: 'PATCH', body: body instanceof FormData ? body : JSON.stringify(body) }),
     delete: <T>(url: string, options?: RequestOptions) => request<T>(url, { ...options, method: 'DELETE' }),
 };
 
 export const getFileUrl = (path: string | null) => {
     if (!path) return '';
-    // If the path already includes the full URL, return it
     if (path.startsWith('http')) return path;
-    // Otherwise, prepend the base server URL and the /uploads/ prefix
-    return `http://localhost:3000/uploads/${path}`;
+    return `${SERVER_URL}/uploads/${path}`;
 };
 
 export default api;

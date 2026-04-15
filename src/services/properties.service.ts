@@ -1,21 +1,24 @@
 import api from './api';
-import type { Owner } from './owners.service';
+
+export type TipoPropiedad = 'DEPARTAMENTO' | 'CASA' | 'LOCAL' | 'OTRO';
+export type EstadoPropiedad = 'DISPONIBLE' | 'ALQUILADO' | 'INACTIVO';
 
 export interface Property {
     id: number;
     direccion: string;
     piso: string | null;
     departamento: string | null;
-    propietarioId: number;
-    propietario?: Owner;
+    tipo: TipoPropiedad;
+    estado: EstadoPropiedad;
+    observaciones: string | null;
 }
 
 export const propertiesService = {
-    getAll: async () => {
-        return api.get<Property[]>('/propiedades');
+    getAll: async (search?: string) => {
+        return api.get<Property[]>('/propiedades', { params: search ? { search } : undefined });
     },
 
-    create: async (data: Omit<Property, 'id' | 'propietario'>) => {
+    create: async (data: Omit<Property, 'id'>) => {
         return api.post<Property>('/propiedades', data);
     },
 
