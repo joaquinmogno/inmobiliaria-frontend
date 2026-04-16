@@ -12,6 +12,7 @@ export interface Movimiento {
     monto: number;
     observaciones: string | null;
     fechaCreacion: string;
+    esParaInmobiliaria: boolean;
 }
 
 export interface Liquidacion {

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { contractsService, getDaysLeft, type Contract } from "../services/contracts.service";
-import { liquidacionesService } from "../services/liquidaciones.service";
 import ContractCard from "../components/ContractCard";
 import PaginatedList from "../components/PaginatedList";
 import ContractDetailsModal from "../components/ContractDetailsModal";
@@ -13,7 +12,7 @@ import {
   ArrowPathIcon,
   ChartBarIcon,
 } from "@heroicons/react/24/outline";
-import { reportesService, type DashboardReportes } from "../services/reportes.service";
+import { reportesService } from "../services/reportes.service";
 import { useAuth } from "../context/AuthContext";
 
 export interface ExpiringContract {
@@ -61,10 +60,8 @@ export default function Home() {
 
   const [expiringList, setExpiringList] = useState<ExpiringContract[]>([]);
   const [updatingList, setUpdatingList] = useState<UpdatingContract[]>([]);
-  const [expiredList, setExpiredList] = useState<ExpiringContract[]>([]);
   const [allContracts, setAllContracts] = useState<Contract[]>([]);
   const [kpis, setKpis] = useState<KpiData | null>(null);
-  const [dashboardData, setDashboardData] = useState<DashboardReportes | null>(null);
   const [loadingKpis, setLoadingKpis] = useState(true);
 
   useEffect(() => {
@@ -109,24 +106,8 @@ export default function Home() {
         }))
         .sort((a, b) => a.daysLeft - b.daysLeft);
 
-      // Contratos vencidos sin renovar
-      const expired = (contractsData || [])
-        .filter((c) => c.estado === "ACTIVO" && getDaysLeft(c.fechaFin) < 0)
-        .map((c) => ({
-          id: c.id,
-          address: c.propiedad.direccion,
-          owner: c.propietarios.find(p => p.esPrincipal)?.persona.nombreCompleto || '-',
-          tenant: c.inquilinos.find(i => i.esPrincipal)?.persona.nombreCompleto || '-',
-          endDate: c.fechaFin,
-          daysLeft: getDaysLeft(c.fechaFin),
-        }))
-        .sort((a, b) => a.daysLeft - b.daysLeft);
-
       setExpiringList(expiring);
       setUpdatingList(updating);
-      setExpiredList(expired);
-
-      setDashboardData(reportData);
 
       setKpis({
         contratosActivos: reportData.contratos.activos,
