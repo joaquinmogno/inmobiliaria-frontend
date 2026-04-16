@@ -2,7 +2,7 @@ const envUrl = import.meta.env.VITE_API_URL;
 const BASE_URL = envUrl 
     ? (envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`) 
     : 'http://localhost:3000/api';
-const SERVER_URL = BASE_URL.replace('/api', '');
+const SERVER_URL = BASE_URL.endsWith('/api') ? BASE_URL.slice(0, -4) : BASE_URL;
 
 interface RequestOptions extends RequestInit {
     params?: Record<string, string>;
