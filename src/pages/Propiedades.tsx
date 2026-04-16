@@ -145,7 +145,8 @@ export default function Propiedades() {
                 />
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            {/* VISTA DESKTOP */}
+            <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
@@ -218,6 +219,60 @@ export default function Propiedades() {
                         </tbody>
                     </table>
                 </div>
+            </div>
+
+            {/* VISTA MOBILE */}
+            <div className="md:hidden space-y-4">
+                {properties.map((p) => (
+                    <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
+                        <div className="flex justify-between items-start">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-indigo-50 p-2 rounded-lg">
+                                    <HomeModernIcon className="w-5 h-5 text-indigo-600" />
+                                </div>
+                                <div>
+                                    <p className="font-bold text-gray-900 leading-tight">{p.direccion}</p>
+                                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">{p.piso ? `PISO ${p.piso}` : ""} {p.departamento ? `DEPTO ${p.departamento}` : ""}</p>
+                                </div>
+                            </div>
+                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${getStatusBadgeClass(p.estado)}`}>
+                                {p.estado}
+                            </span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between mt-1">
+                             <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700">
+                                 {p.tipo}
+                             </span>
+                        </div>
+
+                        {p.observaciones && (
+                             <p className="text-[11px] text-gray-500 line-clamp-2 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                                 {p.observaciones}
+                             </p>
+                        )}
+                        
+                        <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 mt-1">
+                            <button
+                                onClick={() => handleEdit(p)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                            >
+                                <PencilSquareIcon className="w-4 h-4" /> Editar
+                            </button>
+                            <button
+                                onClick={() => handleDelete(p.id)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                            >
+                                <TrashIcon className="w-4 h-4" /> Eliminar
+                            </button>
+                        </div>
+                    </div>
+                ))}
+                {properties.length === 0 && (
+                    <div className="p-8 text-center bg-white rounded-xl border border-gray-100 text-gray-500 text-sm">
+                        No se encontraron propiedades con ese criterio.
+                    </div>
+                )}
             </div>
 
             {/* Modal */}

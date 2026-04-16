@@ -325,9 +325,10 @@ export default function Contratos() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 min-h-[400px]">
-        <div className="overflow-x-auto">
+      {/* Contenedor Principal Tablas/Tarjetas */}
+      <div className="md:bg-white md:rounded-xl md:shadow-sm md:border md:border-gray-200 min-h-[400px] flex flex-col">
+        {/* VISTA DESKTOP */}
+        <div className="hidden md:block overflow-x-auto rounded-t-xl">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50 whitespace-nowrap">
               <tr>
@@ -488,7 +489,7 @@ export default function Contratos() {
               ) : (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={7}
                     className="px-6 py-10 text-center text-sm text-gray-500"
                   >
                     No se encontraron contratos que coincidan con tu búsqueda.
@@ -497,6 +498,77 @@ export default function Contratos() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* VISTA MOBILE */}
+        <div className="md:hidden space-y-4">
+            {currentContracts.map((contract) => (
+                <div key={contract.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
+                    <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2.5">
+                             <div className="bg-indigo-50 p-2 rounded-lg shrink-0">
+                                  <DocumentTextIcon className="w-5 h-5 text-indigo-600" />
+                             </div>
+                             <div>
+                                  <p className="font-bold text-gray-900 leading-tight">{formatAddress(contract.propiedad)}</p>
+                                  {showExpired ? (
+                                     <p className="text-[10px] font-bold text-red-600 uppercase mt-0.5">Venció {new Date(contract.fechaFin).toLocaleDateString("es-AR")}</p>
+                                  ) : (
+                                     <p className={`text-[9px] font-bold uppercase mt-0.5 inline-block px-1.5 py-0.5 rounded border ${contract.administrado ? 'bg-green-50 text-green-700 border-green-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
+                                        {contract.administrado ? 'ADMINISTRADO' : 'GESTIÓN ÚNICA'}
+                                     </p>
+                                  )}
+                             </div>
+                        </div>
+                        <div className="relative" id={`menu-mobile-${contract.id}`}>
+                            <button onClick={(e) => { e.stopPropagation(); toggleMenu(contract.id); }} className="p-1 text-gray-400 hover:text-indigo-600">
+                                <EllipsisVerticalIcon className="w-6 h-6" />
+                            </button>
+                            {activeMenuId === contract.id && createPortal(
+                                <div className="fixed inset-0 z-[100]" onClick={() => setActiveMenuId(null)}>
+                                  <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-[101] p-4 pb-8 border-t border-gray-100" onClick={e => e.stopPropagation()}>
+                                      <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4" />
+                                      <h3 className="text-center font-bold text-gray-900 mb-4 px-2 line-clamp-1">{formatAddress(contract.propiedad)}</h3>
+                                      <div className="flex flex-col gap-2">
+                                          <button onClick={() => handleViewDetails(contract)} className="w-full text-left px-4 py-3 bg-gray-50 rounded-xl text-gray-700 flex items-center gap-3"><EyeIcon className="w-5 h-5 text-indigo-500" /> Ver detalles</button>
+                                          <button onClick={() => { handleViewPdf(contract.rutaPdf); setActiveMenuId(null); }} className="w-full text-left px-4 py-3 bg-gray-50 rounded-xl text-gray-700 flex items-center gap-3"><DocumentTextIcon className="w-5 h-5 text-indigo-500" /> Ver contrato PDF</button>
+                                          <button onClick={() => handleEdit(contract)} className="w-full text-left px-4 py-3 bg-blue-50 rounded-xl text-blue-700 flex items-center gap-3"><PencilSquareIcon className="w-5 h-5 text-blue-500" /> Editar contrato</button>
+                                          <button onClick={() => handleDelete(contract.id)} className="w-full text-left px-4 py-3 bg-red-50 rounded-xl text-red-700 flex items-center gap-3 mt-2"><TrashIcon className="w-5 h-5 text-red-500" /> Eliminar</button>
+                                      </div>
+                                  </div>
+                                </div>, document.body
+                            )}
+                        </div>
+                    </div>
+                    
+                    <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 text-sm flex flex-col gap-2 mt-1">
+                         <div className="flex justify-between items-center bg-white p-2 border border-gray-100 rounded-md">
+                             <div className="flex flex-col">
+                                 <span className="text-[10px] uppercase font-bold text-gray-400">Inquilino</span>
+                                 <span className="font-semibold text-gray-700">{contract.inquilinos.find(i => i.esPrincipal)?.persona.nombreCompleto || "N/A"}</span>
+                             </div>
+                             <WhatsAppLink phone={contract.inquilinos.find(i => i.esPrincipal)?.persona.telefono || ""} />
+                         </div>
+                         <div className="flex justify-between items-center bg-white p-2 border border-gray-100 rounded-md">
+                             <div className="flex flex-col">
+                                 <span className="text-[10px] uppercase font-bold text-gray-400">Propietario</span>
+                                 <span className="font-semibold text-gray-700">{contract.propietarios.find(p => p.esPrincipal)?.persona.nombreCompleto || "N/A"}</span>
+                             </div>
+                             <WhatsAppLink phone={contract.propietarios.find(p => p.esPrincipal)?.persona.telefono || ""} />
+                         </div>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-1 pt-3 border-t border-gray-100">
+                         <span className="text-xs uppercase font-bold text-gray-500 tracking-wider">Alquiler</span>
+                         <span className="text-lg font-black text-gray-900">${Number(contract.montoAlquiler).toLocaleString('es-AR')}</span>
+                    </div>
+                </div>
+            ))}
+            {currentContracts.length === 0 && (
+                <div className="bg-white p-8 rounded-xl border border-gray-100 text-center text-sm text-gray-500 shadow-sm">
+                    No se encontraron contratos que coincidan con tu búsqueda.
+                </div>
+            )}
         </div>
 
         {/* Pagination Footer */}

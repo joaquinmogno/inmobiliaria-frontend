@@ -313,9 +313,10 @@ export default function Liquidaciones() {
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 min-h-[500px] flex flex-col">
-                <div className="overflow-x-auto flex-1">
+            {/* Contenedor Principal Tablas/Tarjetas */}
+            <div className="md:bg-white md:rounded-2xl md:shadow-sm md:border md:border-gray-100 min-h-[500px] flex flex-col">
+                {/* VISTA DESKTOP */}
+                <div className="hidden md:block overflow-x-auto flex-1 rounded-t-2xl">
                     <table className="min-w-full divide-y divide-gray-100">
                         <thead className="bg-gray-50/50">
                             <tr>
@@ -425,9 +426,104 @@ export default function Liquidaciones() {
                     </table>
                 </div>
 
-                {/* Dropdown portal — rendered outside table to avoid overflow clipping */}
+                {/* VISTA MOBILE */}
+                <div className="md:hidden flex-1 space-y-4">
+                    {!isLoading && currentItems.map((liq) => {
+                        const totalPagado = liq.pagos?.reduce((acc, p) => acc + Number(p.monto), 0) || 0;
+                        const deuda = Number(liq.netoACobrar) - totalPagado;
+                        const movsInmo = liq.movimientos?.filter((m: any) => m.esParaInmobiliaria).reduce((acc: number, m: any) => acc + Number(m.monto), 0) || 0;
+                        const netoAPagar = Number(liq.netoACobrar) - Number(liq.montoHonorarios || 0) - movsInmo;
+
+                        return (
+                            <div key={liq.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
+                                <div className="flex justify-between items-start">
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-gray-900 leading-tight">
+                                            {formatFullAddress(liq.contrato?.propiedad)}
+                                        </span>
+                                        <span className="text-[11px] text-indigo-600 font-extrabold uppercase mt-0.5">
+                                            {formatPeriod(liq.periodo)}
+                                        </span>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1">
+                                        {getStatusBadge(liq.estado)}
+                                        {liq.estado === 'PENDIENTE_PAGO' && totalPagado > 0 && deuda > 0 && (
+                                            <span className="text-[9px] font-bold text-orange-600 uppercase tracking-tight">Pago Parcial</span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="relative" id={`menu-mobile-${liq.id}`}>
+                                    {activeMenuId === liq.id && createPortal(
+                                        <div className="fixed inset-0 z-[100]" onClick={() => setActiveMenuId(null)}>
+                                          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-[101] p-4 pb-8 border-t border-gray-100" onClick={e => e.stopPropagation()}>
+                                              <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4" />
+                                              <h3 className="text-center font-bold text-gray-900 mb-4 px-2 line-clamp-1">{formatFullAddress(liq.contrato?.propiedad)} - {formatPeriodShort(liq.periodo)}</h3>
+                                              <div className="flex flex-col gap-2">
+                                                  <button onClick={() => { navigate(`/liquidaciones/${liq.id}`); setActiveMenuId(null); }} className="w-full text-left px-4 py-3 bg-indigo-50 rounded-xl text-indigo-700 flex items-center gap-3"><EyeIcon className="w-5 h-5 text-indigo-500" /> Ver detalle y pagos</button>
+                                                  {liq.estado === 'PAGADA_POR_INQUILINO' && (
+                                                      <button onClick={() => handleOpenOwnerPayment(liq)} className="w-full text-left px-4 py-3 bg-orange-50 rounded-xl text-orange-700 flex items-center gap-3 mt-2"><BanknotesIcon className="w-5 h-5 text-orange-500" /> Entregar a Propietario</button>
+                                                  )}
+                                                  {liq.estado === 'BORRADOR' && (
+                                                      <button onClick={() => handleDelete(liq.id)} className="w-full text-left px-4 py-3 bg-red-50 rounded-xl text-red-700 flex items-center gap-3 mt-2"><TrashIcon className="w-5 h-5 text-red-500" /> Eliminar borrador</button>
+                                                  )}
+                                              </div>
+                                          </div>
+                                        </div>, document.body
+                                    )}
+                                </div>
+                                
+                                <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col gap-2">
+                                    <div className="flex justify-between items-center bg-white p-2 border border-gray-100 rounded-lg">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] uppercase font-bold text-gray-400">Inquilino (A Cobrar)</span>
+                                            <span className="font-semibold text-gray-700 text-sm">{liq.contrato?.inquilinos.find((i: any) => i.esPrincipal)?.persona.nombreCompleto || '-'}</span>
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-sm font-black text-gray-900">${Number(liq.netoACobrar).toLocaleString('es-AR')}</span>
+                                            <span className={`text-[11px] font-bold ${deuda > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                                {deuda > 0 ? `DEBE: $${deuda.toLocaleString('es-AR')}` : 'PAGADO'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between items-center bg-white p-2 border border-blue-50 rounded-lg">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] uppercase font-bold text-gray-400">Dueño (A Transferir)</span>
+                                            <span className="font-semibold text-gray-700 text-sm">{liq.contrato?.propietarios.find((p: any) => p.esPrincipal)?.persona.nombreCompleto || '-'}</span>
+                                        </div>
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-xs font-black text-blue-800">${netoAPagar.toLocaleString('es-AR')}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <button className="mt-1 w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-600 rounded-xl py-2 text-sm font-bold hover:bg-gray-50 transition-colors" onClick={() => toggleMenu(liq.id)}>
+                                    <EllipsisVerticalIcon className="w-5 h-5 text-gray-400" /> Opciones Avanzadas
+                                </button>
+                            </div>
+                        );
+                    })}
+
+                    {isLoading && (
+                        <div className="flex flex-col items-center justify-center py-12 gap-2">
+                            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                            <span className="text-sm font-medium text-gray-500">Cargando liquidaciones...</span>
+                        </div>
+                    )}
+
+                    {!isLoading && currentItems.length === 0 && (
+                        <div className="bg-white p-8 rounded-xl border border-gray-100 text-center flex flex-col items-center gap-3 shadow-sm">
+                            <div className="bg-gray-50 p-4 rounded-full">
+                                <HomeIcon className="w-8 h-8 text-gray-300" />
+                            </div>
+                            <p className="text-gray-900 font-bold">No se encontraron liquidaciones</p>
+                        </div>
+                    )}
+                </div>
+
+                {/* Dropdown portal PC — rendered outside table to avoid overflow clipping */}
+                <div className="hidden md:block">
                 {activeMenuId !== null && createPortal(
-                    <>
+                    <div className="hidden md:block">
                         <div
                             className="fixed inset-0 z-[100]"
                             onClick={() => setActiveMenuId(null)}
@@ -470,9 +566,10 @@ export default function Liquidaciones() {
                                 );
                             })()}
                         </div>
-                    </>,
+                    </div>,
                     document.body
                 )}
+                </div>
 
                 {/* Pagination Footer */}
                 {totalPages > 1 && (
