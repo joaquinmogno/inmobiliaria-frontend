@@ -97,7 +97,8 @@ export const liquidacionesService = {
 
     downloadPdf: (id: number) => {
         const token = localStorage.getItem('token');
-        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+        const envUrl = import.meta.env.VITE_API_URL;
+        const baseUrl = envUrl ? (envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`) : 'http://localhost:3000/api';
         const url = `${baseUrl}/liquidaciones/${id}/pdf`;
         fetch(url, { headers: { Authorization: `Bearer ${token}` } })
             .then(res => res.blob())
@@ -109,7 +110,8 @@ export const liquidacionesService = {
 
     downloadPdfPropietario: (id: number) => {
         const token = localStorage.getItem('token');
-        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+        const envUrl = import.meta.env.VITE_API_URL;
+        const baseUrl = envUrl ? (envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`) : 'http://localhost:3000/api';
         const url = `${baseUrl}/liquidaciones/${id}/pdf-propietario`;
         fetch(url, { headers: { Authorization: `Bearer ${token}` } })
             .then(res => res.blob())
