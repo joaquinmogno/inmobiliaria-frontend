@@ -97,7 +97,8 @@ export const liquidacionesService = {
 
     downloadPdf: (id: number) => {
         const token = localStorage.getItem('token');
-        const url = `http://localhost:3000/api/liquidaciones/${id}/pdf`;
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+        const url = `${baseUrl}/liquidaciones/${id}/pdf`;
         fetch(url, { headers: { Authorization: `Bearer ${token}` } })
             .then(res => res.blob())
             .then(blob => {
@@ -108,7 +109,8 @@ export const liquidacionesService = {
 
     downloadPdfPropietario: (id: number) => {
         const token = localStorage.getItem('token');
-        const url = `http://localhost:3000/api/liquidaciones/${id}/pdf-propietario`;
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+        const url = `${baseUrl}/liquidaciones/${id}/pdf-propietario`;
         fetch(url, { headers: { Authorization: `Bearer ${token}` } })
             .then(res => res.blob())
             .then(blob => {

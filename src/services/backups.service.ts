@@ -26,7 +26,8 @@ export const backupsService = {
 
     downloadBackup: async (type: 'db' | 'uploads', filename: string) => {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3000/api/backups/download/${type}/${filename}`, {
+        const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+        const response = await fetch(`${baseUrl}/backups/download/${type}/${filename}`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
