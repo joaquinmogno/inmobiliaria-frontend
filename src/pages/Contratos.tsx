@@ -190,9 +190,10 @@ export default function Contratos() {
 
       await refreshData(debouncedSearch);
       handleCloseModal();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error al guardar el contrato:", error);
-      toast.error("Hubo un error al guardar el contrato. Por favor, intente nuevamente.");
+      toast.error(error.message || "Hubo un error al guardar el contrato. Por favor, intente nuevamente.");
+      throw error;
     } finally {
       setIsLoading(false);
     }

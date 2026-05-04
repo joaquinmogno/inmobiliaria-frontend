@@ -11,11 +11,39 @@ import { toast } from "react-hot-toast";
 interface NewContractModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (data: any) => void;
+    onSave: (data: any) => void | Promise<void>;
     editingContract?: Contract | null;
 }
 
 const emptyPerson = () => ({ nombreCompleto: "", telefono: "" });
+const MAX_FILE_SIZE_BYTES = 30 * 1024 * 1024;
+const allowedMainContractTypes = new Set(['application/pdf']);
+const allowedAdditionalTypes = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
+const allowedAdditionalExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
+
+function hasAllowedExtension(file: File, extensions: string[]) {
+    return extensions.some(ext => file.name.toLowerCase().endsWith(ext));
+}
+
+function validateMainContractFile(file: File) {
+    if (!allowedMainContractTypes.has(file.type) || !hasAllowedExtension(file, ['.pdf'])) {
+        return "Formato no permitido. El contrato principal debe ser PDF.";
+    }
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+        return "El archivo supera el límite máximo de 30 MB.";
+    }
+    return null;
+}
+
+function validateAdditionalFile(file: File) {
+    if (!allowedAdditionalTypes.has(file.type) || !hasAllowedExtension(file, allowedAdditionalExtensions)) {
+        return "Formato no permitido. Solo se aceptan PDF, JPG, PNG o WEBP.";
+    }
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+        return "El archivo supera el límite máximo de 30 MB.";
+    }
+    return null;
+}
 
 export default function NewContractModal({
     isOpen,
@@ -198,7 +226,15 @@ export default function NewContractModal({
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            setFormData((prev) => ({ ...prev, file: e.target.files![0] }));
+            const file = e.target.files[0];
+            const error = validateMainContractFile(file);
+            if (error) {
+                toast.error(error);
+                e.target.value = "";
+                setFormData((prev) => ({ ...prev, file: null }));
+                return;
+            }
+            setFormData((prev) => ({ ...prev, file }));
         }
     };
 
@@ -207,6 +243,12 @@ export default function NewContractModal({
     ) => {
         if (e.target.files) {
             const filesArray = Array.from(e.target.files);
+            const invalid = filesArray.find(file => validateAdditionalFile(file));
+            if (invalid) {
+                toast.error(validateAdditionalFile(invalid) || "Formato no permitido");
+                e.target.value = "";
+                return;
+            }
             setFormData((prev) => ({
                 ...prev,
                 additionalFiles: [...prev.additionalFiles, ...filesArray],
@@ -243,6 +285,20 @@ export default function NewContractModal({
         // Validate método de pago si hay honorario
         if (formData.honorarioInicial && !formData.honorarioInicialMetodoPago) {
             toast.error("Debe seleccionar un método de pago para el honorario inicial.");
+            return;
+        }
+
+        if (formData.file) {
+            const error = validateMainContractFile(formData.file);
+            if (error) {
+                toast.error(error);
+                return;
+            }
+        }
+
+        const invalidAdditionalFile = formData.additionalFiles.find(file => validateAdditionalFile(file));
+        if (invalidAdditionalFile) {
+            toast.error(validateAdditionalFile(invalidAdditionalFile) || "Formato no permitido");
             return;
         }
 
@@ -300,7 +356,7 @@ export default function NewContractModal({
             honorarioInicialMetodoPago: formData.honorarioInicialMetodoPago
         };
 
-        onSave(dataToSave);
+        await onSave(dataToSave);
 
         // Reset state
         setSelectedProperty(null);
@@ -848,7 +904,7 @@ export default function NewContractModal({
                                             <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer relative h-32 flex items-center justify-center">
                                                 <input
                                                     type="file"
-                                                    accept=".pdf"
+                                                    accept=".pdf,.jpg,.jpeg,.png,.webp"
                                                     multiple
                                                     onChange={handleAdditionalFilesChange}
                                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"

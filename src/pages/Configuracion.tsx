@@ -112,8 +112,8 @@ export default function Configuracion() {
     try {
       await backupsService.createDbBackup();
       await loadBackups();
-    } catch (error) {
-      alert("Error al crear backup de base de datos");
+    } catch (error: any) {
+      alert(error.message || "Error al crear backup de base de datos");
     } finally {
       setActionLoading(null);
     }
@@ -124,8 +124,8 @@ export default function Configuracion() {
     try {
       await backupsService.createUploadsBackup();
       await loadBackups();
-    } catch (error) {
-      alert("Error al crear backup de archivos");
+    } catch (error: any) {
+      alert(error.message || "Error al crear backup de archivos");
     } finally {
       setActionLoading(null);
     }

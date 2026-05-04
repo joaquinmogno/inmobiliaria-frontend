@@ -42,7 +42,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        throw new Error(errorData.details || errorData.message || `HTTP error! status: ${response.status}`);
     }
 
     // Some endpoints might return empty response
