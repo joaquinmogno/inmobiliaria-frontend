@@ -92,12 +92,13 @@ export default function HistorialPagos() {
                                 <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Inquilino</th>
                                 <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Monto</th>
                                 <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Período Liq.</th>
+                                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Auditoría</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-sm text-gray-500">
+                                    <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500">
                                         <div className="flex justify-center items-center gap-2">
                                             <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
                                             Cargando pagos...
@@ -106,7 +107,7 @@ export default function HistorialPagos() {
                                 </tr>
                             ) : pagos.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center">
+                                    <td colSpan={6} className="px-6 py-12 text-center">
                                         <DocumentTextIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                                         <p className="text-gray-500 text-sm">No se encontraron pagos con los filtros actuales.</p>
                                     </td>
@@ -145,6 +146,16 @@ export default function HistorialPagos() {
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-500">
                                                 {pago.liquidacion?.periodo}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <div className="text-sm font-medium text-gray-900">
+                                                {pago.creadoPor?.nombreCompleto || pago.auditLogs?.[0]?.usuario?.nombreCompleto || 'Sistema'}
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-1">
+                                                {pago.auditLogs?.[0]
+                                                    ? new Date(pago.auditLogs[0].fechaCreacion).toLocaleString('es-AR')
+                                                    : new Date(pago.fechaCreacion).toLocaleString('es-AR')}
                                             </div>
                                         </td>
                                     </tr>

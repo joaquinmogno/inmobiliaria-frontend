@@ -27,6 +27,7 @@ import PaymentModal from "../components/PaymentModal";
 import HonorariosModal from "../components/HonorariosModal";
 import OwnerPaymentModal from "../components/OwnerPaymentModal";
 import { pagosService, type DeudaResumen, type MetodoPago } from "../services/pagos.service";
+import AuditTrail from "../components/AuditTrail";
 
 export default function LiquidacionDetalle() {
     const { id } = useParams<{ id: string }>();
@@ -595,6 +596,7 @@ export default function LiquidacionDetalle() {
                                     <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Fecha</th>
                                     <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Método</th>
                                     <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Detalle</th>
+                                    <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Registró</th>
                                     <th className="text-right py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Monto</th>
                                 </tr>
                             </thead>
@@ -612,6 +614,9 @@ export default function LiquidacionDetalle() {
                                         <td className="py-4 px-6 text-sm text-gray-500 font-medium">
                                             {p.observaciones || "-"}
                                         </td>
+                                        <td className="py-4 px-6 text-sm text-gray-500 font-medium">
+                                            {p.creadoPor?.nombreCompleto || "Sistema"}
+                                        </td>
                                         <td className="py-4 px-6 text-right font-mono font-black text-green-600 text-sm">
                                             {formatCurrency(Number(p.monto))}
                                         </td>
@@ -620,7 +625,7 @@ export default function LiquidacionDetalle() {
                             </tbody>
                             <tfoot className="bg-indigo-50/30">
                                 <tr>
-                                    <td colSpan={3} className="py-4 px-6 text-xs font-black text-indigo-800 uppercase tracking-widest">Total Percibido</td>
+                                    <td colSpan={4} className="py-4 px-6 text-xs font-black text-indigo-800 uppercase tracking-widest">Total Percibido</td>
                                     <td className="py-4 px-6 text-right font-black text-indigo-800 text-base">
                                         {formatCurrency(liquidacion.pagos?.reduce((acc, p) => acc + Number(p.monto), 0) || 0)}
                                     </td>
@@ -642,6 +647,25 @@ export default function LiquidacionDetalle() {
                     )}
                 </div>
             )}
+
+            {/* Audit Section */}
+            <div className="space-y-4 print:hidden">
+                <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
+                    <div className="w-1.5 h-6 bg-gray-500 rounded-full" />
+                    Auditoría
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Creada por</p>
+                        <p className="text-sm font-semibold text-gray-800">{liquidacion.creadoPor?.nombreCompleto || "Sin dato"}</p>
+                    </div>
+                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                        <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Cerrada por</p>
+                        <p className="text-sm font-semibold text-gray-800">{liquidacion.cerradoPor?.nombreCompleto || "Todavía no cerrada"}</p>
+                    </div>
+                </div>
+                <AuditTrail logs={liquidacion.auditLogs} emptyText="Esta liquidación todavía no tiene eventos de auditoría." />
+            </div>
 
             {/* Final Summary Card for Print */}
             <div className="hidden print:block bg-gray-50 p-8 rounded-3xl border-2 border-dashed border-gray-200 mt-12">

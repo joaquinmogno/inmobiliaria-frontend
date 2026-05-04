@@ -2,7 +2,6 @@ const envUrl = import.meta.env.VITE_API_URL;
 const BASE_URL = envUrl 
     ? (envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`) 
     : 'http://localhost:3000/api';
-const SERVER_URL = BASE_URL.endsWith('/api') ? BASE_URL.slice(0, -4) : BASE_URL;
 
 interface RequestOptions extends RequestInit {
     params?: Record<string, string>;
@@ -69,7 +68,30 @@ const api = {
 export const getFileUrl = (path: string | null) => {
     if (!path) return '';
     if (path.startsWith('http')) return path;
-    return `${SERVER_URL}/uploads/${path}`;
+    return `${BASE_URL}/files/${path}`;
+};
+
+export const openAuthenticatedFile = async (path: string | null) => {
+    if (!path) return;
+
+    const fileWindow = window.open('', '_blank');
+    const token = localStorage.getItem('token');
+    const response = await fetch(getFileUrl(path), {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined
+    });
+
+    if (!response.ok) {
+        fileWindow?.close();
+        throw new Error('No se pudo abrir el archivo');
+    }
+
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    if (fileWindow) {
+        fileWindow.location.href = blobUrl;
+    } else {
+        window.open(blobUrl, '_blank');
+    }
 };
 
 export default api;

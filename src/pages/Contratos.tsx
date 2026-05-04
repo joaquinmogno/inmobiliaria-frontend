@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 import { contractsService, type Contract } from "../services/contracts.service";
-import { getFileUrl } from "../services/api";
+import { openAuthenticatedFile } from "../services/api";
 import {
   PlusIcon,
   MagnifyingGlassIcon,
@@ -232,9 +232,13 @@ export default function Contratos() {
   };
 
 
-  const handleViewPdf = (path: string | null) => {
+  const handleViewPdf = async (path: string | null) => {
     if (path) {
-      window.open(getFileUrl(path), "_blank");
+      try {
+        await openAuthenticatedFile(path);
+      } catch (error) {
+        toast.error("No se pudo abrir el archivo");
+      }
     } else {
       alert("Este contrato no tiene un archivo PDF asociado.");
     }

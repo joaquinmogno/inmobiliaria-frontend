@@ -1,5 +1,6 @@
 import api from './api';
 import type { Liquidacion, PaginatedResponse } from './liquidaciones.service';
+import type { AuditLogItem } from '../components/AuditTrail';
 
 export type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'CHEQUE' | 'OTROS';
 
@@ -13,6 +14,8 @@ export interface Pago {
     contratoId: number;
     liquidacionId: number;
     liquidacion?: Partial<Liquidacion>;
+    creadoPor?: { id: number; nombreCompleto: string; email: string };
+    auditLogs?: AuditLogItem[];
 }
 
 export interface DeudaResumen {

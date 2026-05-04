@@ -15,10 +15,11 @@ import {
 import { planesCuotasService, type PlanCuotas } from "../services/planes-cuotas.service";
 import NewPlanCuotasModal from "./NewPlanCuotasModal";
 import { toast } from "react-hot-toast";
-import { type Contract } from "../services/contracts.service";
-import { getFileUrl } from "../services/api";
+import { contractsService, type Contract } from "../services/contracts.service";
+import { openAuthenticatedFile } from "../services/api";
 import WhatsAppLink from "./WhatsAppLink";
 import { BanknotesIcon as BanknotesIconSolid } from "@heroicons/react/20/solid";
+import AuditTrail from "./AuditTrail";
 
 export interface ContractDetailsModalProps {
     isOpen: boolean;
@@ -30,20 +31,24 @@ export interface ContractDetailsModalProps {
 export default function ContractDetailsModal({
     isOpen,
     onClose,
-    contract,
+    contract: initialContract,
     onDelete,
 }: ContractDetailsModalProps) {
-    if (!contract) return null;
+    const [currentContract, setCurrentContract] = useState<Contract | null>(initialContract);
 
-    const handleViewPdf = (path: string | null) => {
+    const handleViewPdf = async (path: string | null) => {
         if (path) {
-            window.open(getFileUrl(path), "_blank");
+            try {
+                await openAuthenticatedFile(path);
+            } catch (error) {
+                toast.error("No se pudo abrir el archivo");
+            }
         } else {
             alert("Este documento no tiene un archivo asociado.");
         }
     };
 
-    const [activeTab, setActiveTab] = useState<'general' | 'financial' | 'cuotas'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'financial' | 'cuotas' | 'audit'>('general');
     const [liquidaciones, setLiquidaciones] = useState<Liquidacion[]>([]);
     const [planesCuotas, setPlanesCuotas] = useState<PlanCuotas[]>([]);
     const [isLoadingHistory, setIsLoadingHistory] = useState(false);
@@ -51,11 +56,33 @@ export default function ContractDetailsModal({
     const [isNewPlanModalOpen, setIsNewPlanModalOpen] = useState(false);
 
     useEffect(() => {
-        if (isOpen && contract) {
+        if (!isOpen || !initialContract) {
+            setCurrentContract(initialContract);
+            return;
+        }
+
+        let cancelled = false;
+        setCurrentContract(initialContract);
+        contractsService.getById(initialContract.id)
+            .then((detailedContract) => {
+                if (!cancelled) setCurrentContract(detailedContract);
+            })
+            .catch((error) => console.error("Error loading contract details", error));
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isOpen, initialContract?.id]);
+
+    useEffect(() => {
+        if (isOpen && currentContract) {
             if (activeTab === 'financial') loadFinancialHistory();
             if (activeTab === 'cuotas') loadPlanesCuotas();
         }
-    }, [isOpen, activeTab, contract]);
+    }, [isOpen, activeTab, currentContract]);
+
+    const contract = currentContract;
+    if (!contract) return null;
 
     const loadPlanesCuotas = async () => {
         if (!contract) return;
@@ -176,8 +203,15 @@ export default function ContractDetailsModal({
                                         onClick={() => setActiveTab('cuotas')}
                                         className={`pb-3 px-4 text-sm font-medium transition-colors relative ${activeTab === 'cuotas' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
                                     >
-                                        Planes de Cuotas (Préstamos)
+                                        Planes
                                         {activeTab === 'cuotas' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-t-full" />}
+                                    </button>
+                                    <button
+                                        onClick={() => setActiveTab('audit')}
+                                        className={`pb-3 px-4 text-sm font-medium transition-colors relative ${activeTab === 'audit' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                    >
+                                        Auditoría
+                                        {activeTab === 'audit' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-t-full" />}
                                     </button>
                                 </div>
 
@@ -549,6 +583,20 @@ export default function ContractDetailsModal({
                                                 <p className="text-xs text-gray-500 mt-1">Carga préstamos o acuerdos para que se cobren en las liquidaciones.</p>
                                             </div>
                                         )}
+                                    </div>
+                                ) : activeTab === 'audit' ? (
+                                    <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                                                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Creado por</p>
+                                                <p className="text-sm font-semibold text-gray-800">{contract.creadoPor?.nombreCompleto || "Sin dato"}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+                                                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Última modificación</p>
+                                                <p className="text-sm font-semibold text-gray-800">{contract.actualizadoPor?.nombreCompleto || "Sin dato"}</p>
+                                            </div>
+                                        </div>
+                                        <AuditTrail logs={contract.auditLogs} emptyText="Este contrato todavía no tiene eventos de auditoría." />
                                     </div>
                                 ) : null}
 

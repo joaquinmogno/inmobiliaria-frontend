@@ -1,6 +1,7 @@
 import api from './api';
 import type { Contract } from './contracts.service';
 import type { Pago } from './pagos.service';
+import type { AuditLogItem } from '../components/AuditTrail';
 
 export type EstadoLiquidacion = 'BORRADOR' | 'PENDIENTE_PAGO' | 'PAGADA_POR_INQUILINO' | 'LIQUIDADA';
 export type TipoMovimiento = 'INGRESO' | 'DESCUENTO';
@@ -32,6 +33,9 @@ export interface Liquidacion {
     contrato?: Contract;
     movimientos?: Movimiento[];
     pagos?: Pago[];
+    auditLogs?: AuditLogItem[];
+    creadoPor?: { id: number; nombreCompleto: string; email: string };
+    cerradoPor?: { id: number; nombreCompleto: string; email: string };
 }
 
 export interface PaginatedResponse<T> {

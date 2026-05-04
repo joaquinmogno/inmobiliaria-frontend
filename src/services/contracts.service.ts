@@ -1,4 +1,5 @@
 import api from './api';
+import type { AuditLogItem } from '../components/AuditTrail';
 
 export type EstadoContrato = 'ACTIVO' | 'PAPELERA' | 'FINALIZADO' | 'RESCINDIDO';
 export type PagadorHonorarios = 'INQUILINO' | 'PROPIETARIO';
@@ -62,6 +63,9 @@ export interface Contract {
         nombreArchivo: string | null;
     }[];
     actualizaciones?: ContractUpdateHistory[];
+    auditLogs?: AuditLogItem[];
+    creadoPor?: { id: number; nombreCompleto: string; email: string };
+    actualizadoPor?: { id: number; nombreCompleto: string; email: string };
 }
 
 export const getDaysLeft = (dateString: string) => {
