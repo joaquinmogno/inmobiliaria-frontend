@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { createPortal } from "react-dom";
+import { useState, useEffect, Fragment } from "react";
 import { useNavigate } from "react-router-dom";
+import { Menu, MenuButton, MenuItem, MenuItems, Transition } from "@headlessui/react";
 import { liquidacionesService, type Liquidacion } from "../services/liquidaciones.service";
 import { contractsService, type Contract } from "../services/contracts.service";
 import {
@@ -32,9 +32,6 @@ export default function Liquidaciones() {
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
-    const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
-    const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
-    const buttonRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
     const navigate = useNavigate();
 
     const [isNewModalOpen, setIsNewModalOpen] = useState(false);
@@ -145,14 +142,12 @@ export default function Liquidaciones() {
     const handleDelete = (id: number) => {
         setLiqToDelete(id);
         setIsDeleteModalOpen(true);
-        setActiveMenuId(null);
     };
 
     const handleOpenOwnerPayment = (liq: Liquidacion) => {
         setSelectedLiq(liq);
         setSuggestedPaymentAmount(Number(liq.netoACobrar));
         setIsOwnerPaymentModalOpen(true);
-        setActiveMenuId(null);
     };
 
     const handleSaveOwnerPayment = async (p: { fechaPago: string, metodoPago: string, observaciones?: string }) => {
@@ -182,22 +177,6 @@ export default function Liquidaciones() {
         }
     };
 
-    const toggleMenu = useCallback((id: number) => {
-        if (activeMenuId === id) {
-            setActiveMenuId(null);
-            return;
-        }
-        const btn = buttonRefs.current.get(id);
-        if (btn) {
-            const rect = btn.getBoundingClientRect();
-            setMenuPosition({
-                top: rect.bottom + window.scrollY + 4,
-                right: window.innerWidth - rect.right,
-            });
-        }
-        setActiveMenuId(id);
-    }, [activeMenuId]);
-
     const getStatusBadge = (estado: string) => {
         switch (estado) {
             case 'BORRADOR':
@@ -212,8 +191,6 @@ export default function Liquidaciones() {
                 return <span className="text-gray-500 font-medium">{estado}</span>;
         }
     };
-
-
 
     return (
         <div className="max-w-7xl mx-auto space-y-6">
@@ -381,16 +358,64 @@ export default function Liquidaciones() {
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button
-                                                ref={(el) => {
-                                                    if (el) buttonRefs.current.set(liq.id, el);
-                                                    else buttonRefs.current.delete(liq.id);
-                                                }}
-                                                onClick={() => toggleMenu(liq.id)}
-                                                className="text-gray-400 hover:text-indigo-600 p-1.5 rounded-xl hover:bg-white transition-all cursor-pointer"
-                                            >
-                                                <EllipsisVerticalIcon className="w-5 h-5" />
-                                            </button>
+                                            <Menu as="div" className="relative inline-block text-left">
+                                                <MenuButton className="text-gray-400 hover:text-indigo-600 p-1.5 rounded-xl hover:bg-white transition-all cursor-pointer">
+                                                    <EllipsisVerticalIcon className="w-5 h-5" />
+                                                </MenuButton>
+                                                <Transition
+                                                    as={Fragment}
+                                                    enter="transition ease-out duration-100"
+                                                    enterFrom="transform opacity-0 scale-95"
+                                                    enterTo="transform opacity-100 scale-100"
+                                                    leave="transition ease-in duration-75"
+                                                    leaveFrom="transform opacity-100 scale-100"
+                                                    leaveTo="transform opacity-0 scale-95"
+                                                >
+                                                    <MenuItems className="absolute right-0 z-50 mt-2 w-52 origin-top-right rounded-xl shadow-xl bg-white ring-1 ring-black/5 focus:outline-none divide-y divide-gray-50 overflow-hidden border border-gray-100">
+                                                        <div className="py-1">
+                                                            <MenuItem>
+                                                                {({ focus }) => (
+                                                                    <button
+                                                                        onClick={() => navigate(`/liquidaciones/${liq.id}`)}
+                                                                        className={`${focus ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'} group flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors`}
+                                                                    >
+                                                                        <EyeIcon className="w-4 h-4 text-indigo-500" />
+                                                                        Ver detalle
+                                                                    </button>
+                                                                )}
+                                                            </MenuItem>
+                                                        </div>
+                                                        <div className="py-1">
+                                                            {liq.estado === 'PAGADA_POR_INQUILINO' && (
+                                                                <MenuItem>
+                                                                    {({ focus }) => (
+                                                                        <button
+                                                                            onClick={() => handleOpenOwnerPayment(liq)}
+                                                                            className={`${focus ? 'bg-orange-50 text-orange-700' : 'text-orange-700'} group flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors`}
+                                                                        >
+                                                                            <BanknotesIcon className="w-4 h-4 text-orange-500" />
+                                                                            Pagar a Propietario
+                                                                        </button>
+                                                                    )}
+                                                                </MenuItem>
+                                                            )}
+                                                            {liq.estado === 'BORRADOR' && (
+                                                                <MenuItem>
+                                                                    {({ focus }) => (
+                                                                        <button
+                                                                            onClick={() => handleDelete(liq.id)}
+                                                                            className={`${focus ? 'bg-red-50 text-red-700' : 'text-red-600'} group flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors`}
+                                                                        >
+                                                                            <TrashIcon className="w-4 h-4 text-red-500" />
+                                                                            Eliminar
+                                                                        </button>
+                                                                    )}
+                                                                </MenuItem>
+                                                            )}
+                                                        </div>
+                                                    </MenuItems>
+                                                </Transition>
+                                            </Menu>
                                         </td>
                                     </tr>
                                 );
@@ -452,25 +477,6 @@ export default function Liquidaciones() {
                                         )}
                                     </div>
                                 </div>
-                                <div className="relative" id={`menu-mobile-${liq.id}`}>
-                                    {activeMenuId === liq.id && createPortal(
-                                        <div className="fixed inset-0 z-[100]" onClick={() => setActiveMenuId(null)}>
-                                          <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-[101] p-4 pb-8 border-t border-gray-100" onClick={e => e.stopPropagation()}>
-                                              <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4" />
-                                              <h3 className="text-center font-bold text-gray-900 mb-4 px-2 line-clamp-1">{formatFullAddress(liq.contrato?.propiedad)} - {formatPeriodShort(liq.periodo)}</h3>
-                                              <div className="flex flex-col gap-2">
-                                                  <button onClick={() => { navigate(`/liquidaciones/${liq.id}`); setActiveMenuId(null); }} className="w-full text-left px-4 py-3 bg-indigo-50 rounded-xl text-indigo-700 flex items-center gap-3"><EyeIcon className="w-5 h-5 text-indigo-500" /> Ver detalle y pagos</button>
-                                                  {liq.estado === 'PAGADA_POR_INQUILINO' && (
-                                                      <button onClick={() => handleOpenOwnerPayment(liq)} className="w-full text-left px-4 py-3 bg-orange-50 rounded-xl text-orange-700 flex items-center gap-3 mt-2"><BanknotesIcon className="w-5 h-5 text-orange-500" /> Entregar a Propietario</button>
-                                                  )}
-                                                  {liq.estado === 'BORRADOR' && (
-                                                      <button onClick={() => handleDelete(liq.id)} className="w-full text-left px-4 py-3 bg-red-50 rounded-xl text-red-700 flex items-center gap-3 mt-2"><TrashIcon className="w-5 h-5 text-red-500" /> Eliminar borrador</button>
-                                                  )}
-                                              </div>
-                                          </div>
-                                        </div>, document.body
-                                    )}
-                                </div>
                                 
                                 <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col gap-2">
                                     <div className="flex justify-between items-center bg-white p-2 border border-gray-100 rounded-lg">
@@ -496,9 +502,62 @@ export default function Liquidaciones() {
                                     </div>
                                 </div>
                                 
-                                <button className="mt-1 w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-600 rounded-xl py-2 text-sm font-bold hover:bg-gray-50 transition-colors" onClick={() => toggleMenu(liq.id)}>
-                                    <EllipsisVerticalIcon className="w-5 h-5 text-gray-400" /> Opciones Avanzadas
-                                </button>
+                                <Menu as="div" className="relative w-full">
+                                    <MenuButton className="mt-1 w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-600 rounded-xl py-2.5 text-sm font-bold hover:bg-gray-50 transition-colors cursor-pointer">
+                                        <EllipsisVerticalIcon className="w-5 h-5 text-gray-400" /> Opciones Avanzadas
+                                    </MenuButton>
+                                    <Transition
+                                        as={Fragment}
+                                        enter="transition ease-out duration-100"
+                                        enterFrom="transform opacity-0 scale-95"
+                                        enterTo="transform opacity-100 scale-100"
+                                        leave="transition ease-in duration-75"
+                                        leaveFrom="transform opacity-100 scale-100"
+                                        leaveTo="transform opacity-0 scale-95"
+                                    >
+                                        <MenuItems className="absolute right-0 z-50 bottom-full mb-2 w-full origin-bottom rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 focus:outline-none divide-y divide-gray-50 overflow-hidden border border-gray-100">
+                                            <div className="py-1">
+                                                <MenuItem>
+                                                    {({ focus }) => (
+                                                        <button
+                                                            onClick={() => navigate(`/liquidaciones/${liq.id}`)}
+                                                            className={`${focus ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'} group flex w-full items-center gap-3 px-4 py-4 text-sm font-bold transition-colors`}
+                                                        >
+                                                            <EyeIcon className="w-6 h-6 text-indigo-500" />
+                                                            Ver detalle y pagos
+                                                        </button>
+                                                    )}
+                                                </MenuItem>
+                                                {liq.estado === 'PAGADA_POR_INQUILINO' && (
+                                                    <MenuItem>
+                                                        {({ focus }) => (
+                                                            <button
+                                                                onClick={() => handleOpenOwnerPayment(liq)}
+                                                                className={`${focus ? 'bg-orange-50 text-orange-700' : 'text-orange-700'} group flex w-full items-center gap-3 px-4 py-4 text-sm font-bold transition-colors`}
+                                                            >
+                                                                <BanknotesIcon className="w-6 h-6 text-orange-500" />
+                                                                Entregar a Propietario
+                                                            </button>
+                                                        )}
+                                                    </MenuItem>
+                                                )}
+                                                {liq.estado === 'BORRADOR' && (
+                                                    <MenuItem>
+                                                        {({ focus }) => (
+                                                            <button
+                                                                onClick={() => handleDelete(liq.id)}
+                                                                className={`${focus ? 'bg-red-50 text-red-700' : 'text-red-700'} group flex w-full items-center gap-3 px-4 py-4 text-sm font-bold transition-colors`}
+                                                            >
+                                                                <TrashIcon className="w-6 h-6 text-red-500" />
+                                                                Eliminar borrador
+                                                            </button>
+                                                        )}
+                                                    </MenuItem>
+                                                )}
+                                            </div>
+                                        </MenuItems>
+                                    </Transition>
+                                </Menu>
                             </div>
                         );
                     })}
@@ -518,57 +577,6 @@ export default function Liquidaciones() {
                             <p className="text-gray-900 font-bold">No se encontraron liquidaciones</p>
                         </div>
                     )}
-                </div>
-
-                {/* Dropdown portal PC — rendered outside table to avoid overflow clipping */}
-                <div className="hidden md:block">
-                {activeMenuId !== null && createPortal(
-                    <div className="hidden md:block">
-                        <div
-                            className="fixed inset-0 z-[100]"
-                            onClick={() => setActiveMenuId(null)}
-                        />
-                        <div
-                            className="absolute z-[101] w-52 rounded-xl shadow-xl bg-white ring-1 ring-black/5 py-1 overflow-hidden border border-gray-100"
-                            style={{ top: menuPosition.top, right: menuPosition.right }}
-                        >
-                            {(() => {
-                                const liq = currentItems.find(l => l.id === activeMenuId);
-                                if (!liq) return null;
-                                return (
-                                    <>
-                                        <button
-                                            onClick={() => { navigate(`/liquidaciones/${liq.id}`); setActiveMenuId(null); }}
-                                            className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-indigo-50 flex items-center gap-2 transition-colors cursor-pointer"
-                                        >
-                                            <EyeIcon className="w-4 h-4 text-indigo-500" />
-                                            Ver detalle
-                                        </button>
-                                        {liq.estado === 'PAGADA_POR_INQUILINO' && (
-                                            <button
-                                                onClick={() => handleOpenOwnerPayment(liq)}
-                                                className="w-full text-left px-4 py-2.5 text-sm text-orange-700 hover:bg-orange-50 flex items-center gap-2 transition-colors cursor-pointer"
-                                            >
-                                                <BanknotesIcon className="w-4 h-4 text-orange-500" />
-                                                Pagar a Propietario
-                                            </button>
-                                        )}
-                                        {liq.estado === 'BORRADOR' && (
-                                            <button
-                                                onClick={() => handleDelete(liq.id)}
-                                                className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors cursor-pointer"
-                                            >
-                                                <TrashIcon className="w-4 h-4 text-red-500" />
-                                                Eliminar
-                                            </button>
-                                        )}
-                                    </>
-                                );
-                            })()}
-                        </div>
-                    </div>,
-                    document.body
-                )}
                 </div>
 
                 {/* Pagination Footer */}

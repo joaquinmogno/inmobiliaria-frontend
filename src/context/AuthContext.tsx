@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { authService, type User } from '../services/auth.service';
 
 interface AuthContextType {
@@ -16,6 +16,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(true);
+
+    const logout = useCallback(() => {
+        authService.logout();
+        setUser(null);
+        setIsAuthenticated(false);
+    }, []);
 
     useEffect(() => {
         const handleLogoutEvent = () => {
@@ -38,19 +44,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return () => {
             window.removeEventListener('logout', handleLogoutEvent);
         };
-    }, []);
+    }, [logout]);
 
     const login = (token: string, userData: User) => {
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
         setIsAuthenticated(true);
-    };
-
-    const logout = () => {
-        authService.logout();
-        setUser(null);
-        setIsAuthenticated(false);
     };
 
     const updateInmobiliaria = (nombre: string) => {

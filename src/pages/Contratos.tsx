@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { useState, useEffect, Fragment } from "react";
 import { useLocation } from "react-router-dom";
+import { Menu, MenuButton, MenuItem, MenuItems, Transition } from "@headlessui/react";
 import { contractsService, type Contract } from "../services/contracts.service";
 import { openAuthenticatedFile } from "../services/api";
 import {
@@ -26,7 +26,6 @@ export default function Contratos() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
   const [, setIsLoading] = useState(true);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -94,12 +93,7 @@ export default function Contratos() {
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
       setCurrentPage(newPage);
-      setActiveMenuId(null); // Close any open menus
     }
-  };
-
-  const toggleMenu = (id: number) => {
-    setActiveMenuId(activeMenuId === id ? null : id);
   };
 
   // Helper to format address
@@ -116,7 +110,6 @@ export default function Contratos() {
   const handleEdit = (contract: Contract) => {
     setEditingContract(contract);
     setIsModalOpen(true);
-    setActiveMenuId(null);
   };
 
   const handleCloseModal = () => {
@@ -205,7 +198,6 @@ export default function Contratos() {
   const handleViewDetails = (contract: Contract) => {
     setSelectedContract(contract);
     setIsDetailsModalOpen(true);
-    setActiveMenuId(null);
   };
 
   const handleDelete = (id: number) => {
@@ -221,12 +213,9 @@ export default function Contratos() {
         await contractsService.delete(contractToDelete);
         toast.success("Contrato eliminado correctamente");
         refreshData(debouncedSearch);
-        setActiveMenuId(null);
       } catch (error) {
-
         toast.error("Error al eliminar el contrato");
       } finally {
-
         setContractToDelete(null);
       }
     }
@@ -427,68 +416,83 @@ export default function Contratos() {
                     </td>
 
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <div className="relative inline-block text-left" id={`menu-button-${contract.id}`}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleMenu(contract.id);
-                          }}
-                          className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
+                      <Menu as="div" className="inline-block text-left">
+                        <div>
+                          <MenuButton className="text-gray-400 hover:text-indigo-600 p-1.5 rounded-full hover:bg-indigo-50 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                            <EllipsisVerticalIcon className="w-5 h-5" />
+                          </MenuButton>
+                        </div>
+                        <Transition
+                          as={Fragment}
+                          enter="transition ease-out duration-100"
+                          enterFrom="transform opacity-0 scale-95"
+                          enterTo="transform opacity-100 scale-100"
+                          leave="transition ease-in duration-75"
+                          leaveFrom="transform opacity-100 scale-100"
+                          leaveTo="transform opacity-0 scale-95"
                         >
-                          <EllipsisVerticalIcon className="w-5 h-5" />
-                        </button>
-
-                        {/* Dropdown Menu via Portal */}
-                        {activeMenuId === contract.id && createPortal(
-                          <>
-                            <div
-                              className="fixed inset-0 z-[100]"
-                              onClick={() => setActiveMenuId(null)}
-                            />
-                            <div 
-                              className="absolute w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-[101] py-1"
-                              style={{
-                                top: (document.getElementById(`menu-button-${contract.id}`)?.getBoundingClientRect().bottom || 0) + window.scrollY + 8,
-                                left: (document.getElementById(`menu-button-${contract.id}`)?.getBoundingClientRect().right || 0) - 192,
-                              }}
-                            >
-                            <button
-                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"
-                              onClick={() => handleViewDetails(contract)}
-                            >
-                              <EyeIcon className="w-4 h-4 text-gray-500" />
-                              Ver detalles
-                            </button>
-                            <button
-                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"
-                              onClick={() => {
-                                handleViewPdf(contract.rutaPdf);
-                                setActiveMenuId(null);
-                              }}
-                            >
-                              <DocumentTextIcon className="w-4 h-4 text-gray-500" />
-                              Ver contrato
-                            </button>
-                            <button
-                              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 cursor-pointer"
-                              onClick={() => handleEdit(contract)}
-                            >
-                              <PencilSquareIcon className="w-4 h-4 text-gray-500" />
-                              Editar
-                            </button>
-                            <button
-                              className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
-                              onClick={() => handleDelete(contract.id)}
-                            >
-                              <TrashIcon className="w-4 h-4 text-red-500" />
-                              Eliminar
-                            </button>
-                          </div>
-                        </>,
-                        document.body
-                      )}
-                    </div>
-                  </td>
+                          <MenuItems 
+                            anchor="bottom end"
+                            className="z-[100] w-52 origin-top-right rounded-xl bg-white shadow-2xl ring-1 ring-black/5 focus:outline-none divide-y divide-gray-50 overflow-hidden border border-gray-100 [--anchor-gap:8px]"
+                          >
+                            <div className="py-1">
+                              <MenuItem>
+                                {({ focus }) => (
+                                  <button
+                                    onClick={() => handleViewDetails(contract)}
+                                    className={`${focus ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
+                                      } group flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors`}
+                                  >
+                                    <EyeIcon className="w-4 h-4" />
+                                    Ver detalles
+                                  </button>
+                                )}
+                              </MenuItem>
+                              <MenuItem>
+                                {({ focus }) => (
+                                  <button
+                                    onClick={() => handleViewPdf(contract.rutaPdf)}
+                                    className={`${focus ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
+                                      } group flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors`}
+                                  >
+                                    <DocumentTextIcon className="w-4 h-4" />
+                                    Ver contrato
+                                  </button>
+                                )}
+                              </MenuItem>
+                            </div>
+                            <div className="py-1">
+                              <MenuItem>
+                                {({ focus }) => (
+                                  <button
+                                    onClick={() => handleEdit(contract)}
+                                    className={`${focus ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                                      } group flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors`}
+                                  >
+                                    <PencilSquareIcon className="w-4 h-4" />
+                                    Editar
+                                  </button>
+                                )}
+                              </MenuItem>
+                            </div>
+                            <div className="py-1">
+                              <MenuItem>
+                                {({ focus }) => (
+                                  <button
+                                    onClick={() => handleDelete(contract.id)}
+                                    className={`${focus ? 'bg-red-50 text-red-700' : 'text-red-600'
+                                      } group flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors`}
+                                  >
+                                    <TrashIcon className="w-4 h-4" />
+                                    Eliminar
+                                  </button>
+                                )}
+                              </MenuItem>
+                            </div>
+                          </MenuItems>
+                        </Transition>
+                      </Menu>
+                    </td>
                   </tr>
                 ))
               ) : (
@@ -525,25 +529,76 @@ export default function Contratos() {
                                   )}
                              </div>
                         </div>
-                        <div className="relative" id={`menu-mobile-${contract.id}`}>
-                            <button onClick={(e) => { e.stopPropagation(); toggleMenu(contract.id); }} className="p-1 text-gray-400 hover:text-indigo-600">
+                        <Menu as="div" className="relative">
+                            <MenuButton className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-200 cursor-pointer focus:outline-none">
                                 <EllipsisVerticalIcon className="w-6 h-6" />
-                            </button>
-                            {activeMenuId === contract.id && createPortal(
-                                <div className="fixed inset-0 z-[100]" onClick={() => setActiveMenuId(null)}>
-                                  <div className="fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl shadow-2xl z-[101] p-4 pb-8 border-t border-gray-100" onClick={e => e.stopPropagation()}>
-                                      <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-4" />
-                                      <h3 className="text-center font-bold text-gray-900 mb-4 px-2 line-clamp-1">{formatAddress(contract.propiedad)}</h3>
-                                      <div className="flex flex-col gap-2">
-                                          <button onClick={() => handleViewDetails(contract)} className="w-full text-left px-4 py-3 bg-gray-50 rounded-xl text-gray-700 flex items-center gap-3"><EyeIcon className="w-5 h-5 text-indigo-500" /> Ver detalles</button>
-                                          <button onClick={() => { handleViewPdf(contract.rutaPdf); setActiveMenuId(null); }} className="w-full text-left px-4 py-3 bg-gray-50 rounded-xl text-gray-700 flex items-center gap-3"><DocumentTextIcon className="w-5 h-5 text-indigo-500" /> Ver contrato PDF</button>
-                                          <button onClick={() => handleEdit(contract)} className="w-full text-left px-4 py-3 bg-blue-50 rounded-xl text-blue-700 flex items-center gap-3"><PencilSquareIcon className="w-5 h-5 text-blue-500" /> Editar contrato</button>
-                                          <button onClick={() => handleDelete(contract.id)} className="w-full text-left px-4 py-3 bg-red-50 rounded-xl text-red-700 flex items-center gap-3 mt-2"><TrashIcon className="w-5 h-5 text-red-500" /> Eliminar</button>
-                                      </div>
-                                  </div>
-                                </div>, document.body
-                            )}
-                        </div>
+                            </MenuButton>
+                            <Transition
+                                as={Fragment}
+                                enter="transition ease-out duration-100"
+                                enterFrom="transform opacity-0 scale-95"
+                                enterTo="transform opacity-100 scale-100"
+                                leave="transition ease-in duration-75"
+                                leaveFrom="transform opacity-100 scale-100"
+                                leaveTo="transform opacity-0 scale-95"
+                            >
+                                <MenuItems 
+                                  anchor="bottom end"
+                                  className="z-[100] w-60 origin-top-right rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 focus:outline-none divide-y divide-gray-50 overflow-hidden border border-gray-100 [--anchor-gap:8px]"
+                                >
+                                    <div className="py-1">
+                                        <MenuItem>
+                                            {({ focus }) => (
+                                                <button
+                                                    onClick={() => handleViewDetails(contract)}
+                                                    className={`${focus ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'} group flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors`}
+                                                >
+                                                    <EyeIcon className="w-5 h-5 text-indigo-500" />
+                                                    Ver detalles
+                                                </button>
+                                            )}
+                                        </MenuItem>
+                                        <MenuItem>
+                                            {({ focus }) => (
+                                                <button
+                                                    onClick={() => handleViewPdf(contract.rutaPdf)}
+                                                    className={`${focus ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'} group flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors`}
+                                                >
+                                                    <DocumentTextIcon className="w-5 h-5 text-indigo-500" />
+                                                    Ver contrato PDF
+                                                </button>
+                                            )}
+                                        </MenuItem>
+                                    </div>
+                                    <div className="py-1">
+                                        <MenuItem>
+                                            {({ focus }) => (
+                                                <button
+                                                    onClick={() => handleEdit(contract)}
+                                                    className={`${focus ? 'bg-blue-50 text-blue-700' : 'text-gray-700'} group flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors`}
+                                                >
+                                                    <PencilSquareIcon className="w-5 h-5 text-blue-500" />
+                                                    Editar contrato
+                                                </button>
+                                            )}
+                                        </MenuItem>
+                                    </div>
+                                    <div className="py-1">
+                                        <MenuItem>
+                                            {({ focus }) => (
+                                                <button
+                                                    onClick={() => handleDelete(contract.id)}
+                                                    className={`${focus ? 'bg-red-50 text-red-700' : 'text-red-600'} group flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors`}
+                                                >
+                                                    <TrashIcon className="w-5 h-5 text-red-500" />
+                                                    Eliminar
+                                                </button>
+                                            )}
+                                        </MenuItem>
+                                    </div>
+                                </MenuItems>
+                            </Transition>
+                        </Menu>
                     </div>
                     
                     <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 text-sm flex flex-col gap-2 mt-1">
