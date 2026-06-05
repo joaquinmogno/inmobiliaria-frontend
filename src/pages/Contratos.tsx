@@ -152,15 +152,14 @@ export default function Contratos() {
         toast.success("Contrato actualizado correctamente");
       } else {
         // Create Logic
-        formData.append('propiedadId', data.propertyId.toString());
-        
-        // Append all owner and tenant IDs
-        data.propietarioIds.forEach((id: number) => {
-            formData.append('propietarioIds', id.toString());
-        });
-        data.inquilinoIds.forEach((id: number) => {
-            formData.append('inquilinoIds', id.toString());
-        });
+        if (data.propiedadId) {
+          formData.append('propiedadId', data.propiedadId.toString());
+        }
+        if (data.propiedad) {
+          formData.append('propiedad', JSON.stringify(data.propiedad));
+        }
+        formData.append('propietarios', JSON.stringify(data.propietarios));
+        formData.append('inquilinos', JSON.stringify(data.inquilinos));
 
         if (data.honorarioInicial) {
             formData.append('honorarioInicial', data.honorarioInicial.toString());
