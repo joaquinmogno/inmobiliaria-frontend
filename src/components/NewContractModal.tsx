@@ -302,55 +302,29 @@ export default function NewContractModal({
             return;
         }
 
-        // 1. Process Owners
-        const ownerIds = [];
-        for (const owner of owners) {
-            if (owner.id) {
-                ownerIds.push(owner.id);
-            } else {
-                const created = await personasService.create({
-                    nombreCompleto: owner.nombreCompleto,
-                    telefono: owner.telefono,
-                    estado: 'ACTIVO'
-                });
-                ownerIds.push(created.id);
-            }
-        }
-
-        // 2. Process Tenants
-        const tenantIds = [];
-        for (const tenant of tenants) {
-            if (tenant.id) {
-                tenantIds.push(tenant.id);
-            } else {
-                const created = await personasService.create({
-                    nombreCompleto: tenant.nombreCompleto,
-                    telefono: tenant.telefono,
-                    estado: 'ACTIVO'
-                });
-                tenantIds.push(created.id);
-            }
-        }
-
-        // 3. Process Property
-        let propertyId = selectedProperty?.id;
-        if (!propertyId) {
-            const property = await propertiesService.create({
+        const dataToSave = {
+            ...formData,
+            propiedadId: selectedProperty?.id,
+            propiedad: selectedProperty ? undefined : {
                 direccion: formData.address,
                 piso: formData.floor || null,
                 departamento: formData.unit || null,
                 tipo: 'DEPARTAMENTO',
                 estado: 'DISPONIBLE',
                 observaciones: null
-            });
-            propertyId = property.id;
-        }
-
-        const dataToSave = {
-            ...formData,
-            propertyId,
-            propietarioIds: ownerIds,
-            inquilinoIds: tenantIds,
+            },
+            propietarios: owners.map(owner => ({
+                id: owner.id,
+                nombreCompleto: owner.nombreCompleto.trim(),
+                telefono: owner.telefono.trim() || null,
+                estado: 'ACTIVO'
+            })),
+            inquilinos: tenants.map(tenant => ({
+                id: tenant.id,
+                nombreCompleto: tenant.nombreCompleto.trim(),
+                telefono: tenant.telefono.trim() || null,
+                estado: 'ACTIVO'
+            })),
             administrado: formData.administrado,
             honorarioInicial: formData.honorarioInicial,
             honorarioInicialMetodoPago: formData.honorarioInicialMetodoPago

@@ -3,6 +3,29 @@ const BASE_URL = envUrl
     ? (envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`) 
     : 'http://localhost:3000/api';
 
+const formatErrorDetails = (errorData: any) => {
+    if (!errorData) return null;
+
+    if (Array.isArray(errorData.errors)) {
+        return errorData.errors
+            .map((issue: { field?: string; message?: string }) =>
+                issue.field ? `${issue.field}: ${issue.message}` : issue.message
+            )
+            .filter(Boolean)
+            .join(" | ");
+    }
+
+    if (typeof errorData.details === 'string') {
+        return errorData.details;
+    }
+
+    if (Array.isArray(errorData.details)) {
+        return errorData.details.join(" | ");
+    }
+
+    return null;
+};
+
 interface RequestOptions extends RequestInit {
     params?: Record<string, string>;
 }
@@ -42,7 +65,9 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.details || errorData.message || `HTTP error! status: ${response.status}`);
+        const details = formatErrorDetails(errorData);
+        const requestIdSuffix = errorData.requestId ? ` [ref: ${errorData.requestId}]` : "";
+        throw new Error((details || errorData.message || `HTTP error! status: ${response.status}`) + requestIdSuffix);
     }
 
     // Some endpoints might return empty response
