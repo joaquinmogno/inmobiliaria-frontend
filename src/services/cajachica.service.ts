@@ -1,4 +1,5 @@
 import api from './api';
+import type { Moneda } from '../utils/currency';
 
 export type CuentaCaja = 'CAJA' | 'BANCO';
 
@@ -6,7 +7,8 @@ export interface MovimientoCaja {
     id: number;
     tipo: 'INGRESO' | 'EGRESO';
     concepto: string;
-    monto: number | string;
+	    monto: number | string;
+	    moneda: Moneda;
     fecha: string;
     metodoPago: string;
     cuenta: CuentaCaja;
@@ -33,7 +35,26 @@ export interface CajaChicaResponse {
         totalIngresos: number;
         totalEgresos: number;
         balanceCaja: number;
-        balanceBanco: number;
+	        balanceBanco: number;
+	        totalIngresosARS: number;
+	        totalEgresosARS: number;
+	        balanceARS: number;
+	        totalIngresosUSD: number;
+	        totalEgresosUSD: number;
+	        balanceUSD: number;
+	        totalesPorMoneda: Record<Moneda, {
+	            totalIngresos: number;
+	            totalEgresos: number;
+	            balance: number;
+	            balanceCaja: number;
+	            balanceBanco: number;
+	            totalCobrado: number;
+	            totalPagadoPropietarios: number;
+	            gastosGenerales: number;
+	            gananciaBruta: number;
+	            resultadoNeto: number;
+	            fondosEnCustodia: number;
+	        }>;
         totalCobrado: number;
         totalPagadoPropietarios: number;
         gastosGenerales: number;
@@ -58,7 +79,8 @@ export const cajachicaService = {
     create: async (data: {
         tipo: 'INGRESO' | 'EGRESO';
         concepto: string;
-        monto: number;
+	        monto: number;
+	        moneda?: Moneda;
         fecha: string;
         metodoPago: string;
         cuenta?: CuentaCaja;

@@ -1,12 +1,14 @@
 import api from './api';
 import type { Liquidacion, PaginatedResponse } from './liquidaciones.service';
 import type { AuditLogItem } from '../components/AuditTrail';
+import type { Moneda } from '../utils/currency';
 
 export type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA' | 'CHEQUE' | 'OTROS';
 
 export interface Pago {
     id: number;
-    monto: number;
+	    monto: number;
+	    moneda: Moneda;
     fechaPago: string;
     metodoPago: MetodoPago;
     observaciones: string | null;
@@ -20,11 +22,13 @@ export interface Pago {
 
 export interface DeudaResumen {
     totalDeuda: number;
+    moneda: Moneda;
     detalle: {
         periodo: string;
         neto: number;
         pagado: number;
         deuda: number;
+        moneda: Moneda;
         estado: string;
     }[];
 }

@@ -1,8 +1,10 @@
 import api from './api';
+import type { Moneda } from '../utils/currency';
 
 export interface PagoSueldo {
     id: number;
-    monto: number;
+	    monto: number;
+	    moneda: Moneda;
     fecha: string;
     periodo: string;
     metodoPago: string;
@@ -24,7 +26,8 @@ export const sueldosService = {
     },
     create: async (data: {
         usuarioId: number;
-        monto: number;
+	        monto: number;
+	        moneda?: Moneda;
         fecha: string;
         periodo: string;
         metodoPago?: string;
@@ -34,7 +37,8 @@ export const sueldosService = {
     },
     update: async (id: number, data: Partial<{
         usuarioId: number;
-        monto: number;
+	        monto: number;
+	        moneda: Moneda;
         fecha: string;
         periodo: string;
         metodoPago: string;

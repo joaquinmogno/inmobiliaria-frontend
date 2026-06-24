@@ -2,6 +2,7 @@ import { useState, Fragment, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import NumericInput from "./NumericInput";
+import type { Moneda } from "../utils/currency";
 
 interface HonorariosModalProps {
     isOpen: boolean;
@@ -9,9 +10,10 @@ interface HonorariosModalProps {
     onSave: (data: { montoHonorarios: number, porcentajeHonorarios?: number }) => void;
     currentMonto: number;
     currentPorcentaje: number | null;
+    moneda?: Moneda;
 }
 
-export default function HonorariosModal({ isOpen, onClose, onSave, currentMonto, currentPorcentaje }: HonorariosModalProps) {
+export default function HonorariosModal({ isOpen, onClose, onSave, currentMonto, currentPorcentaje, moneda = "ARS" }: HonorariosModalProps) {
     const [monto, setMonto] = useState<string>("");
     const [porcentaje, setPorcentaje] = useState<string>("");
 
@@ -77,12 +79,13 @@ export default function HonorariosModal({ isOpen, onClose, onSave, currentMonto,
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Monto Fijo ($)</label>
+                                        <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Monto Fijo ({moneda})</label>
                                         <NumericInput
                                             className="w-full rounded-lg border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-bold"
                                             value={monto}
                                             onChange={(val) => setMonto(val.toString())}
                                             required
+                                            icon={moneda === "USD" ? "US$" : "$"}
                                         />
                                     </div>
                                     <div className="flex justify-end gap-3 mt-8">

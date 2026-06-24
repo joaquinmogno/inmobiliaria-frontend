@@ -20,6 +20,7 @@ import NewLiquidationModal from "../components/NewLiquidationModal";
 import OwnerPaymentModal from "../components/OwnerPaymentModal";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
+import { formatCurrency } from "../utils/currency";
 
 export default function Liquidaciones() {
     const { user } = useAuth();
@@ -151,8 +152,9 @@ export default function Liquidaciones() {
     };
 
     const handleOpenOwnerPayment = (liq: Liquidacion) => {
+        const movsInmo = liq.movimientos?.filter((m: any) => m.esParaInmobiliaria).reduce((acc: number, m: any) => acc + Number(m.monto), 0) || 0;
         setSelectedLiq(liq);
-        setSuggestedPaymentAmount(Number(liq.netoACobrar));
+        setSuggestedPaymentAmount(Number(liq.netoACobrar) - Number(liq.montoHonorarios || 0) - movsInmo);
         setIsOwnerPaymentModalOpen(true);
     };
 
@@ -342,17 +344,17 @@ export default function Liquidaciones() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right">
                                             <span className="text-sm font-bold text-gray-900">
-                                                ${Number(liq.netoACobrar).toLocaleString('es-AR')}
+	                                                {formatCurrency(liq.netoACobrar, liq.moneda)}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right">
                                             <span className="text-sm font-medium text-green-600">
-                                                ${totalPagado.toLocaleString('es-AR')}
+	                                                {formatCurrency(totalPagado, liq.moneda)}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right">
                                             <span className={`text-sm font-black ${deuda > 0 ? 'text-red-600' : 'text-gray-400 font-medium'}`}>
-                                                {deuda > 0 ? `$${deuda.toLocaleString('es-AR')}` : '-'}
+	                                                {deuda > 0 ? formatCurrency(deuda, liq.moneda) : '-'}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -491,9 +493,9 @@ export default function Liquidaciones() {
                                             <span className="font-semibold text-gray-700 text-sm">{liq.contrato?.inquilinos.find((i: any) => i.esPrincipal)?.persona.nombreCompleto || '-'}</span>
                                         </div>
                                         <div className="flex flex-col items-end">
-                                            <span className="text-sm font-black text-gray-900">${Number(liq.netoACobrar).toLocaleString('es-AR')}</span>
+	                                            <span className="text-sm font-black text-gray-900">{formatCurrency(liq.netoACobrar, liq.moneda)}</span>
                                             <span className={`text-[11px] font-bold ${deuda > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                                {deuda > 0 ? `DEBE: $${deuda.toLocaleString('es-AR')}` : 'PAGADO'}
+	                                                {deuda > 0 ? `DEBE: ${formatCurrency(deuda, liq.moneda)}` : 'PAGADO'}
                                             </span>
                                         </div>
                                     </div>
@@ -503,7 +505,7 @@ export default function Liquidaciones() {
                                             <span className="font-semibold text-gray-700 text-sm">{liq.contrato?.propietarios.find((p: any) => p.esPrincipal)?.persona.nombreCompleto || '-'}</span>
                                         </div>
                                         <div className="flex flex-col items-end">
-                                            <span className="text-xs font-black text-blue-800">${netoAPagar.toLocaleString('es-AR')}</span>
+	                                            <span className="text-xs font-black text-blue-800">{formatCurrency(netoAPagar, liq.moneda)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -655,9 +657,10 @@ export default function Liquidaciones() {
             <OwnerPaymentModal
                 isOpen={isOwnerPaymentModalOpen}
                 onClose={() => setIsOwnerPaymentModalOpen(false)}
-                onSave={handleSaveOwnerPayment}
-                suggestedAmount={suggestedPaymentAmount}
-            />
+	                onSave={handleSaveOwnerPayment}
+	                suggestedAmount={suggestedPaymentAmount}
+	                moneda={selectedLiq?.moneda || "ARS"}
+	            />
         </div>
     );
 }

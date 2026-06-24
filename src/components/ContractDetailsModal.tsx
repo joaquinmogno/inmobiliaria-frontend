@@ -22,6 +22,7 @@ import { BanknotesIcon as BanknotesIconSolid } from "@heroicons/react/20/solid";
 import AuditTrail from "./AuditTrail";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
+import { formatCurrency } from "../utils/currency";
 
 export interface ContractDetailsModalProps {
     isOpen: boolean;
@@ -142,7 +143,7 @@ export default function ContractDetailsModal({
         }
     };
 
-    const formatMoney = (amount: number) => `$${Number(amount).toLocaleString('es-AR')}`;
+	    const formatMoney = (amount: number, moneda = contract.moneda) => formatCurrency(amount, moneda);
 
     return (
         <>
@@ -346,7 +347,7 @@ export default function ContractDetailsModal({
                                                     <div>
                                                         <p className="text-xs text-gray-500 mb-1">Alquiler</p>
                                                         <p className="text-base font-bold text-gray-900">
-                                                            ${Number(contract.montoAlquiler).toLocaleString('es-AR')}
+	                                                            {formatMoney(Number(contract.montoAlquiler))}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -376,9 +377,9 @@ export default function ContractDetailsModal({
                                                                     <div>
                                                                         <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5 font-display">Monto Alquiler</p>
                                                                         <p className="font-bold text-gray-800 flex items-center gap-1.5">
-                                                                            <span className="text-gray-400 font-medium">${Number(actualizacion.montoAnterior).toLocaleString('es-AR')}</span>
-                                                                            <span className="text-amber-500">→</span>
-                                                                            <span className="text-indigo-600 font-black tracking-tight">${Number(actualizacion.montoNuevo).toLocaleString('es-AR')}</span>
+	                                                                            <span className="text-gray-400 font-medium">{formatMoney(Number(actualizacion.montoAnterior), actualizacion.moneda || contract.moneda)}</span>
+	                                                                            <span className="text-amber-500">→</span>
+	                                                                            <span className="text-indigo-600 font-black tracking-tight">{formatMoney(Number(actualizacion.montoNuevo), actualizacion.moneda || contract.moneda)}</span>
                                                                         </p>
                                                                     </div>
                                                                     <div>
@@ -480,12 +481,12 @@ export default function ContractDetailsModal({
                                                         <div className="grid grid-cols-2 gap-4 text-sm mb-3">
                                                             <div>
                                                                 <p className="text-xs text-gray-500">Neto a Cobrar</p>
-                                                                <p className="font-bold text-gray-900">{formatMoney(Number(liq.netoACobrar))}</p>
+                                                                <p className="font-bold text-gray-900">{formatMoney(Number(liq.netoACobrar), liq.moneda)}</p>
                                                             </div>
                                                             <div className="text-right">
                                                                 <p className="text-xs text-gray-500">Pagado</p>
                                                                 <p className="font-bold text-green-600">
-                                                                    {formatMoney(liq.pagos?.reduce((sum, p) => sum + Number(p.monto), 0) || 0)}
+                                                                    {formatMoney(liq.pagos?.reduce((sum, p) => sum + Number(p.monto), 0) || 0, liq.moneda)}
                                                                 </p>
                                                             </div>
                                                         </div>
@@ -499,7 +500,7 @@ export default function ContractDetailsModal({
                                                                             <span className="text-gray-600">{new Date(pago.fechaPago).toLocaleDateString("es-AR")}</span>
                                                                             <span className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-[10px] font-medium text-gray-500">{pago.metodoPago}</span>
                                                                         </div>
-                                                                        <span className="font-bold text-gray-700">{formatMoney(Number(pago.monto))}</span>
+                                                                        <span className="font-bold text-gray-700">{formatMoney(Number(pago.monto), pago.moneda || liq.moneda)}</span>
                                                                     </div>
                                                                 ))}
                                                             </div>
@@ -550,7 +551,7 @@ export default function ContractDetailsModal({
                                                                 </p>
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-sm font-black text-gray-900">{formatMoney(Number(plan.montoTotal))}</span>
+                                                                <span className="text-sm font-black text-gray-900">{formatMoney(Number(plan.montoTotal), plan.moneda)}</span>
                                                                 {canEditLiquidations && (
                                                                     <button
                                                                         onClick={() => handleDeletePlan(plan.id)}
@@ -569,7 +570,7 @@ export default function ContractDetailsModal({
                                                                 <div key={cuota.id} className="p-2 flex justify-between items-center px-4">
                                                                     <div className="flex items-center gap-3">
                                                                         <span className="text-xs font-bold text-gray-400">#{cuota.numeroCuota}</span>
-                                                                        <span className="text-sm text-gray-700 font-medium">{formatMoney(Number(cuota.monto))}</span>
+                                                                        <span className="text-sm text-gray-700 font-medium">{formatMoney(Number(cuota.monto), cuota.moneda || plan.moneda)}</span>
                                                                     </div>
                                                                     <div className="flex items-center gap-3">
                                                                         {cuota.liquidacion ? (
@@ -643,6 +644,7 @@ export default function ContractDetailsModal({
                 onClose={() => setIsNewPlanModalOpen(false)}
                 contratoId={contract.id}
                 onSuccess={loadPlanesCuotas}
+                moneda={contract.moneda}
             />
         )}
         </>

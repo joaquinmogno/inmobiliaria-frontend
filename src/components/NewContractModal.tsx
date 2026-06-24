@@ -7,6 +7,7 @@ import { propertiesService, type Property } from "../services/properties.service
 import { personasService, type Persona } from "../services/personas.service";
 import { type Contract } from "../services/contracts.service";
 import { toast } from "react-hot-toast";
+import { MONEDA_LABELS, type Moneda } from "../utils/currency";
 
 interface NewContractModalProps {
     isOpen: boolean;
@@ -68,6 +69,7 @@ export default function NewContractModal({
         endDate: "",
         updateDate: "",
         montoAlquiler: "",
+        moneda: "ARS" as Moneda,
         montoHonorarios: "",
         porcentajeHonorarios: "",
         pagaHonorarios: "INQUILINO",
@@ -105,6 +107,7 @@ export default function NewContractModal({
                 endDate: editingContract.fechaFin ? new Date(editingContract.fechaFin).toISOString().split('T')[0] : "",
                 updateDate: editingContract.fechaProximaActualizacion ? new Date(editingContract.fechaProximaActualizacion).toISOString().split('T')[0] : "",
                 montoAlquiler: editingContract.montoAlquiler.toString(),
+                moneda: editingContract.moneda || "ARS",
                 montoHonorarios: editingContract.montoHonorarios.toString(),
                 porcentajeHonorarios: editingContract.porcentajeHonorarios?.toString() || "",
                 pagaHonorarios: editingContract.pagaHonorarios as string,
@@ -128,6 +131,7 @@ export default function NewContractModal({
                 endDate: "",
                 updateDate: "",
                 montoAlquiler: "",
+                moneda: "ARS",
                 montoHonorarios: "",
                 porcentajeHonorarios: "",
                 pagaHonorarios: "INQUILINO",
@@ -326,7 +330,7 @@ export default function NewContractModal({
                 estado: 'ACTIVO'
             })),
             administrado: formData.administrado,
-            honorarioInicial: formData.honorarioInicial,
+ 	            honorarioInicial: formData.honorarioInicial,
             honorarioInicialMetodoPago: formData.honorarioInicialMetodoPago
         };
 
@@ -659,10 +663,30 @@ export default function NewContractModal({
                                         <h4 className="text-sm font-semibold text-indigo-900 mb-3 uppercase tracking-wide">
                                             Condiciones Económicas
                                         </h4>
-                                        <div className="grid grid-cols-1 gap-4">
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-700 mb-1">
-                                                    Alquiler Mensual *
+	                                        <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
+	                                            <div>
+	                                                <label className="block text-xs font-medium text-gray-700 mb-1">
+	                                                    Moneda *
+	                                                </label>
+	                                                <select
+	                                                    name="moneda"
+	                                                    required
+	                                                    className="w-full rounded-lg border-gray-300 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
+	                                                    value={formData.moneda}
+	                                                    onChange={(e) => setFormData(prev => ({ ...prev, moneda: e.target.value as Moneda }))}
+	                                                >
+	                                                    <option value="ARS">{MONEDA_LABELS.ARS}</option>
+	                                                    <option value="USD">{MONEDA_LABELS.USD}</option>
+	                                                </select>
+	                                                {editingContract && (
+	                                                    <p className="mt-1 text-[11px] text-gray-500">
+	                                                        Si el contrato ya tiene liquidaciones, pagos o caja asociada, no se puede modificar.
+	                                                    </p>
+	                                                )}
+	                                            </div>
+	                                            <div>
+	                                                <label className="block text-xs font-medium text-gray-700 mb-1">
+	                                                    Alquiler Mensual *
                                                 </label>
                                                 <NumericInput
                                                     name="montoAlquiler"

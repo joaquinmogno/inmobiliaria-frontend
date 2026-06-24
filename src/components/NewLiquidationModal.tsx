@@ -4,6 +4,7 @@ import { XMarkIcon, ChevronUpDownIcon, CheckIcon } from "@heroicons/react/24/out
 import NumericInput from "./NumericInput";
 import type { Contract } from "../services/contracts.service";
 import { planesCuotasService, type CuotaPlan } from "../services/planes-cuotas.service";
+import { formatCurrency } from "../utils/currency";
 
 interface NewLiquidationModalProps {
     isOpen: boolean;
@@ -98,6 +99,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
     };
 
     const selectedContract = contracts.find(c => c.id === Number(selectedContractId));
+    const selectedMoneda = selectedContract?.moneda || "ARS";
     const selectedCuotas = pendingCuotas.filter(c => selectedCuotasIds.includes(c.id));
     
     const totalIngresosInquilino = selectedCuotas
@@ -295,14 +297,14 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                </div>
                                                 <div className="flex-1">
                                                     <label className="block text-xs font-bold text-indigo-900 uppercase tracking-wide mb-1">
-                                                        Monto ($)
+	                                                        Monto ({selectedMoneda})
                                                     </label>
                                                     <NumericInput
                                                         className="block w-full pr-4 py-2 text-gray-900 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white font-bold"
                                                         value={montoHonorarios}
                                                         onChange={(val) => setMontoHonorarios(val.toString())}
                                                         placeholder="0.00"
-                                                        icon={<span className="text-gray-500 sm:text-sm">$</span>}
+	                                                        icon={<span className="text-gray-500 sm:text-sm">{selectedMoneda === "USD" ? "US$" : "$"}</span>}
                                                     />
                                                </div>
                                             </div>
@@ -345,7 +347,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                                 </div>
                                                             </div>
                                                             <span className="text-sm font-black text-gray-900">
-                                                                ${Number(cuota.monto).toLocaleString('es-AR')}
+	                                                                {formatCurrency(cuota.monto, cuota.moneda || selectedMoneda)}
                                                             </span>
                                                         </label>
                                                     ))}
@@ -368,7 +370,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                         <span className="text-[10px] text-gray-400 font-medium">Alquiler + Ingresos (+)</span>
                                                     </div>
                                                     <span className="text-xl font-black text-gray-900">
-                                                        ${totalInquilino.toLocaleString('es-AR')}
+	                                                        {formatCurrency(totalInquilino, selectedMoneda)}
                                                     </span>
                                                 </div>
                                                 
@@ -378,7 +380,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                         <span className="text-[10px] text-indigo-400 font-medium">Comisión de la agencia</span>
                                                     </div>
                                                     <span className="text-lg font-black text-indigo-600">
-                                                        ${honorarios.toLocaleString('es-AR')}
+	                                                        {formatCurrency(honorarios, selectedMoneda)}
                                                     </span>
                                                 </div>
 
@@ -388,7 +390,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                         <span className="text-[10px] text-indigo-200 font-medium">Liquidez neta (-)</span>
                                                     </div>
                                                     <span className="text-xl font-black text-white">
-                                                        ${totalPropietario.toLocaleString('es-AR')}
+	                                                        {formatCurrency(totalPropietario, selectedMoneda)}
                                                     </span>
                                                 </div>
                                             </div>

@@ -4,6 +4,7 @@ import { XMarkIcon, CalendarIcon, BanknotesIcon, InformationCircleIcon } from "@
 import { contractsService, type Contract } from "../services/contracts.service";
 import NumericInput from "./NumericInput";
 import { formatDate } from "../utils/date";
+import { formatCurrency } from "../utils/currency";
 
 export interface UpdateContractModalProps {
     isOpen: boolean;
@@ -111,7 +112,7 @@ export default function UpdateContractModal({
                                             <div>
                                                 <p className="text-[10px] text-indigo-500 font-bold uppercase">Monto Actual</p>
                                                 <p className="text-sm font-black text-indigo-900">
-                                                    ${Number(contract.montoAlquiler).toLocaleString('es-AR')}
+	                                                    {formatCurrency(contract.montoAlquiler, contract.moneda)}
                                                 </p>
                                             </div>
                                             <div>

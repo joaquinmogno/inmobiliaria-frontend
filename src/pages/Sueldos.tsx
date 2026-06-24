@@ -6,22 +6,17 @@ import { BanknotesIcon, PencilSquareIcon, PlusIcon, TrashIcon } from "@heroicons
 import { type User } from "../services/auth.service";
 import { hasPermission } from "../utils/permissions";
 import NumericInput from "../components/NumericInput";
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-  }).format(amount);
-}
+import { formatCurrency, type Moneda } from "../utils/currency";
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("es-AR");
 }
 
 const initialFormData = () => ({
-  usuarioId: "",
-  monto: "",
-  fecha: new Date().toISOString().split("T")[0],
+	  usuarioId: "",
+	  monto: "",
+	  moneda: "ARS" as Moneda,
+	  fecha: new Date().toISOString().split("T")[0],
   periodo: `${String(new Date().getMonth() + 1).padStart(2, "0")}-${new Date().getFullYear()}`,
   metodoPago: "EFECTIVO",
   observaciones: "",
@@ -75,9 +70,10 @@ export default function Sueldos() {
   const openEditModal = (sueldo: PagoSueldo) => {
     setEditingSueldo(sueldo);
     setFormData({
-      usuarioId: String(sueldo.usuario.id || sueldo.usuarioId),
-      monto: String(Math.round(Number(sueldo.monto))),
-      fecha: sueldo.fecha.slice(0, 10),
+	      usuarioId: String(sueldo.usuario.id || sueldo.usuarioId),
+	      monto: String(Math.round(Number(sueldo.monto))),
+	      moneda: sueldo.moneda || "ARS",
+	      fecha: sueldo.fecha.slice(0, 10),
       periodo: sueldo.periodo,
       metodoPago: sueldo.metodoPago,
       observaciones: sueldo.observaciones || "",
@@ -202,7 +198,7 @@ export default function Sueldos() {
                       </span>
                     </td>
                     <td className="px-6 py-4 font-mono font-bold text-gray-900">
-                      {formatCurrency(Number(sueldo.monto))}
+	                      {formatCurrency(Number(sueldo.monto), sueldo.moneda)}
                     </td>
                     <td className="px-6 py-4 text-sm text-gray-600">{formatDate(sueldo.fecha)}</td>
                     <td className="px-6 py-4">
@@ -268,9 +264,20 @@ export default function Sueldos() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-black uppercase text-gray-500 mb-1.5 ml-1">Monto</label>
+	              <div className="grid grid-cols-[120px_1fr] gap-4">
+	                <div>
+	                  <label className="block text-xs font-black uppercase text-gray-500 mb-1.5 ml-1">Moneda</label>
+	                  <select
+	                    className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500"
+	                    value={formData.moneda}
+	                    onChange={(e) => setFormData({ ...formData, moneda: e.target.value as Moneda })}
+	                  >
+	                    <option value="ARS">ARS</option>
+	                    <option value="USD">USD</option>
+	                  </select>
+	                </div>
+	                <div>
+	                  <label className="block text-xs font-black uppercase text-gray-500 mb-1.5 ml-1">Monto</label>
                   <NumericInput
                     required
                     className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500"
