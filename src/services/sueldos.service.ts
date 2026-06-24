@@ -9,6 +9,7 @@ export interface PagoSueldo {
     observaciones: string | null;
     usuarioId: number;
     usuario: {
+        id: number;
         nombreCompleto: string;
         email: string;
     };
@@ -30,5 +31,18 @@ export const sueldosService = {
         observaciones?: string;
     }) => {
         return api.post<PagoSueldo>('/sueldos', data);
+    },
+    update: async (id: number, data: Partial<{
+        usuarioId: number;
+        monto: number;
+        fecha: string;
+        periodo: string;
+        metodoPago: string;
+        observaciones: string;
+    }>) => {
+        return api.put<PagoSueldo>(`/sueldos/${id}`, data);
+    },
+    delete: async (id: number) => {
+        return api.delete<{ message: string }>(`/sueldos/${id}`);
     }
 };

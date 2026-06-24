@@ -18,8 +18,14 @@ import { toast } from "react-hot-toast";
 import ConfirmationModal from "../components/ConfirmationModal";
 import NewLiquidationModal from "../components/NewLiquidationModal";
 import OwnerPaymentModal from "../components/OwnerPaymentModal";
+import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 
 export default function Liquidaciones() {
+    const { user } = useAuth();
+    const canCreate = hasPermission(user, "liquidaciones.crear");
+    const canEdit = hasPermission(user, "liquidaciones.editar");
+    const canDelete = hasPermission(user, "liquidaciones.eliminar");
     const [liquidaciones, setLiquidaciones] = useState<Liquidacion[]>([]);
     const [contracts, setContracts] = useState<Contract[]>([]);
     const [searchTerm, setSearchTerm] = useState("");
@@ -200,13 +206,13 @@ export default function Liquidaciones() {
                     <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Liquidaciones</h1>
                     <p className="text-sm text-gray-500">Administra los saldos mensuales y conceptos de tus contratos activos</p>
                 </div>
-                <button
+                {canCreate && <button
                     onClick={() => setIsNewModalOpen(true)}
                     className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 font-bold text-sm cursor-pointer"
                 >
                     <PlusIcon className="w-5 h-5" />
                     Nueva Liquidación
-                </button>
+                </button>}
             </div>
 
             {/* Filters */}
@@ -386,7 +392,7 @@ export default function Liquidaciones() {
                                                             </MenuItem>
                                                         </div>
                                                         <div className="py-1">
-                                                            {liq.estado === 'PAGADA_POR_INQUILINO' && (
+                                                            {canEdit && liq.estado === 'PAGADA_POR_INQUILINO' && (
                                                                 <MenuItem>
                                                                     {({ focus }) => (
                                                                         <button
@@ -399,7 +405,7 @@ export default function Liquidaciones() {
                                                                     )}
                                                                 </MenuItem>
                                                             )}
-                                                            {liq.estado === 'BORRADOR' && (
+                                                            {canDelete && liq.estado === 'BORRADOR' && (
                                                                 <MenuItem>
                                                                     {({ focus }) => (
                                                                         <button
@@ -528,7 +534,7 @@ export default function Liquidaciones() {
                                                         </button>
                                                     )}
                                                 </MenuItem>
-                                                {liq.estado === 'PAGADA_POR_INQUILINO' && (
+                                                {canEdit && liq.estado === 'PAGADA_POR_INQUILINO' && (
                                                     <MenuItem>
                                                         {({ focus }) => (
                                                             <button
@@ -541,7 +547,7 @@ export default function Liquidaciones() {
                                                         )}
                                                     </MenuItem>
                                                 )}
-                                                {liq.estado === 'BORRADOR' && (
+                                                {canDelete && liq.estado === 'BORRADOR' && (
                                                     <MenuItem>
                                                         {({ focus }) => (
                                                             <button

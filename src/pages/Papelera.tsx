@@ -2,12 +2,17 @@ import { useState, useEffect } from "react";
 import { TrashIcon, InformationCircleIcon, ClockIcon } from "@heroicons/react/24/outline";
 import { contractsService, type Contract } from "../services/contracts.service";
 import ConfirmationModal from "../components/ConfirmationModal";
+import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 
 export interface TrashedContract extends Contract {
   daysUntilDeletion: number;
 }
 
 export default function Papelera() {
+  const { user } = useAuth();
+  const canRestoreContracts = hasPermission(user, "contratos.restaurar");
+  const canDeleteContracts = hasPermission(user, "contratos.eliminar");
   const [trashedContracts, setTrashedContracts] = useState<TrashedContract[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -37,6 +42,7 @@ export default function Papelera() {
   };
 
   const handleRestore = async (id: number) => {
+    if (!canRestoreContracts) return;
     try {
       await contractsService.restore(id);
       refreshData();
@@ -46,6 +52,7 @@ export default function Papelera() {
   };
 
   const handlePermanentDelete = (id: number) => {
+    if (!canDeleteContracts) return;
     setContractToDelete(id);
     setIsDeleteModalOpen(true);
   };
@@ -125,18 +132,22 @@ export default function Papelera() {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleRestore(contract.id)}
-                    className="px-3 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-indigo-200"
-                  >
-                    RESTAURAR
-                  </button>
-                  <button
-                    onClick={() => handlePermanentDelete(contract.id)}
-                    className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
-                  >
-                    ELIMINAR
-                  </button>
+                  {canRestoreContracts && (
+                    <button
+                      onClick={() => handleRestore(contract.id)}
+                      className="px-3 py-1.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-indigo-200"
+                    >
+                      RESTAURAR
+                    </button>
+                  )}
+                  {canDeleteContracts && (
+                    <button
+                      onClick={() => handlePermanentDelete(contract.id)}
+                      className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
+                    >
+                      ELIMINAR
+                    </button>
+                  )}
                 </div>
               </div>
             </div>

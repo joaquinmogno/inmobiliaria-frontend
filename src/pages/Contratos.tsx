@@ -19,9 +19,16 @@ import ContractDetailsModal from "../components/ContractDetailsModal";
 import WhatsAppLink from "../components/WhatsAppLink";
 import ConfirmationModal from "../components/ConfirmationModal";
 import { toast } from "react-hot-toast";
+import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 
 
 export default function Contratos() {
+  const { user } = useAuth();
+  const canCreate = hasPermission(user, "contratos.crear");
+  const canEdit = hasPermission(user, "contratos.editar");
+  const canDelete = hasPermission(user, "contratos.eliminar");
+  const canViewFiles = hasPermission(user, "contratos.archivos.ver");
   const [contractsList, setContractsList] = useState<Contract[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -36,12 +43,12 @@ export default function Contratos() {
   const location = useLocation();
 
   useEffect(() => {
-    if (location.state?.openNewContractModal) {
+    if (location.state?.openNewContractModal && canCreate) {
       setEditingContract(null);
       setIsModalOpen(true);
       window.history.replaceState({}, document.title);
     }
-  }, [location.state]);
+  }, [location.state, canCreate]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -260,7 +267,7 @@ export default function Contratos() {
           >
             {showExpired ? "Ver Contratos Activos" : "Ver Contratos Vencidos"}
           </button>
-          {!showExpired && (
+          {!showExpired && canCreate && (
             <button
               onClick={() => {
                 setEditingContract(null);
@@ -447,6 +454,7 @@ export default function Contratos() {
                                   </button>
                                 )}
                               </MenuItem>
+                              {canViewFiles && (
                               <MenuItem>
                                 {({ focus }) => (
                                   <button
@@ -459,8 +467,9 @@ export default function Contratos() {
                                   </button>
                                 )}
                               </MenuItem>
+                              )}
                             </div>
-                            <div className="py-1">
+                            {canEdit && <div className="py-1">
                               <MenuItem>
                                 {({ focus }) => (
                                   <button
@@ -473,8 +482,8 @@ export default function Contratos() {
                                   </button>
                                 )}
                               </MenuItem>
-                            </div>
-                            <div className="py-1">
+                            </div>}
+                            {canDelete && <div className="py-1">
                               <MenuItem>
                                 {({ focus }) => (
                                   <button
@@ -487,7 +496,7 @@ export default function Contratos() {
                                   </button>
                                 )}
                               </MenuItem>
-                            </div>
+                            </div>}
                           </MenuItems>
                         </Transition>
                       </Menu>
@@ -557,6 +566,7 @@ export default function Contratos() {
                                                 </button>
                                             )}
                                         </MenuItem>
+                                        {canViewFiles && (
                                         <MenuItem>
                                             {({ focus }) => (
                                                 <button
@@ -568,8 +578,9 @@ export default function Contratos() {
                                                 </button>
                                             )}
                                         </MenuItem>
+                                        )}
                                     </div>
-                                    <div className="py-1">
+                                    {canEdit && <div className="py-1">
                                         <MenuItem>
                                             {({ focus }) => (
                                                 <button
@@ -581,8 +592,8 @@ export default function Contratos() {
                                                 </button>
                                             )}
                                         </MenuItem>
-                                    </div>
-                                    <div className="py-1">
+                                    </div>}
+                                    {canDelete && <div className="py-1">
                                         <MenuItem>
                                             {({ focus }) => (
                                                 <button
@@ -594,7 +605,7 @@ export default function Contratos() {
                                                 </button>
                                             )}
                                         </MenuItem>
-                                    </div>
+                                    </div>}
                                 </MenuItems>
                             </Transition>
                         </Menu>

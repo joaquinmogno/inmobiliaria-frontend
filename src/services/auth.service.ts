@@ -4,7 +4,13 @@ export interface User {
     id: number;
     email: string;
     fullName: string;
+    nombreCompleto?: string;
     role: string;
+    rol?: string;
+    permissions?: string[];
+    inheritedPermissions?: string[];
+    directPermissions?: string[];
+    deniedPermissions?: string[];
     inmobiliaria: {
         id: number;
         nombre: string;
@@ -29,6 +35,10 @@ export const authService = {
 
     changePassword: async (currentPassword: string, newPassword: string) => {
         return api.post('/auth/change-password', { currentPassword, newPassword });
+    },
+
+    me: async (): Promise<User> => {
+        return api.get<User>('/auth/me');
     },
 
     logout: () => {

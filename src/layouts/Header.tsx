@@ -7,9 +7,11 @@ import {
   ChevronDownIcon,
   UserCircleIcon,
   Bars3Icon,
+  ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
 import ConfirmationModal from "../components/ConfirmationModal";
 import UserProfileModal from "../components/UserProfileModal";
+import { hasPermission } from "../utils/permissions";
 
 interface HeaderProps {
   toggleMobileMenu?: () => void;
@@ -22,6 +24,7 @@ export default function Header({ toggleMobileMenu }: HeaderProps) {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const canManageUsers = hasPermission(user, "usuarios.ver");
 
   const getInitials = (name: string) => {
     return name
@@ -102,8 +105,18 @@ export default function Header({ toggleMobileMenu }: HeaderProps) {
                 <UserCircleIcon className="w-5 h-5 text-indigo-500" />
                 Mi Perfil
               </button>
+              <button
+                onClick={() => {
+                  navigate("/mi-acceso");
+                  setIsUserMenuOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors"
+              >
+                <ShieldCheckIcon className="w-5 h-5 text-indigo-500" />
+                Mi acceso
+              </button>
 
-              {user?.role === "ADMIN" && (
+              {canManageUsers && (
                 <button
                   onClick={() => {
                     navigate("/usuarios");

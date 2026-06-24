@@ -1,5 +1,8 @@
 import { useState, useEffect } from "react";
 import { cajachicaService, type MovimientoCaja, type CajaChicaResponse } from "../services/cajachica.service";
+import NumericInput from "../components/NumericInput";
+import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 import {
     MagnifyingGlassIcon,
     PlusIcon,
@@ -16,6 +19,8 @@ const formatCurrency = (n: number) =>
     new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
 
 export default function CajaChica() {
+    const { user } = useAuth();
+    const canCreate = hasPermission(user, "caja_chica.crear");
     const [movimientos, setMovimientos] = useState<MovimientoCaja[]>([]);
     const [meta, setMeta] = useState<CajaChicaResponse['meta'] | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
@@ -133,13 +138,13 @@ export default function CajaChica() {
                              <span className="text-xs font-bold text-red-600">{formatCurrency(meta?.fondosEnCustodia || 0)}</span>
                          </div>
                     </div>
-                    <button
+                    {canCreate && <button
                         onClick={() => setIsModalOpen(true)}
                         className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition-colors cursor-pointer"
                     >
                         <PlusIcon className="w-5 h-5" />
                         Nuevo Movimiento
-                    </button>
+                    </button>}
                 </div>
             </div>
 
@@ -361,7 +366,7 @@ export default function CajaChica() {
             </div>
 
             {/* Modal de Nuevo Movimiento */}
-            {isModalOpen && (
+            {isModalOpen && canCreate && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
@@ -390,12 +395,14 @@ export default function CajaChica() {
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Monto *</label>
-                                <div className="relative">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <span className="text-gray-500 text-sm">$</span>
-                                    </div>
-                                    <input type="number" required min="0" step="0.01" className="w-full pl-7 border border-gray-300 rounded-lg py-2 px-3 text-sm focus:ring-indigo-500 focus:border-indigo-500" value={formData.monto} onChange={e => setFormData({ ...formData, monto: e.target.value })} />
-                                </div>
+                                <NumericInput
+                                    required
+                                    min="0"
+                                    className="w-full border border-gray-300 rounded-lg py-2 px-3 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                    value={formData.monto}
+                                    onChange={(val) => setFormData({ ...formData, monto: val.toString() })}
+                                    icon={<span className="text-gray-500 text-sm">$</span>}
+                                />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">

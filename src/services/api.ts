@@ -67,7 +67,15 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
         const errorData = await response.json().catch(() => ({}));
         const details = formatErrorDetails(errorData);
         const requestIdSuffix = errorData.requestId ? ` [ref: ${errorData.requestId}]` : "";
-        throw new Error((details || errorData.message || `HTTP error! status: ${response.status}`) + requestIdSuffix);
+        const message = (details || errorData.message || `HTTP error! status: ${response.status}`) + requestIdSuffix;
+
+        if (response.status === 403) {
+            window.dispatchEvent(new CustomEvent('permission-denied', {
+                detail: message || "No tenés permiso para realizar esta acción"
+            }));
+        }
+
+        throw new Error(message);
     }
 
     // Some endpoints might return empty response

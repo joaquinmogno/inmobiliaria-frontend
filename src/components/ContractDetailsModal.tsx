@@ -20,6 +20,8 @@ import { openAuthenticatedFile } from "../services/api";
 import WhatsAppLink from "./WhatsAppLink";
 import { BanknotesIcon as BanknotesIconSolid } from "@heroicons/react/20/solid";
 import AuditTrail from "./AuditTrail";
+import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 
 export interface ContractDetailsModalProps {
     isOpen: boolean;
@@ -34,6 +36,10 @@ export default function ContractDetailsModal({
     contract: initialContract,
     onDelete,
 }: ContractDetailsModalProps) {
+    const { user } = useAuth();
+    const canDeleteContracts = hasPermission(user, "contratos.eliminar");
+    const canViewFiles = hasPermission(user, "contratos.archivos.ver");
+    const canEditLiquidations = hasPermission(user, "liquidaciones.editar");
     const [currentContract, setCurrentContract] = useState<Contract | null>(initialContract);
 
     const handleViewPdf = async (path: string | null) => {
@@ -125,6 +131,7 @@ export default function ContractDetailsModal({
     };
 
     const handleDeletePlan = async (id: number) => {
+        if (!canEditLiquidations) return;
         if (!window.confirm("¿Estás seguro de eliminar este plan? Solo se puede si no tiene cuotas liquidadas.")) return;
         try {
             await planesCuotasService.delete(id);
@@ -395,6 +402,7 @@ export default function ContractDetailsModal({
                                             )}
 
                                             {/* Documentos */}
+                                            {canViewFiles && (
                                             <div className="space-y-3">
                                                 <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide">
                                                     Documentación
@@ -429,10 +437,11 @@ export default function ContractDetailsModal({
                                                             </button>
                                                         </div>
                                                     ))}
-                                                </div>
-                                            </div>
+	                                                </div>
+	                                            </div>
+                                            )}
 
-                                            {/* Observaciones */}
+	                                            {/* Observaciones */}
                                             {contract.observaciones && (
                                                 <div>
                                                     <h4 className="text-sm font-bold text-gray-900 uppercase tracking-wide mb-2">
@@ -510,12 +519,14 @@ export default function ContractDetailsModal({
                                     <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                                         <div className="flex justify-between items-center mb-4">
                                             <h4 className="text-sm font-bold text-gray-900 uppercase tracking-widest">Planes Activos</h4>
-                                            <button 
-                                                onClick={() => setIsNewPlanModalOpen(true)}
-                                                className="text-xs font-bold bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition-all flex items-center gap-1.5"
-                                            >
-                                                + Nuevo Plan
-                                            </button>
+                                            {canEditLiquidations && (
+                                                <button
+                                                    onClick={() => setIsNewPlanModalOpen(true)}
+                                                    className="text-xs font-bold bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition-all flex items-center gap-1.5"
+                                                >
+                                                    + Nuevo Plan
+                                                </button>
+                                            )}
                                         </div>
 
                                         {isLoadingCuotas ? (
@@ -540,13 +551,15 @@ export default function ContractDetailsModal({
                                                             </div>
                                                             <div className="flex items-center gap-2">
                                                                 <span className="text-sm font-black text-gray-900">{formatMoney(Number(plan.montoTotal))}</span>
-                                                                <button 
-                                                                    onClick={() => handleDeletePlan(plan.id)}
-                                                                    className="text-gray-400 hover:text-red-500 transition-colors"
-                                                                    title="Eliminar"
-                                                                >
-                                                                    <TrashIcon className="w-4 h-4" />
-                                                                </button>
+                                                                {canEditLiquidations && (
+                                                                    <button
+                                                                        onClick={() => handleDeletePlan(plan.id)}
+                                                                        className="text-gray-400 hover:text-red-500 transition-colors"
+                                                                        title="Eliminar"
+                                                                    >
+                                                                        <TrashIcon className="w-4 h-4" />
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </div>
 
@@ -590,8 +603,8 @@ export default function ContractDetailsModal({
                                             <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
                                                 <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Creado por</p>
                                                 <p className="text-sm font-semibold text-gray-800">{contract.creadoPor?.nombreCompleto || "Sin dato"}</p>
-                                            </div>
-                                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
+	                                            </div>
+	                                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
                                                 <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Última modificación</p>
                                                 <p className="text-sm font-semibold text-gray-800">{contract.actualizadoPor?.nombreCompleto || "Sin dato"}</p>
                                             </div>
@@ -601,13 +614,15 @@ export default function ContractDetailsModal({
                                 ) : null}
 
                                 <div className="mt-8 flex justify-between items-center pt-6 border-t border-gray-100">
-                                    <button
-                                        onClick={() => onDelete(contract.id)}
-                                        className="flex items-center gap-2 text-sm font-medium text-red-600 hover:text-red-800 transition-colors"
-                                    >
-                                        <TrashIcon className="w-5 h-5" />
-                                        Mover a papelera
-                                    </button>
+                                    {canDeleteContracts ? (
+                                        <button
+                                            onClick={() => onDelete(contract.id)}
+                                            className="flex items-center gap-2 text-sm font-medium text-red-600 hover:text-red-800 transition-colors"
+                                        >
+                                            <TrashIcon className="w-5 h-5" />
+                                            Mover a papelera
+                                        </button>
+                                    ) : <span />}
                                     <button
                                         type="button"
                                         className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100"
@@ -622,12 +637,14 @@ export default function ContractDetailsModal({
                 </div>
             </Dialog>
         </Transition >
-        <NewPlanCuotasModal 
-            isOpen={isNewPlanModalOpen} 
-            onClose={() => setIsNewPlanModalOpen(false)}
-            contratoId={contract.id}
-            onSuccess={loadPlanesCuotas}
-        />
+        {canEditLiquidations && (
+            <NewPlanCuotasModal
+                isOpen={isNewPlanModalOpen}
+                onClose={() => setIsNewPlanModalOpen(false)}
+                contratoId={contract.id}
+                onSuccess={loadPlanesCuotas}
+            />
+        )}
         </>
     );
 }

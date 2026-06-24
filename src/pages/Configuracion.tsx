@@ -14,12 +14,20 @@ import {
 import { inmobiliariaService, type Inmobiliaria } from "../services/inmobiliaria.service";
 import { auditService, type AuditLog } from "../services/audit.service";
 import { useAuth } from "../context/AuthContext";
+import { hasPermission, PERMISSION_LABELS, type PermissionKey } from "../utils/permissions";
 
 export default function Configuracion() {
   const [backups, setBackups] = useState<BackupFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const { user, updateInmobiliaria } = useAuth();
+  const canViewProfile = hasPermission(user, "configuracion.perfil.ver");
+  const canEditProfile = hasPermission(user, "configuracion.perfil.editar");
+  const canViewBackups = hasPermission(user, "configuracion.backups.ver");
+  const canCreateBackups = hasPermission(user, "configuracion.backups.crear");
+  const canDeleteBackups = hasPermission(user, "configuracion.backups.eliminar");
+  const canDownloadBackups = hasPermission(user, "configuracion.backups.descargar");
+  const canViewAudit = hasPermission(user, "configuracion.auditoria.ver");
   const [inmobiliaria, setInmobiliaria] = useState<Partial<Inmobiliaria>>({});
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
@@ -33,10 +41,18 @@ export default function Configuracion() {
   const logsLimit = 15;
 
   useEffect(() => {
-    loadBackups();
-    loadInmobiliaria();
-    loadLogs();
-  }, []);
+    if (canViewProfile) {
+      loadInmobiliaria();
+    }
+    if (canViewBackups) {
+      loadBackups();
+    } else {
+      setLoading(false);
+    }
+    if (canViewAudit) {
+      loadLogs();
+    }
+  }, [canViewProfile, canViewBackups, canViewAudit]);
 
   const loadInmobiliaria = async () => {
     try {
@@ -48,6 +64,7 @@ export default function Configuracion() {
   };
 
   const loadBackups = async () => {
+    if (!canViewBackups) return;
     setLoading(true);
     try {
       const data = await backupsService.getAll();
@@ -60,6 +77,7 @@ export default function Configuracion() {
   };
 
   const loadLogs = async (page = 1) => {
+    if (!canViewAudit) return;
     setLogsLoading(true);
     try {
       const response = await auditService.getLogs({
@@ -92,6 +110,7 @@ export default function Configuracion() {
   };
 
   const handleClearFilters = () => {
+    if (!canViewAudit) return;
     setLogsActionFilter('');
     setLogsDateFrom('');
     setLogsDateTo('');
@@ -108,6 +127,7 @@ export default function Configuracion() {
   };
 
   const handleCreateDbBackup = async () => {
+    if (!canCreateBackups) return;
     setActionLoading("db");
     try {
       await backupsService.createDbBackup();
@@ -120,6 +140,7 @@ export default function Configuracion() {
   };
 
   const handleCreateUploadsBackup = async () => {
+    if (!canCreateBackups) return;
     setActionLoading("uploads");
     try {
       await backupsService.createUploadsBackup();
@@ -132,6 +153,7 @@ export default function Configuracion() {
   };
 
   const handleDelete = async (type: 'db' | 'uploads', filename: string) => {
+    if (!canDeleteBackups) return;
     if (!window.confirm("¿Estás seguro de que deseas eliminar este backup?")) return;
     try {
       await backupsService.deleteBackup(type, filename);
@@ -143,6 +165,7 @@ export default function Configuracion() {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEditProfile) return;
     setProfileLoading(true);
     setProfileSuccess(false);
     try {
@@ -169,6 +192,56 @@ export default function Configuracion() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
+  const getPermissionLabel = (permission: string) =>
+    PERMISSION_LABELS[permission as PermissionKey] || permission;
+
+  const renderPermissionList = (title: string, permissions?: string[]) => {
+    if (!permissions || permissions.length === 0) return null;
+
+    return (
+      <div className="space-y-1">
+        <p className="text-xs font-black uppercase tracking-wide text-gray-400">{title}</p>
+        <div className="flex flex-wrap gap-1.5">
+          {permissions.map(permission => (
+            <span key={`${title}-${permission}`} className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-100 text-[11px] font-bold text-gray-600">
+              {getPermissionLabel(permission)}
+            </span>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderAuditDetail = (log: AuditLog) => {
+    if (log.accion !== "CAMBIAR_PERMISOS_USUARIO" || !log.detalle) {
+      return log.detalle || "-";
+    }
+
+    try {
+      const detail = JSON.parse(log.detalle) as {
+        usuarioAfectado?: string;
+        permisosAgregados?: string[];
+        permisosQuitados?: string[];
+        denegacionesAgregadas?: string[];
+        denegacionesQuitadas?: string[];
+      };
+
+      return (
+        <div className="space-y-3">
+          <p className="text-sm font-semibold text-gray-800">
+            Usuario afectado: <span className="text-indigo-700">{detail.usuarioAfectado || "-"}</span>
+          </p>
+          {renderPermissionList("Permisos agregados", detail.permisosAgregados)}
+          {renderPermissionList("Permisos quitados", detail.permisosQuitados)}
+          {renderPermissionList("Denegaciones agregadas", detail.denegacionesAgregadas)}
+          {renderPermissionList("Denegaciones quitadas", detail.denegacionesQuitadas)}
+        </div>
+      );
+    } catch {
+      return log.detalle;
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto w-full space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -190,7 +263,7 @@ export default function Configuracion() {
       </div>
 
       {/* Sección Perfil Inmobiliaria */}
-      {user?.role === 'ADMIN' && (
+      {canViewProfile && (
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -211,18 +284,21 @@ export default function Configuracion() {
                 type="text"
                 value={inmobiliaria.nombre || ''}
                 onChange={(e) => setInmobiliaria({...inmobiliaria, nombre: e.target.value})}
+                disabled={!canEditProfile}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                 required
               />
-              <button
-                type="submit"
-                disabled={profileLoading}
-                className={`px-6 py-2 rounded-lg text-white font-semibold transition-all shadow-md ${
-                  profileLoading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95'
-                }`}
-              >
-                {profileLoading ? 'Guardando...' : 'Guardar'}
-              </button>
+              {canEditProfile && (
+                <button
+                  type="submit"
+                  disabled={profileLoading}
+                  className={`px-6 py-2 rounded-lg text-white font-semibold transition-all shadow-md ${
+                    profileLoading ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95'
+                  }`}
+                >
+                  {profileLoading ? 'Guardando...' : 'Guardar'}
+                </button>
+              )}
             </div>
           </div>
         </form>
@@ -231,13 +307,14 @@ export default function Configuracion() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Panel de Acciones */}
+        {canViewBackups && (
         <div className="lg:col-span-1 space-y-6">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
               <ShieldCheckIcon className="w-5 h-5 mr-2 text-indigo-600" />
               Acciones de Respaldo
             </h2>
-            <div className="space-y-4">
+            {canCreateBackups ? <div className="space-y-4">
               <button
                 onClick={handleCreateDbBackup}
                 disabled={actionLoading !== null}
@@ -279,7 +356,9 @@ export default function Configuracion() {
                   <CloudArrowUpIcon className="w-5 h-5 group-hover:translate-y-[-2px] transition-transform" />
                 )}
               </button>
-            </div>
+            </div> : (
+              <p className="text-sm text-gray-500">Tenés permiso para consultar la configuración, pero no para crear o eliminar respaldos.</p>
+            )}
             
             <div className="mt-8 pt-6 border-t border-gray-100">
               <div className="flex items-start bg-amber-50 p-3 rounded-lg border border-amber-100">
@@ -298,8 +377,10 @@ export default function Configuracion() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Tabla de Backups */}
+        {canViewBackups && (
         <div className="lg:col-span-2">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-6 border-b border-gray-100">
@@ -351,20 +432,22 @@ export default function Configuracion() {
                           {new Date(file.date).toLocaleString('es-AR')}
                         </td>
                         <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
-                          <button
-                            onClick={() => backupsService.downloadBackup(file.type, file.name)}
-                            className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="Descargar"
-                          >
-                            <ArrowDownTrayIcon className="w-5 h-5" />
-                          </button>
-                          <button
+                          {canDownloadBackups && (
+                            <button
+                              onClick={() => backupsService.downloadBackup(file.type, file.name)}
+                              className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Descargar"
+                            >
+                              <ArrowDownTrayIcon className="w-5 h-5" />
+                            </button>
+                          )}
+                          {canDeleteBackups && <button
                             onClick={() => handleDelete(file.type, file.name)}
                             className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Eliminar"
                           >
                             <TrashIcon className="w-5 h-5" />
-                          </button>
+                          </button>}
                         </td>
                       </tr>
                     ))
@@ -374,10 +457,11 @@ export default function Configuracion() {
             </div>
           </div>
         </div>
+        )}
       </div>
 
       {/* Registro de Auditoría */}
-      {user?.role === 'ADMIN' && (
+      {canViewAudit && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -469,7 +553,7 @@ export default function Configuracion() {
                         {log.usuario?.nombreCompleto || 'Sistema'}
                       </td>
                       <td className="px-6 py-4 text-gray-600">
-                        {log.detalle || '-'}
+                        {renderAuditDetail(log)}
                         {log.entidadId && (
                           <span className="ml-2 text-xs text-gray-400">
                             ({log.entidad} #{log.entidadId})

@@ -26,10 +26,15 @@ import ConfirmationModal from "../components/ConfirmationModal";
 import PaymentModal from "../components/PaymentModal";
 import HonorariosModal from "../components/HonorariosModal";
 import OwnerPaymentModal from "../components/OwnerPaymentModal";
+import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 import { pagosService, type DeudaResumen, type MetodoPago } from "../services/pagos.service";
 import AuditTrail from "../components/AuditTrail";
 
 export default function LiquidacionDetalle() {
+    const { user } = useAuth();
+    const canEditLiquidations = hasPermission(user, "liquidaciones.editar");
+    const canCreatePayments = hasPermission(user, "pagos.crear");
     const { id } = useParams<{ id: string }>();
     const [liquidacion, setLiquidacion] = useState<Liquidacion | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -51,7 +56,7 @@ export default function LiquidacionDetalle() {
             const data = await liquidacionesService.getById(Number(id));
             setLiquidacion(data);
             if (data.contratoId) {
-                const deuda = await pagosService.getDeudaPorContrato(data.contratoId);
+                const deuda = await pagosService.getDeudaPorContrato(data.contratoId, data.id);
                 setDeudaResumen(deuda);
             }
         } catch (error) {
@@ -223,7 +228,7 @@ export default function LiquidacionDetalle() {
                     Volver
                 </button>
                 <div className="flex items-center gap-3">
-                    {liquidacion.estado === 'BORRADOR' && (
+                    {canEditLiquidations && liquidacion.estado === 'BORRADOR' && (
                         <button
                             onClick={handleConfirmar}
                             className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 font-bold text-sm cursor-pointer"
@@ -232,7 +237,7 @@ export default function LiquidacionDetalle() {
                             Confirmar Liquidación
                         </button>
                     )}
-                    {liquidacion.estado === 'PENDIENTE_PAGO' && (
+                    {canCreatePayments && liquidacion.estado === 'PENDIENTE_PAGO' && (
                         <button
                             onClick={() => setIsPaymentModalOpen(true)}
                             className="flex items-center gap-2 bg-green-600 text-white px-5 py-2.5 rounded-xl hover:bg-green-700 transition-all shadow-md shadow-green-100 font-bold text-sm cursor-pointer"
@@ -241,7 +246,7 @@ export default function LiquidacionDetalle() {
                             Registrar Pago Inquilino
                         </button>
                     )}
-                    {liquidacion.estado === 'PAGADA_POR_INQUILINO' && (
+                    {canEditLiquidations && liquidacion.estado === 'PAGADA_POR_INQUILINO' && (
                         <button
                             onClick={() => setIsOwnerPaymentModalOpen(true)}
                             className="flex items-center gap-2 bg-orange-600 text-white px-5 py-2.5 rounded-xl hover:bg-orange-700 transition-all shadow-md shadow-orange-100 font-bold text-sm cursor-pointer"
@@ -428,7 +433,7 @@ export default function LiquidacionDetalle() {
                                     <CurrencyDollarIcon className="w-4 h-4" />
                                     Honorarios Inmob.
                                 </div>
-                                {esEditable && (
+                                {esEditable && canEditLiquidations && (
                                     <button 
                                         onClick={() => setIsHonorariosModalOpen(true)}
                                         className="text-indigo-400 hover:text-indigo-600 transition-colors p-1 rounded-lg hover:bg-indigo-50 cursor-pointer"
@@ -460,7 +465,7 @@ export default function LiquidacionDetalle() {
                             <div className="w-1.5 h-6 bg-green-500 rounded-full" />
                             Ingresos
                         </h3>
-                        {esEditable && (
+                        {esEditable && canEditLiquidations && (
                             <div className="flex items-center gap-2">
                                 {tienePagos && (
                                     <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
@@ -496,7 +501,7 @@ export default function LiquidacionDetalle() {
                                         <td className="py-4 px-6 text-right font-mono font-black text-gray-900 text-sm">
                                             {formatCurrency(m.monto)}
                                         </td>
-                                        {esEditable && (
+                                        {esEditable && canEditLiquidations && (
                                             <td className="pr-6">
                                                 <button
                                                     onClick={() => handleDeleteMovimiento(m.id)}
@@ -552,7 +557,7 @@ export default function LiquidacionDetalle() {
                                         <td className="py-4 px-6 text-right font-mono font-black text-red-600 text-sm">
                                             ({formatCurrency(m.monto)})
                                         </td>
-                                        {esEditable && (
+                                        {esEditable && canEditLiquidations && (
                                             <td className="pr-6">
                                                 <button
                                                     onClick={() => handleDeleteMovimiento(m.id)}

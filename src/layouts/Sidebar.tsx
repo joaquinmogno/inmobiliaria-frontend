@@ -15,6 +15,7 @@ import {
   PlusIcon
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 
 interface SidebarProps {
   mobileOpen?: boolean;
@@ -26,6 +27,16 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
   const { user } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isContratosOpen, setIsContratosOpen] = useState(false);
+  const canViewProperties = hasPermission(user, "propiedades.ver");
+  const canViewPeople = hasPermission(user, "personas.ver");
+  const canViewContracts = hasPermission(user, "contratos.ver");
+  const canCreateContracts = hasPermission(user, "contratos.crear");
+  const canDeleteContracts = hasPermission(user, "contratos.eliminar");
+  const canViewLiquidations = hasPermission(user, "liquidaciones.ver");
+  const canViewCash = hasPermission(user, "caja_chica.ver");
+  const canViewPayments = hasPermission(user, "pagos.ver");
+  const canViewSalaries = hasPermission(user, "sueldos.ver");
+  const canViewConfiguration = hasPermission(user, "configuracion.perfil.ver");
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 whitespace-nowrap overflow-hidden ${isActive
@@ -82,7 +93,7 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
 
 
         {/* Propiedades */}
-        <NavLink to="/propiedades" className={linkClass}>
+        {canViewProperties && <NavLink to="/propiedades" className={linkClass}>
           <HomeModernIcon className="w-6 h-6 min-w-[24px]" />
           <span
             className={`transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
@@ -90,10 +101,10 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
           >
             Propiedades
           </span>
-        </NavLink>
+        </NavLink>}
 
         {/* Personas */}
-        <NavLink to="/personas" className={linkClass}>
+        {canViewPeople && <NavLink to="/personas" className={linkClass}>
           <UserGroupIcon className="w-6 h-6 min-w-[24px]" />
           <span
             className={`transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
@@ -101,10 +112,10 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
           >
             Personas
           </span>
-        </NavLink>
+        </NavLink>}
 
         {/* Contratos (con submenú Papelera) */}
-        <div>
+        {canViewContracts && <div>
           <button
             onClick={() => isExpanded ? setIsContratosOpen((prev) => !prev) : navigate("/contratos")}
             className="w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 whitespace-nowrap overflow-hidden text-indigo-100 hover:bg-indigo-700/50 hover:text-white"
@@ -131,7 +142,7 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
                 <DocumentTextIcon className="w-5 h-5 min-w-[20px]" />
                 <span className="text-sm">Ver Contratos</span>
               </NavLink>
-              <button
+              {canCreateContracts && <button
                 onClick={() => {
                   navigate("/contratos", { state: { openNewContractModal: true } });
                   if (mobileOpen && closeMobile) closeMobile();
@@ -140,17 +151,17 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
               >
                 <PlusIcon className="w-5 h-5 min-w-[20px]" />
                 <span className="text-sm">Crear Contrato</span>
-              </button>
-              <NavLink to="/contratos/papelera" className={linkClass}>
+              </button>}
+              {canDeleteContracts && <NavLink to="/contratos/papelera" className={linkClass}>
                 <TrashIcon className="w-5 h-5 min-w-[20px]" />
                 <span className="text-sm">Papelera</span>
-              </NavLink>
+              </NavLink>}
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Liquidaciones */}
-        <NavLink to="/liquidaciones" className={linkClass}>
+        {canViewLiquidations && <NavLink to="/liquidaciones" className={linkClass}>
           <CalculatorIcon className="w-6 h-6 min-w-[24px]" />
           <span
             className={`transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
@@ -158,10 +169,10 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
           >
             Liquidaciones
           </span>
-        </NavLink>
+        </NavLink>}
 
 
-        <NavLink to="/cajachica" className={linkClass}>
+        {canViewCash && <NavLink to="/cajachica" className={linkClass}>
           <BanknotesIcon className="w-6 h-6 min-w-[24px]" />
           <span
             className={`transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
@@ -169,9 +180,9 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
           >
             Caja Chica
           </span>
-        </NavLink>
+        </NavLink>}
 
-        <NavLink to="/pagos" className={linkClass}>
+        {canViewPayments && <NavLink to="/pagos" className={linkClass}>
           <CreditCardIcon className="w-6 h-6 min-w-[24px]" />
           <span
             className={`transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
@@ -179,22 +190,24 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
           >
             Pagos / Egresos
           </span>
-        </NavLink>
+        </NavLink>}
 
-        <NavLink to="/sueldos" className={linkClass}>
-          <BanknotesIcon className="w-6 h-6 min-w-[24px]" />
-          <span
-            className={`transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
-              }`}
-          >
-            Sueldos
-          </span>
-        </NavLink>
+        {canViewSalaries && (
+          <NavLink to="/sueldos" className={linkClass}>
+            <BanknotesIcon className="w-6 h-6 min-w-[24px]" />
+            <span
+              className={`transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
+                }`}
+            >
+              Sueldos
+            </span>
+          </NavLink>
+        )}
 
         <hr className="my-1 border-indigo-600/50" />
 
         {/* Configuración */}
-        <NavLink to="/configuracion" className={linkClass}>
+        {canViewConfiguration && <NavLink to="/configuracion" className={linkClass}>
           <Cog6ToothIcon className="w-6 h-6 min-w-[24px]" />
           <span
             className={`transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
@@ -202,7 +215,7 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
           >
             Configuración
           </span>
-        </NavLink>
+        </NavLink>}
 
         {user?.role === 'SUPERADMIN' && (
           <>
