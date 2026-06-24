@@ -15,6 +15,7 @@ import {
 import { reportesService } from "../services/reportes.service";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
+import { formatCurrency, type Moneda } from "../utils/currency";
 
 export interface ExpiringContract {
   id: number;
@@ -42,14 +43,14 @@ interface KpiData {
   utilidadNeta: number;
   morosidad: number;
   fondoCustodia: number;
-}
-
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(amount);
+  porMoneda?: Record<Moneda, {
+    recaudadoTotal: number;
+    gananciaBruta: number;
+    gastosAgencia: number;
+    utilidadNeta: number;
+    fondoCustodia: number;
+    morosidad: number;
+  }>;
 }
 
 export default function Home() {
@@ -120,8 +121,9 @@ export default function Home() {
         gananciaBruta: reportData.finanzas.gananciaBruta,
         gastosAgencia: reportData.finanzas.gastosAgencia,
         utilidadNeta: reportData.finanzas.utilidadNeta,
-        morosidad: reportData.finanzas.morosidad,
-        fondoCustodia: reportData.finanzas.fondoCustodia
+	        morosidad: reportData.finanzas.morosidad,
+	        fondoCustodia: reportData.finanzas.fondoCustodia,
+	        porMoneda: reportData.finanzas.porMoneda
       } : null);
     } catch (error) {
       console.error("Error loading home data:", error);
@@ -240,9 +242,47 @@ export default function Home() {
             </div>
           );
         })}
-      </div>
+	      </div>
 
-      {/* Resultado Neto Highlight */}
+	      {kpis?.porMoneda && (
+	        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+	          {(["ARS", "USD"] as Moneda[]).map(moneda => {
+	            const metrics = kpis.porMoneda?.[moneda];
+	            if (!metrics) return null;
+	            const hasAmount = metrics.recaudadoTotal || metrics.gananciaBruta || metrics.gastosAgencia || metrics.utilidadNeta || metrics.fondoCustodia;
+	            if (moneda === "USD" && !hasAmount) return null;
+
+	            return (
+	              <section key={moneda} className="rounded-xl bg-white border border-gray-100 p-4 shadow-sm">
+	                <div className="flex items-center justify-between mb-3">
+	                  <h2 className="text-xs font-black text-gray-500 uppercase tracking-widest">Finanzas {moneda}</h2>
+	                  <span className="text-[10px] font-bold text-gray-400">Sin convertir</span>
+	                </div>
+	                <div className="grid grid-cols-2 gap-3 text-sm">
+	                  <div>
+	                    <p className="text-[10px] font-bold uppercase text-gray-400">Recaudado</p>
+	                    <p className="font-black text-gray-900">{formatCurrency(metrics.recaudadoTotal, moneda)}</p>
+	                  </div>
+	                  <div>
+	                    <p className="text-[10px] font-bold uppercase text-gray-400">Utilidad</p>
+	                    <p className="font-black text-gray-900">{formatCurrency(metrics.utilidadNeta, moneda)}</p>
+	                  </div>
+	                  <div>
+	                    <p className="text-[10px] font-bold uppercase text-gray-400">Gastos</p>
+	                    <p className="font-black text-red-600">{formatCurrency(metrics.gastosAgencia, moneda)}</p>
+	                  </div>
+	                  <div>
+	                    <p className="text-[10px] font-bold uppercase text-gray-400">Custodia</p>
+	                    <p className="font-black text-amber-600">{formatCurrency(metrics.fondoCustodia, moneda)}</p>
+	                  </div>
+	                </div>
+	              </section>
+	            );
+	          })}
+	        </div>
+	      )}
+
+	      {/* Resultado Neto Highlight */}
       <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 rounded-3xl p-8 text-white shadow-xl shadow-indigo-100 flex flex-col md:flex-row justify-between items-center gap-6 overflow-hidden relative">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
         <div className="relative">

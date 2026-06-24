@@ -14,9 +14,7 @@ import {
     ChartBarIcon,
     ReceiptPercentIcon
 } from "@heroicons/react/24/outline";
-
-const formatCurrency = (n: number) =>
-    new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(n);
+import { formatCurrency, type Moneda } from "../utils/currency";
 
 export default function CajaChica() {
     const { user } = useAuth();
@@ -38,6 +36,7 @@ export default function CajaChica() {
         tipo: 'INGRESO',
         concepto: '',
         monto: '',
+        moneda: 'ARS' as Moneda,
         fecha: new Date().toISOString().slice(0, 10),
         metodoPago: 'EFECTIVO',
         cuenta: 'CAJA',
@@ -90,16 +89,18 @@ export default function CajaChica() {
             await cajachicaService.create({
                 ...formData,
                 tipo: formData.tipo as 'INGRESO' | 'EGRESO',
-                cuenta: formData.cuenta as 'CAJA' | 'BANCO',
-                monto: Number(formData.monto)
+	                cuenta: formData.cuenta as 'CAJA' | 'BANCO',
+	                moneda: formData.moneda as Moneda,
+	                monto: Number(formData.monto)
             });
             setIsModalOpen(false);
             refreshData(1, debouncedSearch, tipoFilter, cuentaFilter, selectedMonth, selectedYear);
             setFormData({
-                tipo: 'INGRESO',
-                concepto: '',
-                monto: '',
-                fecha: new Date().toISOString().slice(0, 10),
+	                tipo: 'INGRESO',
+	                concepto: '',
+	                monto: '',
+	                moneda: 'ARS',
+	                fecha: new Date().toISOString().slice(0, 10),
                 metodoPago: 'EFECTIVO',
                 cuenta: 'CAJA',
                 observaciones: ''
@@ -221,9 +222,44 @@ export default function CajaChica() {
                         </p>
                     </div>
                 </div>
-            )}
+	            )}
 
-            {/* Mobile Account Summary */}
+	            {meta && (
+	                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+	                    {(["ARS", "USD"] as Moneda[]).map(moneda => {
+	                        const totals = meta.totalesPorMoneda?.[moneda] || {
+	                            totalIngresos: moneda === "ARS" ? meta.totalIngresosARS : meta.totalIngresosUSD,
+	                            totalEgresos: moneda === "ARS" ? meta.totalEgresosARS : meta.totalEgresosUSD,
+	                            balance: moneda === "ARS" ? meta.balanceARS : meta.balanceUSD,
+	                        };
+
+	                        return (
+	                            <section key={moneda} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
+	                                <div className="flex items-center justify-between mb-3">
+	                                    <h2 className="text-xs font-black uppercase tracking-widest text-gray-500">{moneda}</h2>
+	                                    <span className="text-[10px] font-bold text-gray-400">Balance separado</span>
+	                                </div>
+	                                <div className="grid grid-cols-3 gap-3">
+	                                    <div>
+	                                        <p className="text-[10px] font-bold uppercase text-green-600">Ingresos</p>
+	                                        <p className="text-sm font-black text-gray-900">{formatCurrency(totals.totalIngresos, moneda)}</p>
+	                                    </div>
+	                                    <div>
+	                                        <p className="text-[10px] font-bold uppercase text-red-600">Egresos</p>
+	                                        <p className="text-sm font-black text-gray-900">{formatCurrency(totals.totalEgresos, moneda)}</p>
+	                                    </div>
+	                                    <div>
+	                                        <p className="text-[10px] font-bold uppercase text-indigo-600">Balance</p>
+	                                        <p className="text-sm font-black text-gray-900">{formatCurrency(totals.balance, moneda)}</p>
+	                                    </div>
+	                                </div>
+	                            </section>
+	                        );
+	                    })}
+	                </div>
+	            )}
+
+	            {/* Mobile Account Summary */}
             <div className="lg:hidden grid grid-cols-2 gap-3">
                 <div className="bg-white p-3 rounded-xl border border-amber-100 flex items-center gap-3">
                     <BanknotesIcon className="w-5 h-5 text-amber-500" />
@@ -345,7 +381,7 @@ export default function CajaChica() {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right">
                                         <span className={`text-sm font-bold font-mono ${mov.tipo === 'INGRESO' ? 'text-green-600' : 'text-red-600'}`}>
-                                            {mov.tipo === 'INGRESO' ? '+' : '-'} {formatCurrency(Number(mov.monto))}
+	                                            {mov.tipo === 'INGRESO' ? '+' : '-'} {formatCurrency(Number(mov.monto), mov.moneda)}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -393,17 +429,26 @@ export default function CajaChica() {
                                 <input type="text" required placeholder="Ej. Pago de Luz" className="w-full border border-gray-300 rounded-lg py-2 px-3 text-sm focus:ring-indigo-500 focus:border-indigo-500" value={formData.concepto} onChange={e => setFormData({ ...formData, concepto: e.target.value })} />
                             </div>
 
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-1">Monto *</label>
-                                <NumericInput
-                                    required
+	                            <div className="grid grid-cols-[130px_1fr] gap-3">
+	                                <div>
+	                                    <label className="block text-sm font-medium text-gray-700 mb-1">Moneda *</label>
+	                                    <select required className="w-full border border-gray-300 rounded-lg py-2 px-3 text-sm focus:ring-indigo-500 focus:border-indigo-500" value={formData.moneda} onChange={e => setFormData({ ...formData, moneda: e.target.value as Moneda })}>
+	                                        <option value="ARS">ARS</option>
+	                                        <option value="USD">USD</option>
+	                                    </select>
+	                                </div>
+	                                <div>
+	                                <label className="block text-sm font-medium text-gray-700 mb-1">Monto *</label>
+	                                <NumericInput
+	                                    required
                                     min="0"
                                     className="w-full border border-gray-300 rounded-lg py-2 px-3 text-sm focus:ring-indigo-500 focus:border-indigo-500"
                                     value={formData.monto}
                                     onChange={(val) => setFormData({ ...formData, monto: val.toString() })}
-                                    icon={<span className="text-gray-500 text-sm">$</span>}
-                                />
-                            </div>
+	                                    icon={<span className="text-gray-500 text-sm">{formData.moneda === "USD" ? "US$" : "$"}</span>}
+	                                />
+	                                </div>
+	                            </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div>

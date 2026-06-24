@@ -1,5 +1,6 @@
 import api from './api';
 import type { AuditLogItem } from '../components/AuditTrail';
+import type { Moneda } from '../utils/currency';
 
 export type EstadoContrato = 'ACTIVO' | 'PAPELERA' | 'FINALIZADO' | 'RESCINDIDO';
 export type PagadorHonorarios = 'INQUILINO' | 'PROPIETARIO';
@@ -9,6 +10,7 @@ export interface ContractUpdateHistory {
     fechaActualizacion: string;
     montoAnterior: number;
     montoNuevo: number;
+    moneda: Moneda;
     fechaProximaAnterior: string | null;
     fechaProximaNueva: string;
     observaciones: string | null;
@@ -26,8 +28,9 @@ export interface Contract {
     administrado: boolean;
     rutaPdf: string | null;
     observaciones: string | null;
-    montoAlquiler: number;
-    montoHonorarios: number;
+	    montoAlquiler: number;
+	    montoHonorarios: number;
+	    moneda: Moneda;
     porcentajeHonorarios: number | null;
     pagaHonorarios: PagadorHonorarios;
     diaVencimiento: number;

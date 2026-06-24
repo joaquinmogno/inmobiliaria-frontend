@@ -2,15 +2,17 @@ import { useState, Fragment } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon, CalendarIcon, CreditCardIcon, ChatBubbleBottomCenterTextIcon } from "@heroicons/react/24/outline";
 import type { MetodoPago } from "../services/pagos.service";
+import { formatCurrency, type Moneda } from "../utils/currency";
 
 interface OwnerPaymentModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (p: { fechaPago: string, metodoPago: string, observaciones?: string }) => void;
     suggestedAmount?: number;
+    moneda?: Moneda;
 }
 
-export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAmount }: OwnerPaymentModalProps) {
+export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAmount, moneda = "ARS" }: OwnerPaymentModalProps) {
     const [fechaPago, setFechaPago] = useState(new Date().toISOString().split('T')[0]);
     const [metodoPago, setMetodoPago] = useState<MetodoPago>("EFECTIVO");
     const [observaciones, setObservaciones] = useState("");
@@ -74,9 +76,9 @@ export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAm
                                         <label className="block text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1">
                                             Monto a Entregar (Total Neto)
                                         </label>
-                                        <div className="text-3xl font-black text-orange-900">
-                                            ${suggestedAmount?.toLocaleString('es-AR') || '0'}
-                                        </div>
+	                                        <div className="text-3xl font-black text-orange-900">
+	                                            {formatCurrency(suggestedAmount || 0, moneda)}
+	                                        </div>
                                         <p className="text-[10px] text-orange-400 mt-2 font-medium uppercase">
                                             Este monto se registrará como un EGRESO en caja chica.
                                         </p>

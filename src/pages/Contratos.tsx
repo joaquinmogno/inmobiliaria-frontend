@@ -2,6 +2,7 @@ import { useState, useEffect, Fragment } from "react";
 import { useLocation } from "react-router-dom";
 import { Menu, MenuButton, MenuItem, MenuItems, Transition } from "@headlessui/react";
 import { contractsService, type Contract } from "../services/contracts.service";
+import { formatCurrency } from "../utils/currency";
 import { openAuthenticatedFile } from "../services/api";
 import {
   PlusIcon,
@@ -134,6 +135,7 @@ export default function Contratos() {
       formData.append('fechaActualizacion', data.updateDate);
       formData.append('observaciones', data.observations || '');
       formData.append('montoAlquiler', data.montoAlquiler);
+      formData.append('moneda', data.moneda || 'ARS');
       formData.append('montoHonorarios', data.montoHonorarios || '0');
       formData.append('porcentajeHonorarios', data.porcentajeHonorarios || '');
       formData.append('pagaHonorarios', data.pagaHonorarios || 'INQUILINO');
@@ -417,7 +419,7 @@ export default function Contratos() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-bold text-gray-900">
-                        ${Number(contract.montoAlquiler).toLocaleString('es-AR')}
+                        {formatCurrency(contract.montoAlquiler, contract.moneda)}
                       </div>
                     </td>
 
@@ -630,7 +632,7 @@ export default function Contratos() {
 
                     <div className="flex items-center justify-between mt-1 pt-3 border-t border-gray-100">
                          <span className="text-xs uppercase font-bold text-gray-500 tracking-wider">Alquiler</span>
-                         <span className="text-lg font-black text-gray-900">${Number(contract.montoAlquiler).toLocaleString('es-AR')}</span>
+                         <span className="text-lg font-black text-gray-900">{formatCurrency(contract.montoAlquiler, contract.moneda)}</span>
                     </div>
                 </div>
             ))}

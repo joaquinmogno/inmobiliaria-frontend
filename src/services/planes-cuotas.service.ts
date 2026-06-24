@@ -1,10 +1,12 @@
 import api from './api';
 import type { TipoMovimiento } from './liquidaciones.service';
+import type { Moneda } from '../utils/currency';
 
 export interface PlanCuotas {
     id: number;
     concepto: string;
-    montoTotal: number;
+	    montoTotal: number;
+	    moneda: Moneda;
     tipoMovimiento: TipoMovimiento;
     estado: 'ACTIVO' | 'FINALIZADO' | 'CANCELADO';
     fechaCreacion: string;
@@ -17,7 +19,8 @@ export interface CuotaPlan {
     id: number;
     planId: number;
     numeroCuota: number;
-    monto: number;
+	    monto: number;
+	    moneda: Moneda;
     estado: 'PENDIENTE' | 'PAGADA';
     movimientoId?: number;
     liquidacionId?: number;

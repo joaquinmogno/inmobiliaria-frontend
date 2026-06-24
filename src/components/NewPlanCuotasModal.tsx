@@ -4,15 +4,17 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 import NumericInput from "./NumericInput";
 import { planesCuotasService } from "../services/planes-cuotas.service";
 import { toast } from "react-hot-toast";
+import type { Moneda } from "../utils/currency";
 
 interface NewPlanCuotasModalProps {
     isOpen: boolean;
     onClose: () => void;
     contratoId: number;
     onSuccess: () => void;
+    moneda?: Moneda;
 }
 
-export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSuccess }: NewPlanCuotasModalProps) {
+export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSuccess, moneda = "ARS" }: NewPlanCuotasModalProps) {
     const [concepto, setConcepto] = useState("");
     const [montoTotal, setMontoTotal] = useState("");
     const [cantidadCuotas, setCantidadCuotas] = useState("1");
@@ -107,13 +109,14 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-1.5">
-                                                Monto Total ($)
+                                                Monto Total ({moneda})
                                             </label>
                                             <NumericInput
                                                 className="block w-full px-4 py-2 text-sm border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50/50"
                                                 value={montoTotal}
                                                 onChange={(val) => setMontoTotal(val.toString())}
                                                 placeholder="0.00"
+                                                icon={moneda === "USD" ? "US$" : "$"}
                                             />
                                         </div>
                                         <div>

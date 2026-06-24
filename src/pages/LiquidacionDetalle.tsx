@@ -30,6 +30,7 @@ import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
 import { pagosService, type DeudaResumen, type MetodoPago } from "../services/pagos.service";
 import AuditTrail from "../components/AuditTrail";
+import { formatCurrency as formatMoney } from "../utils/currency";
 
 export default function LiquidacionDetalle() {
     const { user } = useAuth();
@@ -148,9 +149,7 @@ export default function LiquidacionDetalle() {
         }
     };
 
-    const formatCurrency = (monto: number) => {
-        return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(monto);
-    };
+    const formatCurrency = (monto: number) => formatMoney(monto, liquidacion?.moneda || "ARS");
 
     const formatPeriod = (dateStr: string) => {
         return new Date(dateStr).toLocaleDateString("es-AR", { month: "long", year: "numeric", timeZone: "UTC" });
@@ -305,7 +304,7 @@ export default function LiquidacionDetalle() {
                     </div>
                     <div>
                         <h4 className="text-amber-900 font-black text-sm uppercase tracking-tight">Deuda Pendiente Detectada</h4>
-                        <p className="text-amber-700 text-sm font-medium mt-1">Este contrato posee una deuda acumulada de <span className="font-black underline">{formatCurrency(deudaResumen.totalDeuda)}</span> de periodos anteriores.</p>
+	                        <p className="text-amber-700 text-sm font-medium mt-1">Este contrato posee una deuda acumulada de <span className="font-black underline">{formatMoney(deudaResumen.totalDeuda, deudaResumen.moneda || liquidacion.moneda)}</span> de periodos anteriores.</p>
                     </div>
                 </div>
             )}
@@ -696,6 +695,7 @@ export default function LiquidacionDetalle() {
                 isOpen={isMovimientoModalOpen}
                 onClose={() => setIsMovimientoModalOpen(false)}
                 onSave={handleAddMovimiento}
+                moneda={liquidacion.moneda}
             />
 
             <ConfirmationModal
@@ -711,9 +711,10 @@ export default function LiquidacionDetalle() {
             <PaymentModal
                 isOpen={isPaymentModalOpen}
                 onClose={() => setIsPaymentModalOpen(false)}
-                onSave={handleSavePayment}
-                suggestedAmount={Number(liquidacion.netoACobrar) - (liquidacion.pagos?.reduce((acc, p) => acc + Number(p.monto), 0) || 0)}
-            />
+	                onSave={handleSavePayment}
+	                suggestedAmount={Number(liquidacion.netoACobrar) - (liquidacion.pagos?.reduce((acc, p) => acc + Number(p.monto), 0) || 0)}
+	                moneda={liquidacion.moneda}
+	            />
 
             <HonorariosModal
                 isOpen={isHonorariosModalOpen}
@@ -721,14 +722,16 @@ export default function LiquidacionDetalle() {
                 onSave={handleUpdateHonorarios}
                 currentMonto={Number(liquidacion.montoHonorarios || 0)}
                 currentPorcentaje={liquidacion.porcentajeHonorarios ? Number(liquidacion.porcentajeHonorarios) : null}
+                moneda={liquidacion.moneda}
             />
 
             <OwnerPaymentModal
                 isOpen={isOwnerPaymentModalOpen}
                 onClose={() => setIsOwnerPaymentModalOpen(false)}
-                onSave={handleSaveOwnerPayment}
-                suggestedAmount={Number(liquidacion.netoACobrar) - Number(liquidacion.montoHonorarios || 0)}
-            />
+	                onSave={handleSaveOwnerPayment}
+	                suggestedAmount={Number(liquidacion.netoACobrar) - Number(liquidacion.montoHonorarios || 0)}
+	                moneda={liquidacion.moneda}
+	            />
         </div>
     );
 }

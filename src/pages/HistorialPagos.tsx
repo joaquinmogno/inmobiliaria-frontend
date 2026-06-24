@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { pagosService, type Pago } from "../services/pagos.service";
 import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import { formatCurrency } from "../utils/currency";
 
 export default function HistorialPagos() {
     const [pagos, setPagos] = useState<Pago[]>([]);
@@ -140,7 +141,7 @@ export default function HistorialPagos() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm font-bold text-green-700 whitespace-nowrap">
-                                                + ${Number(pago.monto).toLocaleString('es-AR')}
+	                                                + {formatCurrency(pago.monto, pago.moneda || pago.liquidacion?.moneda || "ARS")}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">

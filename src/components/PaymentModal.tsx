@@ -3,15 +3,17 @@ import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon, BanknotesIcon, CalendarIcon, CreditCardIcon, ChatBubbleBottomCenterTextIcon } from "@heroicons/react/24/outline";
 import NumericInput from "./NumericInput";
 import type { MetodoPago } from "../services/pagos.service";
+import { formatCurrency, type Moneda } from "../utils/currency";
 
 interface PaymentModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (p: { monto: number, fechaPago: string, metodoPago: MetodoPago, observaciones?: string }) => void;
     suggestedAmount?: number;
+    moneda?: Moneda;
 }
 
-export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount }: PaymentModalProps) {
+export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount, moneda = "ARS" }: PaymentModalProps) {
     const [monto, setMonto] = useState("");
     const [fechaPago, setFechaPago] = useState(new Date().toISOString().split('T')[0]);
     const [metodoPago, setMetodoPago] = useState<MetodoPago>("EFECTIVO");
@@ -80,8 +82,13 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount 
 
                                 <form onSubmit={handleSubmit} className="space-y-6">
                                     {/* Amount Input */}
-                                    <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100/50">
-                                        <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2">
+	                                    <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100/50">
+	                                        {suggestedAmount !== undefined && (
+	                                            <p className="text-xs font-bold text-indigo-700 mb-3">
+	                                                Saldo sugerido: {formatCurrency(suggestedAmount, moneda)}
+	                                            </p>
+	                                        )}
+	                                        <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2">
                                             Monto Entregado
                                         </label>
                                         <NumericInput

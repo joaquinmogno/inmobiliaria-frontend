@@ -1,16 +1,18 @@
 import { useState, Fragment } from "react";
 import { Dialog, Transition } from "@headlessui/react";
-import { XMarkIcon, BanknotesIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 import NumericInput from "./NumericInput";
 import type { TipoMovimiento } from "../services/liquidaciones.service";
+import type { Moneda } from "../utils/currency";
 
 interface MovimientoModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (m: { tipo: TipoMovimiento, concepto: string, monto: number, observaciones?: string }) => void;
+    moneda?: Moneda;
 }
 
-export default function MovimientoModal({ isOpen, onClose, onSave }: MovimientoModalProps) {
+export default function MovimientoModal({ isOpen, onClose, onSave, moneda = "ARS" }: MovimientoModalProps) {
     const [tipo, setTipo] = useState<TipoMovimiento>("INGRESO");
     const [concepto, setConcepto] = useState("");
     const [monto, setMonto] = useState("");
@@ -116,7 +118,7 @@ export default function MovimientoModal({ isOpen, onClose, onSave }: MovimientoM
 
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">
-                                            Monto
+                                            Monto ({moneda})
                                         </label>
                                         <NumericInput
                                             required
@@ -125,7 +127,7 @@ export default function MovimientoModal({ isOpen, onClose, onSave }: MovimientoM
                                             className="block w-full pr-4 py-2 text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white font-semibold"
                                             value={monto}
                                             onChange={(val) => setMonto(val.toString())}
-                                            icon={<BanknotesIcon className="w-5 h-5 text-gray-400" />}
+                                            icon={moneda === "USD" ? "US$" : "$"}
                                         />
                                     </div>
 

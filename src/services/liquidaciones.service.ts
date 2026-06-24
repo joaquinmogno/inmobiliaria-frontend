@@ -2,6 +2,7 @@ import api from './api';
 import type { Contract } from './contracts.service';
 import type { Pago } from './pagos.service';
 import type { AuditLogItem } from '../components/AuditTrail';
+import type { Moneda } from '../utils/currency';
 
 export type EstadoLiquidacion = 'BORRADOR' | 'PENDIENTE_PAGO' | 'PAGADA_POR_INQUILINO' | 'LIQUIDADA';
 export type TipoMovimiento = 'INGRESO' | 'DESCUENTO';
@@ -11,6 +12,7 @@ export interface Movimiento {
     tipo: TipoMovimiento;
     concepto: string;
     monto: number;
+    moneda: Moneda;
     observaciones: string | null;
     fechaCreacion: string;
     esParaInmobiliaria: boolean;
@@ -25,6 +27,7 @@ export interface Liquidacion {
     netoACobrar: number;
     porcentajeHonorarios: number | null;
     montoHonorarios: number;
+    moneda: Moneda;
     fechaCreacion: string;
     fechaLiquidacion: string | null;
     fechaPagoPropietario?: string | null;
