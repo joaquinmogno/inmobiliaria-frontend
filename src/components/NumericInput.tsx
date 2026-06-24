@@ -17,6 +17,7 @@ export default function NumericInput({
   className = "",
   containerClassName = "",
   icon,
+  style,
   ...props
 }: NumericInputProps) {
   const [displayValue, setDisplayValue] = useState("");
@@ -58,7 +59,8 @@ export default function NumericInput({
         <input
           {...props}
           type="text"
-          className={`${className} ${icon ? 'pl-7' : 'px-4'}`}
+          className={`${className} ${icon ? 'pl-11' : 'px-4'}`}
+          style={{ ...(icon ? { paddingLeft: "2.75rem" } : {}), ...style }}
           value={displayValue}
           onChange={handleChange}
         />

@@ -8,8 +8,14 @@ import {
 } from "@heroicons/react/24/outline";
 import { personasService, type Persona, type CreatePersonaData } from "../services/personas.service";
 import WhatsAppLink from "../components/WhatsAppLink";
+import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 
 export default function Personas() {
+    const { user } = useAuth();
+    const canCreate = hasPermission(user, "personas.crear");
+    const canEdit = hasPermission(user, "personas.editar");
+    const canDelete = hasPermission(user, "personas.eliminar");
     const [personas, setPersonas] = useState<Persona[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -110,7 +116,7 @@ export default function Personas() {
                     <h1 className="text-3xl font-bold text-gray-900">Módulo de Personas</h1>
                     <p className="text-gray-500 mt-1">Centraliza la información de inquilinos, propietarios y garantes</p>
                 </div>
-                <button
+                {canCreate && <button
                     onClick={() => {
                         setEditingPersona(null);
                         resetForm();
@@ -120,7 +126,7 @@ export default function Personas() {
                 >
                     <PlusIcon className="w-5 h-5" />
                     Nueva Persona
-                </button>
+                </button>}
             </div>
 
             {/* Buscador */}
@@ -196,20 +202,20 @@ export default function Personas() {
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">
-                                            <button
+                                            {canEdit && <button
                                                 onClick={() => handleEdit(p)}
                                                 className="p-2 text-gray-400 hover:text-blue-600 transition-colors bg-white hover:bg-blue-50 rounded-lg"
                                                 title="Editar"
                                             >
                                                 <PencilSquareIcon className="w-5 h-5" />
-                                            </button>
-                                            <button
+                                            </button>}
+                                            {canDelete && <button
                                                 onClick={() => handleDelete(p.id)}
                                                 className="p-2 text-gray-400 hover:text-red-600 transition-colors bg-white hover:bg-red-50 rounded-lg"
                                                 title="Eliminar"
                                             >
                                                 <TrashIcon className="w-5 h-5" />
-                                            </button>
+                                            </button>}
                                         </div>
                                     </td>
                                 </tr>
@@ -261,20 +267,20 @@ export default function Personas() {
                             </div>
                         )}
                         
-                        <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 mt-1">
-                            <button
+                        {(canEdit || canDelete) && <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 mt-1">
+                            {canEdit && <button
                                 onClick={() => handleEdit(p)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                             >
                                 <PencilSquareIcon className="w-4 h-4" /> Editar
-                            </button>
-                            <button
+                            </button>}
+                            {canDelete && <button
                                 onClick={() => handleDelete(p.id)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
                             >
                                 <TrashIcon className="w-4 h-4" /> Eliminar
-                            </button>
-                        </div>
+                            </button>}
+                        </div>}
                     </div>
                 ))}
                 {personas.length === 0 && (

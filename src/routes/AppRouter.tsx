@@ -8,6 +8,7 @@ import Personas from "../pages/Personas";
 import Propiedades from "../pages/Propiedades";
 import Login from "../pages/Login";
 import ProtectedRoute from "../components/ProtectedRoute";
+import PermissionGuard from "../components/PermissionGuard";
 import Liquidaciones from "../pages/Liquidaciones";
 import LiquidacionDetalle from "../pages/LiquidacionDetalle";
 import HistorialPagos from "../pages/HistorialPagos";
@@ -15,6 +16,7 @@ import Configuracion from "../pages/Configuracion";
 import CajaChica from "../pages/CajaChica";
 import SuperAdminDashboard from "../pages/SuperAdminDashboard";
 import Sueldos from "../pages/Sueldos";
+import MiAcceso from "../pages/MiAcceso";
 
 export default function AppRouter() {
   return (
@@ -24,17 +26,18 @@ export default function AppRouter() {
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
           <Route path="/home" element={<Home />} />
-          <Route path="/contratos" element={<Contratos />} />
-          <Route path="/propiedades" element={<Propiedades />} />
-          <Route path="/personas" element={<Personas />} />
-          <Route path="/contratos/papelera" element={<Papelera />} />
-          <Route path="/usuarios" element={<Usuarios />} />
-          <Route path="/liquidaciones" element={<Liquidaciones />} />
-          <Route path="/liquidaciones/:id" element={<LiquidacionDetalle />} />
-          <Route path="/pagos" element={<HistorialPagos />} />
-          <Route path="/cajachica" element={<CajaChica />} />
-          <Route path="/configuracion" element={<Configuracion />} />
-          <Route path="/sueldos" element={<Sueldos />} />
+          <Route path="/mi-acceso" element={<MiAcceso />} />
+          <Route path="/contratos" element={<PermissionGuard permission="contratos.ver"><Contratos /></PermissionGuard>} />
+          <Route path="/propiedades" element={<PermissionGuard permission="propiedades.ver"><Propiedades /></PermissionGuard>} />
+          <Route path="/personas" element={<PermissionGuard permission="personas.ver"><Personas /></PermissionGuard>} />
+          <Route path="/contratos/papelera" element={<PermissionGuard permission="contratos.eliminar"><Papelera /></PermissionGuard>} />
+          <Route path="/usuarios" element={<PermissionGuard permission="usuarios.ver"><Usuarios /></PermissionGuard>} />
+          <Route path="/liquidaciones" element={<PermissionGuard permission="liquidaciones.ver"><Liquidaciones /></PermissionGuard>} />
+          <Route path="/liquidaciones/:id" element={<PermissionGuard permission="liquidaciones.ver"><LiquidacionDetalle /></PermissionGuard>} />
+          <Route path="/pagos" element={<PermissionGuard permission="pagos.ver"><HistorialPagos /></PermissionGuard>} />
+          <Route path="/cajachica" element={<PermissionGuard permission="caja_chica.ver"><CajaChica /></PermissionGuard>} />
+          <Route path="/configuracion" element={<PermissionGuard permission="configuracion.perfil.ver"><Configuracion /></PermissionGuard>} />
+          <Route path="/sueldos" element={<PermissionGuard permission="sueldos.ver"><Sueldos /></PermissionGuard>} />
           <Route path="/superadmin" element={<SuperAdminDashboard />} />
         </Route>
       </Route>

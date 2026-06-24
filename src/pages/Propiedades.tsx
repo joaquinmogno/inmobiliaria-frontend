@@ -7,8 +7,14 @@ import {
     MagnifyingGlassIcon,
 } from "@heroicons/react/24/outline";
 import { propertiesService, type Property, type TipoPropiedad, type EstadoPropiedad } from "../services/properties.service";
+import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 
 export default function Propiedades() {
+    const { user } = useAuth();
+    const canCreate = hasPermission(user, "propiedades.crear");
+    const canEdit = hasPermission(user, "propiedades.editar");
+    const canDelete = hasPermission(user, "propiedades.eliminar");
     const [properties, setProperties] = useState<Property[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
@@ -118,7 +124,7 @@ export default function Propiedades() {
                     <h1 className="text-3xl font-bold text-gray-900">Módulo de Propiedades</h1>
                     <p className="text-gray-500 mt-1">Gestión de unidades para alquiler</p>
                 </div>
-                <button
+                {canCreate && <button
                     onClick={() => {
                         setEditingProperty(null);
                         resetForm();
@@ -128,7 +134,7 @@ export default function Propiedades() {
                 >
                     <PlusIcon className="w-5 h-5" />
                     Nueva Propiedad
-                </button>
+                </button>}
             </div>
 
             {/* Buscador */}
@@ -191,20 +197,20 @@ export default function Propiedades() {
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">
-                                            <button
+                                            {canEdit && <button
                                                 onClick={() => handleEdit(p)}
                                                 className="p-2 text-gray-400 hover:text-blue-600 transition-colors bg-white hover:bg-blue-50 rounded-lg"
                                                 title="Editar"
                                             >
                                                 <PencilSquareIcon className="w-5 h-5" />
-                                            </button>
-                                            <button
+                                            </button>}
+                                            {canDelete && <button
                                                 onClick={() => handleDelete(p.id)}
                                                 className="p-2 text-gray-400 hover:text-red-600 transition-colors bg-white hover:bg-red-50 rounded-lg"
                                                 title="Eliminar"
                                             >
                                                 <TrashIcon className="w-5 h-5" />
-                                            </button>
+                                            </button>}
                                         </div>
                                     </td>
                                 </tr>
@@ -252,20 +258,20 @@ export default function Propiedades() {
                              </p>
                         )}
                         
-                        <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 mt-1">
-                            <button
+                        {(canEdit || canDelete) && <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 mt-1">
+                            {canEdit && <button
                                 onClick={() => handleEdit(p)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
                             >
                                 <PencilSquareIcon className="w-4 h-4" /> Editar
-                            </button>
-                            <button
+                            </button>}
+                            {canDelete && <button
                                 onClick={() => handleDelete(p.id)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
                             >
                                 <TrashIcon className="w-4 h-4" /> Eliminar
-                            </button>
-                        </div>
+                            </button>}
+                        </div>}
                     </div>
                 ))}
                 {properties.length === 0 && (

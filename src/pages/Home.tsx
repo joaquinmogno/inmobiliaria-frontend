@@ -14,6 +14,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { reportesService } from "../services/reportes.service";
 import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/permissions";
 
 export interface ExpiringContract {
   id: number;
@@ -53,6 +54,10 @@ function formatCurrency(amount: number): string {
 
 export default function Home() {
   const { user } = useAuth();
+  const canViewContracts = hasPermission(user, "contratos.ver");
+  const canEditContracts = hasPermission(user, "contratos.editar");
+  const canDeleteContracts = hasPermission(user, "contratos.eliminar");
+  const canViewDashboard = hasPermission(user, "reportes.dashboard.ver");
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
@@ -66,15 +71,15 @@ export default function Home() {
 
   useEffect(() => {
     refreshData();
-  }, []);
+  }, [canViewContracts, canViewDashboard]);
 
   const refreshData = async () => {
     try {
       setLoadingKpis(true);
       const [contractsData, reportData, alertsData] = await Promise.all([
-        contractsService.getAll() as Promise<Contract[]>,
-        reportesService.getDashboardReport(),
-        contractsService.getAlertas(),
+        canViewContracts ? contractsService.getAll() as Promise<Contract[]> : Promise.resolve([]),
+        canViewDashboard ? reportesService.getDashboardReport() : Promise.resolve(null),
+        canViewContracts ? contractsService.getAlertas() : Promise.resolve([]),
       ]);
 
       setAllContracts(contractsData);
@@ -109,7 +114,7 @@ export default function Home() {
       setExpiringList(expiring);
       setUpdatingList(updating);
 
-      setKpis({
+      setKpis(reportData ? {
         contratosActivos: reportData.contratos.activos,
         recaudadoTotal: reportData.finanzas.recaudadoTotal,
         gananciaBruta: reportData.finanzas.gananciaBruta,
@@ -117,7 +122,7 @@ export default function Home() {
         utilidadNeta: reportData.finanzas.utilidadNeta,
         morosidad: reportData.finanzas.morosidad,
         fondoCustodia: reportData.finanzas.fondoCustodia
-      });
+      } : null);
     } catch (error) {
       console.error("Error loading home data:", error);
     } finally {
@@ -135,6 +140,7 @@ export default function Home() {
 
   const handleOpenUpdateModal = (e: React.MouseEvent, contractId: number) => {
     e.stopPropagation();
+    if (!canEditContracts) return;
     const contract = allContracts.find((c) => c.id === contractId);
     if (contract) {
         setSelectedContractForUpdate(contract);
@@ -143,6 +149,7 @@ export default function Home() {
   };
 
   const handleDeleteContract = async (contractId: number) => {
+    if (!canDeleteContracts) return;
     if (window.confirm("¿Seguro que desea eliminar contrato?")) {
       try {
         await contractsService.delete(contractId);
@@ -303,14 +310,14 @@ export default function Home() {
                 badgeColor="orange"
                 icon={ArrowPathIcon}
                 onClick={() => handleContractClick((contract as any).id)}
-                action={
+                action={canEditContracts ? (
                     <button
                         onClick={(e) => handleOpenUpdateModal(e, (contract as any).id)}
                         className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-[10px] font-bold hover:bg-orange-700 transition-colors"
                     >
                         Actualizar
                     </button>
-                }
+                ) : undefined}
               />
             )}
             badgeColor="orange"

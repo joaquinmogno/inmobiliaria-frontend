@@ -44,8 +44,10 @@ export const pagosService = {
         return api.get<Pago[]>(`/pagos/contrato/${contratoId}`);
     },
 
-    getDeudaPorContrato: async (contratoId: number) => {
-        return api.get<DeudaResumen>(`/pagos/deuda/contrato/${contratoId}`);
+    getDeudaPorContrato: async (contratoId: number, excludeLiquidacionId?: number) => {
+        return api.get<DeudaResumen>(`/pagos/deuda/contrato/${contratoId}`, {
+            params: excludeLiquidacionId ? { excludeLiquidacionId: String(excludeLiquidacionId) } : undefined
+        });
     },
 
     getAll: async (page: number = 1, limit: number = 50, search?: string) => {
