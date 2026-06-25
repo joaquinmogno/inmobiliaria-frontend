@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 interface AuthContextType {
     user: User | null;
     isAuthenticated: boolean;
-    login: (token: string, user: User) => void;
+    login: (user: User) => void;
     logout: () => void;
     refreshUser: () => Promise<User | null>;
     updateInmobiliaria: (nombre: string) => void;
@@ -19,8 +19,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(true);
 
-    const logout = useCallback(() => {
+    const clearSession = useCallback(() => {
         authService.logout();
+        setUser(null);
+        setIsAuthenticated(false);
+    }, []);
+
+    const logout = useCallback(() => {
+        void authService.logoutRemote();
         setUser(null);
         setIsAuthenticated(false);
     }, []);
@@ -35,14 +41,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             localStorage.setItem('user', JSON.stringify(freshUser));
             return freshUser;
         } catch (error) {
-            logout();
+            clearSession();
             return null;
         }
-    }, [logout]);
+    }, [clearSession]);
 
     useEffect(() => {
         const handleLogoutEvent = () => {
-            logout();
+            clearSession();
         };
 
         const handlePermissionDenied = (event: Event) => {
@@ -66,7 +72,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             refreshUser().finally(() => setLoading(false));
         } else {
             // If not authenticated (e.g. expired), ensure state is cleared
-            logout();
+            clearSession();
             setLoading(false);
         }
 
@@ -75,10 +81,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             window.removeEventListener('permission-denied', handlePermissionDenied);
             window.removeEventListener('focus', handleFocus);
         };
-    }, [logout, refreshUser]);
+    }, [clearSession, refreshUser]);
 
-    const login = (token: string, userData: User) => {
-        localStorage.setItem('token', token);
+    const login = (userData: User) => {
         localStorage.setItem('user', JSON.stringify(userData));
         setUser(userData);
         setIsAuthenticated(true);

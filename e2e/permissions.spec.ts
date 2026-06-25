@@ -64,7 +64,7 @@ async function mockApi(page: Page, user: ReturnType<typeof buildUser>) {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ token: "e2e-token", user }),
+      body: JSON.stringify({ csrfToken: "e2e-csrf", expiresAt: new Date(Date.now() + 60_000).toISOString(), user }),
     });
   });
 

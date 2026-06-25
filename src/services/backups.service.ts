@@ -25,14 +25,9 @@ export const backupsService = {
     },
 
     downloadBackup: async (type: 'db' | 'uploads', filename: string) => {
-        const token = localStorage.getItem('token');
         const envUrl = import.meta.env.VITE_API_URL;
         const baseUrl = envUrl ? (envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`) : 'http://localhost:3000/api';
-        const response = await fetch(`${baseUrl}/backups/download/${type}/${filename}`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
+        const response = await fetch(`${baseUrl}/backups/download/${type}/${filename}`, { credentials: 'include' });
 
         if (!response.ok) throw new Error('Error al descargar el archivo');
 

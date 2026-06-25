@@ -11,6 +11,8 @@ export interface User {
     inheritedPermissions?: string[];
     directPermissions?: string[];
     deniedPermissions?: string[];
+    mustChangePassword?: boolean;
+    csrfToken?: string;
     inmobiliaria: {
         id: number;
         nombre: string;
@@ -18,15 +20,15 @@ export interface User {
 }
 
 interface LoginResponse {
-    token: string;
+    csrfToken: string;
+    expiresAt: string;
     user: User;
 }
 
 export const authService = {
     login: async (email: string, password: string): Promise<LoginResponse> => {
         const response = await api.post<LoginResponse>('/auth/login', { email, password });
-        if (response.token) {
-            localStorage.setItem('token', response.token);
+        if (response.user) {
             localStorage.setItem('user', JSON.stringify(response.user));
             localStorage.setItem('loginTimestamp', Date.now().toString());
         }
@@ -42,9 +44,17 @@ export const authService = {
     },
 
     logout: () => {
-        localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('loginTimestamp');
+    },
+
+    logoutRemote: async () => {
+        try {
+            await api.post('/auth/logout');
+        } catch {
+            // Local cleanup must happen even if the server session already expired.
+        }
+        authService.logout();
     },
 
     getCurrentUser: (): User | null => {
@@ -53,10 +63,9 @@ export const authService = {
     },
 
     isAuthenticated: (): boolean => {
-        const token = localStorage.getItem('token');
         const timestamp = localStorage.getItem('loginTimestamp');
 
-        if (!token || !timestamp) return false;
+        if (!timestamp) return false;
 
         const eightHoursInMs = 8 * 60 * 60 * 1000;
         const isExpired = Date.now() - parseInt(timestamp) > eightHoursInMs;

@@ -21,12 +21,13 @@ export default function Configuracion() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const { user, updateInmobiliaria } = useAuth();
+  const isSuperAdmin = user?.role === "SUPERADMIN";
   const canViewProfile = hasPermission(user, "configuracion.perfil.ver");
   const canEditProfile = hasPermission(user, "configuracion.perfil.editar");
-  const canViewBackups = hasPermission(user, "configuracion.backups.ver");
-  const canCreateBackups = hasPermission(user, "configuracion.backups.crear");
-  const canDeleteBackups = hasPermission(user, "configuracion.backups.eliminar");
-  const canDownloadBackups = hasPermission(user, "configuracion.backups.descargar");
+  const canViewBackups = isSuperAdmin;
+  const canCreateBackups = isSuperAdmin;
+  const canDeleteBackups = isSuperAdmin;
+  const canDownloadBackups = isSuperAdmin;
   const canViewAudit = hasPermission(user, "configuracion.auditoria.ver");
   const [inmobiliaria, setInmobiliaria] = useState<Partial<Inmobiliaria>>({});
   const [profileLoading, setProfileLoading] = useState(false);
