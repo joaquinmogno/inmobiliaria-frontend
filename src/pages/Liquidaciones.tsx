@@ -12,7 +12,8 @@ import {
     TrashIcon,
     EllipsisVerticalIcon,
     HomeIcon,
-    BanknotesIcon
+    BanknotesIcon,
+    FunnelIcon
 } from "@heroicons/react/24/outline";
 import { toast } from "react-hot-toast";
 import ConfirmationModal from "../components/ConfirmationModal";
@@ -35,6 +36,7 @@ export default function Liquidaciones() {
     const [filterPeriodo, setFilterPeriodo] = useState<string>("");
     const [filterPropietarioId, setFilterPropietarioId] = useState<string>("");
     const [filterSoloDeuda, setFilterSoloDeuda] = useState<boolean>(false);
+    const [showMobileFilters, setShowMobileFilters] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
@@ -73,12 +75,17 @@ export default function Liquidaciones() {
         setIsLoading(true);
         try {
             const response = await liquidacionesService.getAll(undefined, page, itemsPerPage, searchQuery);
-            setLiquidaciones(response.data);
-            setTotalPages(response.meta.totalPages);
-            setTotalItems(response.meta.total);
+            const data = Array.isArray(response) ? response : response.data;
+            const meta = Array.isArray(response) ? undefined : response.meta;
+            setLiquidaciones(data || []);
+            setTotalPages(meta?.totalPages || 1);
+            setTotalItems(meta?.total || data?.length || 0);
         } catch (error) {
             console.error("Error loading liquidaciones:", error);
             toast.error("Error al cargar las liquidaciones");
+            setLiquidaciones([]);
+            setTotalPages(1);
+            setTotalItems(0);
         } finally {
             setIsLoading(false);
         }
@@ -219,7 +226,18 @@ export default function Liquidaciones() {
 
             {/* Filters */}
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-4">
-                <div className="flex flex-col md:flex-row gap-4">
+                <button
+                    type="button"
+                    onClick={() => setShowMobileFilters(prev => !prev)}
+                    className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-bold text-gray-700 md:hidden"
+                >
+                    <span className="inline-flex items-center gap-2">
+                        <FunnelIcon className="h-5 w-5 text-indigo-600" />
+                        Buscar y filtrar
+                    </span>
+                    <span className="text-xs text-gray-400">{showMobileFilters ? "Ocultar" : "Mostrar"}</span>
+                </button>
+                <div className={`${showMobileFilters ? "flex" : "hidden"} flex-col gap-4 md:flex md:flex-row`}>
                     <div className="relative flex-1">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <MagnifyingGlassIcon className="w-5 h-5 text-gray-400" />
@@ -280,7 +298,7 @@ export default function Liquidaciones() {
                     </div>
                 </div>
                 
-                <div className="flex items-center gap-4 pt-1">
+                <div className={`${showMobileFilters ? "flex" : "hidden"} items-center gap-4 pt-1 md:flex`}>
                     <button
                         onClick={() => {
                             setFilterSoloDeuda(!filterSoloDeuda);

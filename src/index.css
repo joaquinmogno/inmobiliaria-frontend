@@ -17,3 +17,24 @@ input[type=number] {
   -moz-appearance: textfield;
   appearance: textfield;
 }
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
+button,
+[role="button"] {
+  min-height: 44px;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-width: 0;
+  overflow-x: hidden;
+}

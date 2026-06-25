@@ -148,8 +148,8 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
                 </Transition.Child>
 
-                <div className="fixed inset-0 overflow-y-auto">
-                    <div className="flex min-h-full items-center justify-center p-4 text-center">
+                <div className="fixed inset-0 overflow-hidden">
+                    <div className="flex min-h-full items-end justify-center text-center sm:items-center sm:p-4">
                         <Transition.Child
                             as={Fragment}
                             enter="ease-out duration-300"
@@ -159,20 +159,20 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-95"
                         >
-                            <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                                <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                            <Dialog.Panel className="flex max-h-[100dvh] w-full max-w-md transform flex-col overflow-hidden rounded-t-2xl bg-white text-left align-middle shadow-xl transition-all sm:max-h-[90dvh] sm:rounded-2xl">
+                                <div className="flex shrink-0 justify-between items-center border-b border-gray-100 p-4 sm:p-6">
                                     <Dialog.Title as="h3" className="text-xl font-bold leading-6 text-gray-900">
                                         Nueva Liquidación
                                     </Dialog.Title>
                                     <button
                                         onClick={onClose}
-                                        className="text-gray-400 hover:text-gray-500 transition-colors focus:outline-none"
+                                        className="grid h-11 w-11 place-items-center rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-500 transition-colors focus:outline-none"
                                     >
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
                                 </div>
 
-                                <form onSubmit={handleSubmit} className="space-y-6">
+                                <form onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
                                     <div>
                                         <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">
                                             Contrato
@@ -181,7 +181,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                             <div className="relative mt-1">
                                                 <div className="relative w-full cursor-default overflow-hidden rounded-xl bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 sm:text-sm transition-all">
                                                     <Combobox.Input
-                                                        className="w-full border-none py-2 pl-4 pr-10 text-sm leading-5 text-gray-900 focus:ring-0 outline-none"
+                                                        className="w-full border-none py-3 pl-4 pr-10 text-base leading-5 text-gray-900 focus:ring-0 outline-none sm:text-sm"
                                                         displayValue={(cId: string) => {
                                                             const c = contracts.find(contract => contract.id === Number(cId));
                                                             if (!c) return "";
@@ -267,7 +267,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                         <input
                                             type="month"
                                             required
-                                            className="block w-full px-4 py-2 text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white"
+                                            className="block min-h-11 w-full px-4 py-2 text-base text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white"
                                             value={period}
                                             onChange={(e) => setPeriod(e.target.value)}
                                         />
@@ -283,13 +283,13 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                             <p className="text-xs text-indigo-600/80 leading-relaxed">
                                                 Estos valores se guardarán exclusivamente para esta liquidación mensual. Podés modificarlos si este mes hubo un acuerdo diferente.
                                             </p>
-                                            <div className="flex gap-4">
-                                                <div className="w-1/3">
+                                            <div className="grid grid-cols-1 gap-4 min-[380px]:grid-cols-[0.75fr_1.25fr]">
+                                                <div>
                                                     <label className="block text-xs font-bold text-indigo-900 uppercase tracking-wide mb-1">
                                                         Porcentaje (%)
                                                     </label>
                                                     <NumericInput
-                                                        className="block w-full px-3 py-2 text-gray-900 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white"
+                                                        className="block min-h-11 w-full px-3 py-2 text-base text-gray-900 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white"
                                                         value={porcentajeHonorarios}
                                                         onChange={(val) => handlePorcentajeChange({ target: { value: val.toString() } } as any)}
                                                         placeholder="Ej: 5"
@@ -300,7 +300,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
 	                                                        Monto ({selectedMoneda})
                                                     </label>
                                                     <NumericInput
-                                                        className="block w-full pr-4 py-2 text-gray-900 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white font-bold"
+                                                        className="block min-h-11 w-full pr-4 py-2 text-base text-gray-900 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white font-bold"
                                                         value={montoHonorarios}
                                                         onChange={(val) => setMontoHonorarios(val.toString())}
                                                         placeholder="0.00"
@@ -325,11 +325,11 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                             ) : (
                                                 <div className="bg-gray-50 rounded-xl border border-gray-100 divide-y divide-gray-100 overflow-hidden">
                                                     {pendingCuotas.map(cuota => (
-                                                        <label key={cuota.id} className="flex items-center justify-between p-3 hover:bg-gray-100 transition-colors cursor-pointer group">
+                                                        <label key={cuota.id} className="flex min-h-14 items-center justify-between gap-3 p-3 hover:bg-gray-100 transition-colors cursor-pointer group">
                                                             <div className="flex items-center gap-3">
-                                                                <input 
+                                                                <input
                                                                     type="checkbox"
-                                                                    className="w-4 h-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                                                                    className="h-5 w-5 shrink-0 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
                                                                     checked={selectedCuotasIds.includes(cuota.id)}
                                                                     onChange={(e) => {
                                                                         if (e.target.checked) {
@@ -346,7 +346,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                                     </p>
                                                                 </div>
                                                             </div>
-                                                            <span className="text-sm font-black text-gray-900">
+                                                            <span className="shrink-0 text-sm font-black text-gray-900">
 	                                                                {formatCurrency(cuota.monto, cuota.moneda || selectedMoneda)}
                                                             </span>
                                                         </label>
@@ -364,7 +364,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                 Resumen de Liquidación
                                             </h4>
                                             <div className="space-y-4">
-                                                <div className="flex justify-between items-center">
+                                                <div className="flex flex-col gap-1 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
                                                     <div className="flex flex-col">
                                                         <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Inquilino paga</span>
                                                         <span className="text-[10px] text-gray-400 font-medium">Alquiler + Ingresos (+)</span>
@@ -374,7 +374,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                     </span>
                                                 </div>
                                                 
-                                                <div className="flex justify-between items-center pt-3 border-t border-indigo-100/50">
+                                                <div className="flex flex-col gap-1 pt-3 border-t border-indigo-100/50 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
                                                     <div className="flex flex-col">
                                                         <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">Honorarios Inmob.</span>
                                                         <span className="text-[10px] text-indigo-400 font-medium">Comisión de la agencia</span>
@@ -384,7 +384,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                     </span>
                                                 </div>
 
-                                                <div className="flex justify-between items-center pt-3 border-t border-indigo-100/50 p-3 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-200">
+                                                <div className="flex flex-col gap-1 pt-3 border-t border-indigo-100/50 p-3 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-200 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
                                                     <div className="flex flex-col">
                                                         <span className="text-xs font-black text-indigo-100 uppercase tracking-widest">Dueño recibe</span>
                                                         <span className="text-[10px] text-indigo-200 font-medium">Liquidez neta (-)</span>
@@ -397,18 +397,18 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                         </div>
                                     )}
                                     
-                                    <div className="mt-8 flex justify-end gap-3 pt-4 border-t border-gray-100">
+                                    <div className="sticky bottom-0 -mx-4 -mb-4 mt-8 flex gap-3 border-t border-gray-100 bg-white p-4 sm:-mx-6 sm:-mb-6 sm:justify-end sm:p-6">
                                         <button
                                             type="button"
                                             onClick={onClose}
-                                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
+                                            className="min-h-11 flex-1 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors sm:flex-none"
                                         >
                                             Cancelar
                                         </button>
                                         <button
                                             type="submit"
                                             disabled={!selectedContractId || contracts.length === 0}
-                                            className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                                            className="min-h-11 flex-1 rounded-xl bg-indigo-600 px-6 py-2 text-sm font-bold text-white hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer sm:flex-none"
                                         >
                                             Crear Borrador
                                         </button>

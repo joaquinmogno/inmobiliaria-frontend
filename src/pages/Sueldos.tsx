@@ -132,15 +132,15 @@ export default function Sueldos() {
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto w-full animate-in fade-in duration-500">
-      <div className="flex justify-between items-center text-indigo-900">
+      <div className="flex flex-col gap-4 text-indigo-900 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Gestión de Sueldos</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Gestión de Sueldos</h1>
           <p className="text-gray-500 text-sm">Registra y consulta los pagos realizados al equipo.</p>
         </div>
         {canCreate && (
           <button
             onClick={openCreateModal}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
+            className="flex min-h-11 items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
           >
             <PlusIcon className="w-5 h-5" />
             Registrar Pago
@@ -149,7 +149,42 @@ export default function Sueldos() {
       </div>
 
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="md:hidden divide-y divide-gray-100">
+          {loading ? (
+            <div className="px-4 py-10 text-center text-sm text-gray-400">Cargando...</div>
+          ) : sueldos.length === 0 ? (
+            <div className="px-4 py-10 text-center text-sm text-gray-500">No hay pagos registrados.</div>
+          ) : (
+            sueldos.map((sueldo) => (
+              <article key={sueldo.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm shrink-0">
+                      {sueldo.usuario.nombreCompleto.charAt(0)}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="font-black leading-tight text-gray-900">{sueldo.usuario.nombreCompleto}</h3>
+                      <p className="break-all text-xs text-gray-500">{sueldo.usuario.email}</p>
+                    </div>
+                  </div>
+                  <span className="shrink-0 text-sm font-black font-mono text-gray-900">{formatCurrency(Number(sueldo.monto), sueldo.moneda)}</span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-full bg-gray-100 px-2.5 py-1 font-bold text-gray-700">{sueldo.periodo}</span>
+                  <span className="rounded-full bg-indigo-50 px-2.5 py-1 font-bold text-indigo-700">{sueldo.metodoPago}</span>
+                  <span className="rounded-full bg-gray-50 px-2.5 py-1 font-bold text-gray-500">{formatDate(sueldo.fecha)}</span>
+                </div>
+                {hasRowActions && (
+                  <div className="mt-4 grid grid-cols-2 gap-2 border-t border-gray-100 pt-3">
+                    {canEdit && <button onClick={() => openEditModal(sueldo)} className="min-h-11 rounded-xl bg-blue-50 px-3 text-xs font-bold text-blue-700">Editar</button>}
+                    {canDelete && <button onClick={() => handleDelete(sueldo)} className="min-h-11 rounded-xl bg-red-50 px-3 text-xs font-bold text-red-700">Eliminar</button>}
+                  </div>
+                )}
+              </article>
+            ))
+          )}
+        </div>
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-gray-50/50">
@@ -240,13 +275,15 @@ export default function Sueldos() {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-md p-8 shadow-2xl animate-in zoom-in duration-200">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-3">
-              <BanknotesIcon className="w-7 h-7 text-indigo-600" />
-              {editingSueldo ? "Editar Pago" : "Registrar Pago"}
-            </h2>
-            <form onSubmit={handleSave} className="space-y-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-gray-900/60 backdrop-blur-sm sm:items-center sm:p-4">
+          <div className="flex max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-3xl bg-white shadow-2xl animate-in zoom-in duration-200 sm:max-h-[90dvh] sm:rounded-3xl">
+            <div className="shrink-0 border-b border-gray-100 p-5 sm:p-8 sm:pb-4">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                <BanknotesIcon className="w-7 h-7 text-indigo-600" />
+                {editingSueldo ? "Editar Pago" : "Registrar Pago"}
+              </h2>
+            </div>
+            <form onSubmit={handleSave} className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-8 sm:pt-4 space-y-4">
               <div>
                 <label className="block text-xs font-black uppercase text-gray-500 mb-1.5 ml-1">Empleado</label>
                 <select
@@ -333,7 +370,7 @@ export default function Sueldos() {
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="sticky bottom-0 -mx-5 -mb-5 flex gap-3 border-t border-gray-100 bg-white p-5 sm:-mx-8 sm:-mb-8 sm:p-8">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}

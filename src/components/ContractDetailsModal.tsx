@@ -161,8 +161,8 @@ export default function ContractDetailsModal({
                     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
                 </Transition.Child>
 
-                <div className="fixed inset-0 overflow-y-auto">
-                    <div className="flex min-h-full items-center justify-center p-4 text-center">
+                <div className="fixed inset-0 overflow-hidden">
+                    <div className="flex min-h-full items-end justify-center text-center sm:items-center sm:p-4">
                         <Transition.Child
                             as={Fragment}
                             enter="ease-out duration-300"
@@ -172,8 +172,8 @@ export default function ContractDetailsModal({
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-95"
                         >
-                            <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                                <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                            <Dialog.Panel className="flex max-h-[100dvh] w-full max-w-2xl transform flex-col overflow-hidden rounded-t-2xl bg-white text-left align-middle shadow-xl transition-all sm:max-h-[90dvh] sm:rounded-2xl">
+                                <div className="shrink-0 flex justify-between items-center border-b border-gray-100 p-4 sm:p-6">
                                     <Dialog.Title
                                         as="h3"
                                         className="text-xl font-bold leading-6 text-gray-900 flex items-center gap-2"
@@ -191,32 +191,33 @@ export default function ContractDetailsModal({
                                     </button>
                                 </div>
 
+                                <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
                                 {/* Tabs Navigation */}
-                                <div className="flex border-b border-gray-100 mb-6">
+                                <div className="mb-6 flex gap-2 overflow-x-auto border-b border-gray-100 pb-1">
                                     <button
                                         onClick={() => setActiveTab('general')}
-                                        className={`pb-3 px-4 text-sm font-medium transition-colors relative ${activeTab === 'general' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                        className={`shrink-0 pb-3 px-3 text-sm font-medium transition-colors relative ${activeTab === 'general' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
                                     >
                                         General
                                         {activeTab === 'general' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-t-full" />}
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('financial')}
-                                        className={`pb-3 px-4 text-sm font-medium transition-colors relative ${activeTab === 'financial' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                        className={`shrink-0 pb-3 px-3 text-sm font-medium transition-colors relative ${activeTab === 'financial' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
                                     >
                                         Historial Financiero
                                         {activeTab === 'financial' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-t-full" />}
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('cuotas')}
-                                        className={`pb-3 px-4 text-sm font-medium transition-colors relative ${activeTab === 'cuotas' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                        className={`shrink-0 pb-3 px-3 text-sm font-medium transition-colors relative ${activeTab === 'cuotas' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
                                     >
                                         Planes
                                         {activeTab === 'cuotas' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-t-full" />}
                                     </button>
                                     <button
                                         onClick={() => setActiveTab('audit')}
-                                        className={`pb-3 px-4 text-sm font-medium transition-colors relative ${activeTab === 'audit' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
+                                        className={`shrink-0 pb-3 px-3 text-sm font-medium transition-colors relative ${activeTab === 'audit' ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-700'}`}
                                     >
                                         Auditoría
                                         {activeTab === 'audit' && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-indigo-600 rounded-t-full" />}
@@ -614,11 +615,11 @@ export default function ContractDetailsModal({
                                     </div>
                                 ) : null}
 
-                                <div className="mt-8 flex justify-between items-center pt-6 border-t border-gray-100">
+                                <div className="mt-8 flex flex-col gap-3 pt-6 border-t border-gray-100 sm:flex-row sm:items-center sm:justify-between">
                                     {canDeleteContracts ? (
                                         <button
                                             onClick={() => onDelete(contract.id)}
-                                            className="flex items-center gap-2 text-sm font-medium text-red-600 hover:text-red-800 transition-colors"
+                                            className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-red-50 px-4 text-sm font-medium text-red-600 hover:text-red-800 transition-colors sm:bg-transparent"
                                         >
                                             <TrashIcon className="w-5 h-5" />
                                             Mover a papelera
@@ -626,11 +627,12 @@ export default function ContractDetailsModal({
                                     ) : <span />}
                                     <button
                                         type="button"
-                                        className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100"
+                                        className="min-h-11 px-6 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100"
                                         onClick={onClose}
                                     >
                                         Cerrar
                                     </button>
+                                </div>
                                 </div>
                             </Dialog.Panel>
                         </Transition.Child>

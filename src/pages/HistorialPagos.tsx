@@ -57,6 +57,16 @@ export default function HistorialPagos() {
         return addr;
     };
 
+    const formatPeriod = (dateStr?: string | null) => {
+        if (!dateStr) return "N/A";
+        const period = new Date(dateStr).toLocaleDateString("es-AR", {
+            month: "long",
+            year: "numeric",
+            timeZone: "UTC",
+        });
+        return `${period.charAt(0).toUpperCase()}${period.slice(1)}`;
+    };
+
     return (
         <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -84,7 +94,52 @@ export default function HistorialPagos() {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="md:hidden divide-y divide-gray-100">
+                    {isLoading ? (
+                        <div className="px-4 py-12 text-center text-sm text-gray-500">
+                            <div className="flex justify-center items-center gap-2">
+                                <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                                Cargando pagos...
+                            </div>
+                        </div>
+                    ) : pagos.length === 0 ? (
+                        <div className="px-4 py-12 text-center">
+                            <DocumentTextIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                            <p className="text-gray-500 text-sm">No se encontraron pagos con los filtros actuales.</p>
+                        </div>
+                    ) : (
+                        pagos.map((pago: any) => (
+                            <article key={pago.id} className="p-4">
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="text-[11px] font-black uppercase tracking-wider text-gray-400">
+                                            {new Date(pago.fechaPago).toLocaleDateString("es-AR", {
+                                                day: "2-digit",
+                                                month: "2-digit",
+                                                year: "numeric",
+                                                timeZone: "UTC",
+                                            })} · {pago.metodoPago}
+                                        </p>
+                                        <h3 className="mt-1 text-sm font-black leading-snug text-gray-900">
+                                            {formatAddress(pago.liquidacion?.contrato?.propiedad)}
+                                        </h3>
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            Liq. #{pago.liquidacion?.id} · {formatPeriod(pago.liquidacion?.periodo)}
+                                        </p>
+                                    </div>
+                                    <span className="shrink-0 text-sm font-black font-mono text-green-700">
+                                        + {formatCurrency(pago.monto, pago.moneda || pago.liquidacion?.moneda || "ARS")}
+                                    </span>
+                                </div>
+                                <div className="mt-3 rounded-xl bg-gray-50 p-3 text-xs text-gray-600">
+                                    <p><span className="font-bold text-gray-400 uppercase">Inquilino:</span> {pago.liquidacion?.contrato?.inquilinos.find((i: any) => i.esPrincipal)?.persona.nombreCompleto || 'N/A'}</p>
+                                    <p className="mt-1"><span className="font-bold text-gray-400 uppercase">Registró:</span> {pago.creadoPor?.nombreCompleto || pago.auditLogs?.[0]?.usuario?.nombreCompleto || 'Sistema'}</p>
+                                </div>
+                            </article>
+                        ))
+                    )}
+                </div>
+                <div className="hidden overflow-x-auto md:block">
                     <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50/50 whitespace-nowrap">
                             <tr>
@@ -146,7 +201,7 @@ export default function HistorialPagos() {
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-500">
-                                                {pago.liquidacion?.periodo}
+                                                {formatPeriod(pago.liquidacion?.periodo)}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
@@ -168,11 +223,12 @@ export default function HistorialPagos() {
 
                 {!isLoading && totalPages > 1 && (
                     <div className="bg-white px-4 py-3 border-t border-gray-200 flex items-center justify-between sm:px-6">
-                        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                        <div className="flex flex-1 items-center justify-between gap-3">
                             <div>
-                                <p className="text-sm text-gray-700">
+                                <p className="hidden text-sm text-gray-700 sm:block">
                                     Mostrando <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> a <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalItems)}</span> de <span className="font-medium">{totalItems}</span> resultados
                                 </p>
+                                <p className="text-xs text-gray-500 sm:hidden">Pág. {currentPage} / {totalPages}</p>
                             </div>
                             <div>
                                 <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">

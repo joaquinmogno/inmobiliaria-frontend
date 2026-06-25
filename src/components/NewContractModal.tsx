@@ -359,8 +359,8 @@ export default function NewContractModal({
                     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
                 </Transition.Child>
 
-                <div className="fixed inset-0 overflow-y-auto">
-                    <div className="flex min-h-full items-center justify-center p-4 text-center">
+                <div className="fixed inset-0 overflow-hidden">
+                    <div className="flex min-h-full items-end justify-center text-center sm:items-center sm:p-4">
                         <Transition.Child
                             as={Fragment}
                             enter="ease-out duration-300"
@@ -370,8 +370,8 @@ export default function NewContractModal({
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-95"
                         >
-                            <Dialog.Panel className="w-full max-w-3xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                                <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                            <Dialog.Panel className="flex max-h-[100dvh] w-full max-w-3xl transform flex-col overflow-hidden rounded-t-2xl bg-white text-left align-middle shadow-xl transition-all sm:max-h-[90dvh] sm:rounded-2xl">
+                                <div className="shrink-0 flex justify-between items-center border-b border-gray-100 p-4 sm:p-6">
                                     <Dialog.Title
                                         as="h3"
                                         className="text-xl font-bold leading-6 text-gray-900"
@@ -386,7 +386,7 @@ export default function NewContractModal({
                                     </button>
                                 </div>
 
-                                <form onSubmit={handleSubmit} className="space-y-6">
+                                <form onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
                                     {/* ─── Sección Inmueble ─── */}
                                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                                         <div className="flex justify-between items-center mb-3">
@@ -510,7 +510,7 @@ export default function NewContractModal({
                                                                 type="text"
                                                                 placeholder="Nombre Completo *"
                                                                 required
-                                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-xs py-1.5 px-3"
+                                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2.5 px-3"
                                                                 value={owner.nombreCompleto}
                                                                 onChange={(e) => updateOwner(index, 'nombreCompleto', e.target.value)}
                                                                 disabled={!!owner.id || !!editingContract}
@@ -518,7 +518,7 @@ export default function NewContractModal({
                                                             <input
                                                                 type="text"
                                                                 placeholder="Teléfono"
-                                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-xs py-1.5 px-3"
+                                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2.5 px-3"
                                                                 value={owner.telefono}
                                                                 onChange={(e) => updateOwner(index, 'telefono', e.target.value)}
                                                                 disabled={!!owner.id || !!editingContract}
@@ -602,7 +602,7 @@ export default function NewContractModal({
                                                                 type="text"
                                                                 placeholder="Nombre Completo *"
                                                                 required
-                                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-xs py-1.5 px-3"
+                                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2.5 px-3"
                                                                 value={tenant.nombreCompleto}
                                                                 onChange={(e) => updateTenant(index, 'nombreCompleto', e.target.value)}
                                                                 disabled={!!tenant.id || !!editingContract}
@@ -610,7 +610,7 @@ export default function NewContractModal({
                                                             <input
                                                                 type="text"
                                                                 placeholder="Teléfono"
-                                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-xs py-1.5 px-3"
+                                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2.5 px-3"
                                                                 value={tenant.telefono}
                                                                 onChange={(e) => updateTenant(index, 'telefono', e.target.value)}
                                                                 disabled={!!tenant.id || !!editingContract}
@@ -948,17 +948,17 @@ export default function NewContractModal({
                                     )}
 
                                     {/* ─── Footer Actions ─── */}
-                                    <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+                                    <div className="sticky bottom-0 -mx-4 -mb-4 flex justify-end gap-3 border-t border-gray-100 bg-white p-4 sm:-mx-6 sm:-mb-6 sm:p-6">
                                         <button
                                             type="button"
                                             onClick={onClose}
-                                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                            className="min-h-11 flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:flex-none"
                                         >
                                             Cancelar
                                         </button>
                                         <button
                                             type="submit"
-                                            className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm"
+                                            className="min-h-11 flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm sm:flex-none"
                                         >
                                             {editingContract ? 'Guardar Cambios' : 'Guardar Contrato'}
                                         </button>

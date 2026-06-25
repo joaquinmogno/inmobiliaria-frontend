@@ -216,7 +216,7 @@ export default function LiquidacionDetalle() {
     return (
         <div className="max-w-5xl mx-auto space-y-8 pb-32">
             {/* Top Navigation & Actions */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 print:hidden">
+            <div className="flex flex-col items-stretch justify-between gap-4 print:hidden sm:flex-row sm:items-center">
                 <button
                     onClick={() => navigate("/liquidaciones")}
                     className="group flex items-center gap-2 text-gray-500 hover:text-gray-900 transition-all font-medium py-2 pr-4 rounded-xl"
@@ -226,11 +226,11 @@ export default function LiquidacionDetalle() {
                     </div>
                     Volver
                 </button>
-                <div className="flex items-center gap-3">
+                <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2 sm:flex sm:items-center sm:gap-3">
                     {canEditLiquidations && liquidacion.estado === 'BORRADOR' && (
                         <button
                             onClick={handleConfirmar}
-                            className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 font-bold text-sm cursor-pointer"
+                            className="flex min-h-11 items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 font-bold text-sm cursor-pointer"
                         >
                             <CheckIcon className="w-5 h-5" />
                             Confirmar Liquidación
@@ -239,7 +239,7 @@ export default function LiquidacionDetalle() {
                     {canCreatePayments && liquidacion.estado === 'PENDIENTE_PAGO' && (
                         <button
                             onClick={() => setIsPaymentModalOpen(true)}
-                            className="flex items-center gap-2 bg-green-600 text-white px-5 py-2.5 rounded-xl hover:bg-green-700 transition-all shadow-md shadow-green-100 font-bold text-sm cursor-pointer"
+                            className="flex min-h-11 items-center justify-center gap-2 bg-green-600 text-white px-4 py-2.5 rounded-xl hover:bg-green-700 transition-all shadow-md shadow-green-100 font-bold text-sm cursor-pointer"
                         >
                             <BanknotesIcon className="w-5 h-5" />
                             Registrar Pago Inquilino
@@ -248,7 +248,7 @@ export default function LiquidacionDetalle() {
                     {canEditLiquidations && liquidacion.estado === 'PAGADA_POR_INQUILINO' && (
                         <button
                             onClick={() => setIsOwnerPaymentModalOpen(true)}
-                            className="flex items-center gap-2 bg-orange-600 text-white px-5 py-2.5 rounded-xl hover:bg-orange-700 transition-all shadow-md shadow-orange-100 font-bold text-sm cursor-pointer"
+                            className="flex min-h-11 items-center justify-center gap-2 bg-orange-600 text-white px-4 py-2.5 rounded-xl hover:bg-orange-700 transition-all shadow-md shadow-orange-100 font-bold text-sm cursor-pointer"
                         >
                             <BuildingOfficeIcon className="w-5 h-5" />
                             Pagar a Propietario
@@ -256,7 +256,7 @@ export default function LiquidacionDetalle() {
                     )}
                     <button
                         onClick={() => liquidacionesService.downloadPdf(Number(id))}
-                        className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-all font-bold text-sm cursor-pointer"
+                        className="flex min-h-11 items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-all font-bold text-sm cursor-pointer"
                         title="Comprobante para el inquilino"
                     >
                         <PrinterIcon className="w-5 h-5" />
@@ -264,7 +264,7 @@ export default function LiquidacionDetalle() {
                     </button>
                     <button
                         onClick={() => liquidacionesService.downloadPdfPropietario(Number(id))}
-                        className="flex items-center gap-2 bg-white text-gray-700 border border-gray-200 px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-all font-bold text-sm cursor-pointer"
+                        className="flex min-h-11 items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-all font-bold text-sm cursor-pointer"
                         title="Liquidación para el propietario con honorarios"
                     >
                         <DocumentChartBarIcon className="w-5 h-5" />
@@ -274,8 +274,20 @@ export default function LiquidacionDetalle() {
             </div>
 
             {/* Stepper Progress */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 overflow-hidden relative">
-                <div className="flex items-center justify-between relative z-10">
+            <div className="bg-white rounded-3xl p-5 sm:p-8 shadow-sm border border-gray-100 overflow-hidden relative">
+                <div className="sm:hidden">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Estado actual</p>
+                    <div className="mt-2 flex items-center justify-between gap-3">
+                        <div>
+                            <p className="text-lg font-black text-indigo-700">{steps[currentStepIndex]?.label || getStatusLabel(liquidacion.estado)}</p>
+                            <p className="text-sm text-gray-500">{steps[currentStepIndex]?.description || "Seguimiento de liquidación"}</p>
+                        </div>
+                        <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-black text-indigo-700">
+                            {Math.max(currentStepIndex + 1, 1)} / {steps.length}
+                        </span>
+                    </div>
+                </div>
+                <div className="hidden sm:flex items-center justify-between relative z-10">
                     {steps.map((step, idx) => {
                         const isCompleted = idx < currentStepIndex;
                         const isCurrent = idx === currentStepIndex;
@@ -315,12 +327,12 @@ export default function LiquidacionDetalle() {
                 <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50 rounded-full -mr-32 -mt-32 opacity-50 pointer-events-none" />
 
                 <div className="p-8 sm:p-12 relative">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-12">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8 mb-8 sm:mb-12">
                         <div className="space-y-2">
                             <span className={`inline-flex items-center px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border ${getStatusStyle(liquidacion.estado)}`}>
                                 {getStatusLabel(liquidacion.estado)}
                             </span>
-                            <h1 className="text-4xl font-black text-gray-900 tracking-tight capitalize">
+                            <h1 className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight capitalize">
                                 Liquidación {formatPeriod(liquidacion.periodo)}
                             </h1>
                             <p className="text-gray-500 font-medium">Comprobante de movimientos mensuales del contrato</p>
