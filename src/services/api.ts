@@ -63,6 +63,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
         ...init,
         headers,
         credentials: 'include',
+        cache: 'no-store',
     });
 
     if (response.status === 401) {
@@ -118,7 +119,7 @@ export const openAuthenticatedFile = async (path: string | null) => {
     if (!path) return;
 
     const fileWindow = window.open('', '_blank');
-    const response = await fetch(getFileUrl(path), { credentials: 'include' });
+    const response = await fetch(getFileUrl(path), { credentials: 'include', cache: 'no-store' });
 
     if (!response.ok) {
         fileWindow?.close();
