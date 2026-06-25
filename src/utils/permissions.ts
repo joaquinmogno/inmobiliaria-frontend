@@ -39,6 +39,10 @@ export const MODULE_PERMISSIONS = [
   "usuarios.permisos",
   "configuracion.perfil.ver",
   "configuracion.perfil.editar",
+  "configuracion.backups.ver",
+  "configuracion.backups.crear",
+  "configuracion.backups.eliminar",
+  "configuracion.backups.descargar",
   "configuracion.auditoria.ver",
   "reportes.dashboard.ver",
   "reportes.contratos.ver",
@@ -93,6 +97,10 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   "usuarios.permisos": "Administrar permisos",
   "configuracion.perfil.ver": "Ver perfil",
   "configuracion.perfil.editar": "Editar perfil",
+  "configuracion.backups.ver": "Ver backups",
+  "configuracion.backups.crear": "Crear backups",
+  "configuracion.backups.eliminar": "Eliminar backups",
+  "configuracion.backups.descargar": "Descargar backups",
   "configuracion.auditoria.ver": "Ver auditoría",
   "reportes.dashboard.ver": "Ver dashboard",
   "reportes.contratos.ver": "Ver métricas de contratos",
@@ -114,14 +122,14 @@ export const PERMISSION_GROUPS: Array<{ title: string; permissions: PermissionKe
   { title: "Propiedades", permissions: ["propiedades.ver", "propiedades.crear", "propiedades.editar", "propiedades.eliminar"] },
   { title: "Personas", permissions: ["personas.ver", "personas.crear", "personas.editar", "personas.eliminar"] },
   { title: "Usuarios", permissions: ["usuarios.ver", "usuarios.crear", "usuarios.editar", "usuarios.eliminar", "usuarios.permisos"] },
-  { title: "Configuración", permissions: ["configuracion.perfil.ver", "configuracion.perfil.editar", "configuracion.auditoria.ver"] },
+  { title: "Configuración", permissions: ["configuracion.perfil.ver", "configuracion.perfil.editar", "configuracion.backups.ver", "configuracion.backups.crear", "configuracion.backups.descargar", "configuracion.backups.eliminar", "configuracion.auditoria.ver"] },
   { title: "Reportes", permissions: ["reportes.dashboard.ver", "reportes.contratos.ver", "reportes.morosidad.ver", "reportes.financieros.ver"] },
   { title: "Sueldos", permissions: [...SUELDOS_PERMISSIONS] },
 ];
 
 export const ROLE_PRESETS: Array<{ name: string; permissions: PermissionKey[]; deniedPermissions?: PermissionKey[] }> = [
-  { name: "Jefe", permissions: [...MODULE_PERMISSIONS] },
-  { name: "Administrador", permissions: MODULE_PERMISSIONS.filter(permission => !permission.startsWith("sueldos.")) },
+  { name: "Jefe", permissions: MODULE_PERMISSIONS.filter(permission => permission !== "configuracion.backups.eliminar") },
+  { name: "Administrador", permissions: MODULE_PERMISSIONS.filter(permission => !permission.startsWith("sueldos.") && permission !== "configuracion.backups.eliminar") },
   {
     name: "Administrativo",
     permissions: [

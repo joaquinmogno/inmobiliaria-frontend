@@ -21,13 +21,12 @@ export default function Configuracion() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const { user, updateInmobiliaria } = useAuth();
-  const isSuperAdmin = user?.role === "SUPERADMIN";
   const canViewProfile = hasPermission(user, "configuracion.perfil.ver");
   const canEditProfile = hasPermission(user, "configuracion.perfil.editar");
-  const canViewBackups = isSuperAdmin;
-  const canCreateBackups = isSuperAdmin;
-  const canDeleteBackups = isSuperAdmin;
-  const canDownloadBackups = isSuperAdmin;
+  const canViewBackups = hasPermission(user, "configuracion.backups.ver");
+  const canCreateBackups = hasPermission(user, "configuracion.backups.crear");
+  const canDeleteBackups = hasPermission(user, "configuracion.backups.eliminar");
+  const canDownloadBackups = hasPermission(user, "configuracion.backups.descargar");
   const canViewAudit = hasPermission(user, "configuracion.auditoria.ver");
   const [inmobiliaria, setInmobiliaria] = useState<Partial<Inmobiliaria>>({});
   const [profileLoading, setProfileLoading] = useState(false);
@@ -280,7 +279,7 @@ export default function Configuracion() {
         <form onSubmit={handleUpdateProfile} className="p-6">
           <div className="max-w-md">
             <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la Inmobiliaria</label>
-            <div className="flex gap-4">
+            <div className="flex flex-col gap-3 sm:flex-row">
               <input
                 type="text"
                 value={inmobiliaria.nombre || ''}
@@ -388,7 +387,44 @@ export default function Configuracion() {
               <h2 className="text-lg font-semibold text-gray-900">Backups Existentes</h2>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <div className="md:hidden divide-y divide-gray-100">
+                {loading ? (
+                  Array.from({ length: 3 }).map((_, i) => (
+                    <div key={i} className="p-4 animate-pulse">
+                      <div className="h-4 bg-gray-100 rounded w-full"></div>
+                    </div>
+                  ))
+                ) : (backups || []).length === 0 ? (
+                  <div className="px-6 py-12 text-center text-gray-500">No hay archivos de backup disponibles.</div>
+                ) : (
+                  backups.map((file) => (
+                    <article key={file.name} className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="break-all text-sm font-black text-gray-900">{file.name}</p>
+                          <p className="mt-1 text-xs text-gray-500">{new Date(file.date).toLocaleString('es-AR')} · {formatSize(file.size)}</p>
+                        </div>
+                        <span className={`shrink-0 inline-flex items-center px-2 py-1 rounded text-[10px] font-bold ${file.type === 'db' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                          {file.type === 'db' ? 'DB' : 'Archivos'}
+                        </span>
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        {canDownloadBackups && (
+                          <button onClick={() => backupsService.downloadBackup(file.type, file.name)} className="min-h-11 rounded-xl bg-indigo-50 px-3 text-xs font-bold text-indigo-700">
+                            Descargar
+                          </button>
+                        )}
+                        {canDeleteBackups && (
+                          <button onClick={() => handleDelete(file.type, file.name)} className="min-h-11 rounded-xl bg-red-50 px-3 text-xs font-bold text-red-700">
+                            Eliminar
+                          </button>
+                        )}
+                      </div>
+                    </article>
+                  ))
+                )}
+              </div>
+              <table className="hidden w-full text-left md:table">
                 <thead className="bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   <tr>
                     <th className="px-6 py-3">Archivo</th>
@@ -517,8 +553,33 @@ export default function Configuracion() {
              </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
+          <div>
+            <div className="md:hidden divide-y divide-gray-100">
+              {logsLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="p-4 animate-pulse">
+                    <div className="h-4 bg-gray-100 rounded w-full"></div>
+                  </div>
+                ))
+              ) : logs.length === 0 ? (
+                <div className="px-6 py-12 text-center text-gray-400 italic">No se han registrado acciones críticas aún.</div>
+              ) : (
+                logs.map((log) => (
+                  <article key={log.id} className="p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-xs font-black uppercase tracking-wider text-indigo-700">{log.accion.replace(/_/g, ' ')}</p>
+                        <h3 className="mt-1 text-sm font-bold text-gray-900">{log.usuario?.nombreCompleto || 'Sistema'}</h3>
+                      </div>
+                      <span className="shrink-0 text-[11px] font-bold text-gray-400">{new Date(log.fechaCreacion).toLocaleDateString('es-AR')}</span>
+                    </div>
+                    <p className="mt-2 text-sm text-gray-600">{renderAuditDetail(log)}</p>
+                    {log.entidadId && <p className="mt-1 text-xs text-gray-400">{log.entidad} #{log.entidadId}</p>}
+                  </article>
+                ))
+              )}
+            </div>
+            <table className="hidden w-full text-left md:table">
               <thead className="bg-gray-50 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 <tr>
                   <th className="px-6 py-3">Acción</th>
@@ -570,7 +631,7 @@ export default function Configuracion() {
               </tbody>
             </table>
           </div>
-          <div className="p-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
+          <div className="p-4 bg-gray-50 border-t border-gray-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-gray-500 font-medium">
               Mostrando página <span className="font-bold">{logsPage}</span> de {Math.max(1, Math.ceil(logsTotal / logsLimit))} 
               <span className="mx-2">·</span> 

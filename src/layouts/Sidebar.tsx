@@ -27,6 +27,7 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
   const { user } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
   const [isContratosOpen, setIsContratosOpen] = useState(false);
+  const menuExpanded = Boolean(mobileOpen || isExpanded);
   const canViewProperties = hasPermission(user, "propiedades.ver");
   const canViewPeople = hasPermission(user, "personas.ver");
   const canViewContracts = hasPermission(user, "contratos.ver");
@@ -65,8 +66,8 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
       }}
     >
       {/* Logo / Branding */}
-        <div className={`flex items-center mb-6 transition-all duration-300 ${isExpanded ? 'px-2' : 'justify-center px-0'}`}>
-          {isExpanded ? (
+        <div className={`flex items-center mb-6 transition-all duration-300 ${menuExpanded ? 'px-2' : 'justify-center px-0'}`}>
+          {menuExpanded ? (
             <div className="bg-white rounded-xl shadow-md flex items-center justify-center overflow-hidden h-12 w-full">
                <img src="/logo.png" alt="PropControl" className="h-full w-full object-contain scale-[2]" onError={(e)=>(e.target as HTMLImageElement).style.display='none'} />
             </div>
@@ -84,7 +85,7 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
         <NavLink to="/home" className={linkClass}>
           <HomeIcon className="w-6 h-6 min-w-[24px]" />
           <span
-            className={`transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
+            className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
               }`}
           >
             Inicio
@@ -96,7 +97,7 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
         {canViewProperties && <NavLink to="/propiedades" className={linkClass}>
           <HomeModernIcon className="w-6 h-6 min-w-[24px]" />
           <span
-            className={`transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
+            className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
               }`}
           >
             Propiedades
@@ -107,7 +108,7 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
         {canViewPeople && <NavLink to="/personas" className={linkClass}>
           <UserGroupIcon className="w-6 h-6 min-w-[24px]" />
           <span
-            className={`transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
+            className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
               }`}
           >
             Personas
@@ -117,17 +118,17 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
         {/* Contratos (con submenú Papelera) */}
         {canViewContracts && <div>
           <button
-            onClick={() => isExpanded ? setIsContratosOpen((prev) => !prev) : navigate("/contratos")}
+            onClick={() => menuExpanded ? setIsContratosOpen((prev) => !prev) : navigate("/contratos")}
             className="w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 whitespace-nowrap overflow-hidden text-indigo-100 hover:bg-indigo-700/50 hover:text-white"
           >
             <DocumentTextIcon className="w-6 h-6 min-w-[24px]" />
             <span
-              className={`flex-1 text-left transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
+              className={`flex-1 text-left transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
                 }`}
             >
               Contratos
             </span>
-            {isExpanded && (
+            {menuExpanded && (
               <ChevronDownIcon
                 className={`w-4 h-4 min-w-[16px] transition-transform duration-200 ${isContratosOpen ? "rotate-180" : ""
                   }`}
@@ -136,7 +137,7 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
           </button>
 
           {/* Submenú */}
-          {isExpanded && isContratosOpen && (
+          {menuExpanded && isContratosOpen && (
             <div className="ml-4 mt-1 flex flex-col gap-1">
               <NavLink to="/contratos" end className={linkClass}>
                 <DocumentTextIcon className="w-5 h-5 min-w-[20px]" />
@@ -164,7 +165,7 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
         {canViewLiquidations && <NavLink to="/liquidaciones" className={linkClass}>
           <CalculatorIcon className="w-6 h-6 min-w-[24px]" />
           <span
-            className={`transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
+            className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
               }`}
           >
             Liquidaciones
@@ -175,7 +176,7 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
         {canViewCash && <NavLink to="/cajachica" className={linkClass}>
           <BanknotesIcon className="w-6 h-6 min-w-[24px]" />
           <span
-            className={`transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
+            className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
               }`}
           >
             Caja Chica
@@ -185,7 +186,7 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
         {canViewPayments && <NavLink to="/pagos" className={linkClass}>
           <CreditCardIcon className="w-6 h-6 min-w-[24px]" />
           <span
-            className={`transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
+            className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
               }`}
           >
             Pagos / Egresos
@@ -196,7 +197,7 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
           <NavLink to="/sueldos" className={linkClass}>
             <BanknotesIcon className="w-6 h-6 min-w-[24px]" />
             <span
-              className={`transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
+              className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
                 }`}
             >
               Sueldos
@@ -210,7 +211,7 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
         {canViewConfiguration && <NavLink to="/configuracion" className={linkClass}>
           <Cog6ToothIcon className="w-6 h-6 min-w-[24px]" />
           <span
-            className={`transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
+            className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
               }`}
           >
             Configuración
@@ -227,7 +228,7 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
             }>
               <GlobeAltIcon className="w-6 h-6 min-w-[24px]" />
               <span
-                className={`transition-opacity duration-300 ${isExpanded ? "opacity-100" : "opacity-0 w-0"
+                className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
                   }`}
               >
                 Consola SaaS
@@ -238,7 +239,7 @@ export default function Sidebar({ mobileOpen, closeMobile }: SidebarProps) {
         </nav>
 
         {/* Footer de marca */}
-        {isExpanded && (
+        {menuExpanded && (
           <div className="mt-6 pt-5 border-t border-indigo-600/30">
             <div className="flex flex-col items-center justify-center">
               <span className="text-indigo-100/90 text-xs font-bold tracking-widest uppercase">PropControl</span>

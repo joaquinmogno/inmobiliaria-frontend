@@ -212,7 +212,7 @@ export default function Home() {
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
             Panel de {user?.inmobiliaria?.nombre || "Gestión"}
           </h1>
           <p className="text-gray-500 text-sm">Resumen financiero y alertas del mes actual.</p>
@@ -220,7 +220,7 @@ export default function Home() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 min-[380px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         {kpiCards.map((card) => {
           const Icon = card.icon;
           return (

@@ -174,16 +174,16 @@ export default function Usuarios() {
     if (loading) return <div className="p-8 text-center">Cargando usuarios...</div>;
 
     return (
-        <div className="p-4 md:p-8 max-w-7xl mx-auto">
-            <div className="flex justify-between items-center mb-8">
+        <div className="p-0 md:p-8 max-w-7xl mx-auto">
+            <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between md:mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Gestión de Equipo</h1>
+                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestión de Equipo</h1>
                     <p className="text-gray-500 mt-1">Administra usuarios, roles y permisos de la inmobiliaria</p>
                 </div>
                 {canCreateUsers && (
                     <button
                         onClick={openCreateModal}
-                        className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 font-semibold"
+                        className="flex min-h-11 items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 font-semibold"
                     >
                         <PlusIcon className="w-5 h-5" />
                         Nuevo Usuario
@@ -191,7 +191,45 @@ export default function Usuarios() {
                 )}
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="md:hidden space-y-3">
+                {users.map((teamUser) => (
+                    <article key={teamUser.id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="flex min-w-0 items-start gap-3">
+                                <div className="bg-indigo-100 p-2 rounded-lg shrink-0">
+                                    <UserIcon className="w-5 h-5 text-indigo-600" />
+                                </div>
+                                <div className="min-w-0">
+                                    <h3 className="font-black leading-tight text-gray-900">{teamUser.nombreCompleto || teamUser.fullName}</h3>
+                                    <p className="mt-1 break-all text-sm text-gray-500">{teamUser.email}</p>
+                                </div>
+                            </div>
+                            <span className={`shrink-0 px-2.5 py-1 rounded-full text-[10px] font-black uppercase ${["SUPERADMIN", "OWNER", "JEFE", "ADMIN"].includes(teamUser.role) ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}>
+                                {ROLE_LABELS[teamUser.role] || teamUser.role}
+                            </span>
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-1.5">
+                            {(teamUser.permissions || []).slice(0, 4).map(permission => (
+                                <span key={permission} className="px-2 py-1 rounded-lg text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                    {PERMISSION_LABELS[permission as PermissionKey]}
+                                </span>
+                            ))}
+                            {(teamUser.permissions || []).length > 4 && (
+                                <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-gray-50 text-gray-500 border border-gray-100">
+                                    +{(teamUser.permissions || []).length - 4}
+                                </span>
+                            )}
+                        </div>
+                        <div className="mt-4 grid grid-cols-1 min-[380px]:grid-cols-3 gap-2 border-t border-gray-100 pt-3">
+                            {canEditUsers && <button onClick={() => handleResetPassword(teamUser.id)} className="min-h-11 rounded-xl bg-gray-50 px-3 text-xs font-bold text-gray-600">Clave</button>}
+                            {(canEditUsers || canManagePermissions) && <button onClick={() => openEditModal(teamUser)} className="min-h-11 rounded-xl bg-blue-50 px-3 text-xs font-bold text-blue-700">Editar</button>}
+                            {canDeleteUsers && <button onClick={() => handleDelete(teamUser.id)} className="min-h-11 rounded-xl bg-red-50 px-3 text-xs font-bold text-red-700">Eliminar</button>}
+                        </div>
+                    </article>
+                ))}
+            </div>
+
+            <div className="hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden md:block">
                 <table className="w-full text-left border-collapse">
                     <thead>
                         <tr className="bg-gray-50/50 border-b border-gray-100">
@@ -271,12 +309,14 @@ export default function Usuarios() {
             </div>
 
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl">
-                        <h2 className="text-xl font-bold mb-4">
-                            {editingUser ? "Editar Usuario" : "Nuevo Usuario"}
-                        </h2>
-                        <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4">
+                    <div className="flex max-h-[100dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-h-[90dvh] sm:rounded-2xl">
+                        <div className="shrink-0 border-b border-gray-100 p-4 sm:p-6">
+                            <h2 className="text-xl font-bold">
+                                {editingUser ? "Editar Usuario" : "Nuevo Usuario"}
+                            </h2>
+                        </div>
+                        <form onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
@@ -408,17 +448,17 @@ export default function Usuarios() {
                             </div>
                             )}
 
-                            <div className="flex justify-end gap-3 mt-6">
+                            <div className="sticky bottom-0 -mx-4 -mb-4 mt-6 flex justify-end gap-3 border-t border-gray-100 bg-white p-4 sm:-mx-6 sm:-mb-6 sm:p-6">
                                 <button
                                     type="button"
                                     onClick={() => setIsModalOpen(false)}
-                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+                                    className="min-h-11 flex-1 rounded-xl px-4 py-2 text-gray-600 hover:bg-gray-100 transition-colors sm:flex-none"
                                 >
                                     Cancelar
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-6 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-semibold shadow-lg shadow-indigo-100"
+                                    className="min-h-11 flex-1 rounded-xl bg-indigo-600 px-6 py-2 text-white hover:bg-indigo-700 transition-all font-semibold shadow-lg shadow-indigo-100 sm:flex-none"
                                 >
                                     Guardar
                                 </button>
