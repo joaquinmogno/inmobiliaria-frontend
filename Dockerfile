@@ -16,7 +16,9 @@ FROM nginx:alpine
 
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+ENV API_PROXY_PASS=http://backend:3000/api/
+ENV API_PROXY_HOST=backend
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 
 EXPOSE 80
 
