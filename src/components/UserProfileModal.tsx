@@ -28,21 +28,28 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError("La nueva contraseña debe tener al menos 6 caracteres.");
+    if (
+      newPassword.length < 12 ||
+      !/[a-z]/.test(newPassword) ||
+      !/[A-Z]/.test(newPassword) ||
+      !/[0-9]/.test(newPassword) ||
+      !/[^A-Za-z0-9]/.test(newPassword)
+    ) {
+      setError("La nueva contraseña debe tener al menos 12 caracteres e incluir mayúscula, minúscula, número y símbolo.");
       return;
     }
 
     setLoading(true);
     try {
       await authService.changePassword(currentPassword, newPassword);
-      setSuccess("Contraseña actualizada exitosamente.");
+      setSuccess("Contraseña actualizada. Volvé a iniciar sesión.");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
       setTimeout(() => {
         onClose();
         setSuccess(null);
+        window.dispatchEvent(new Event("logout"));
       }, 2000);
     } catch (err: any) {
       setError(err.message || "Error al cambiar la contraseña. Verifica tu contraseña actual.");
@@ -116,8 +123,8 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                placeholder="Mínimo 6 caracteres"
-                minLength={6}
+                placeholder="12+ con mayúscula, minúscula, número y símbolo"
+                minLength={12}
               />
             </div>
 
@@ -130,7 +137,7 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                 placeholder="Repite la nueva contraseña"
-                minLength={6}
+                minLength={12}
               />
             </div>
 

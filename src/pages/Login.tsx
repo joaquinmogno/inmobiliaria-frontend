@@ -33,9 +33,9 @@ const Login = () => {
       } else {
         localStorage.removeItem('rememberedEmail');
       }
-      login(response.token, response.user);
-      navigate('/home');
-    } catch (err) {
+      login(response.user);
+      navigate(response.user.mustChangePassword ? '/mi-acceso' : '/home');
+    } catch {
       setError('Credenciales inválidas. Por favor, intenta de nuevo.');
     } finally {
       setIsLoading(false);

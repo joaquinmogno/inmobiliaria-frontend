@@ -30,6 +30,13 @@ interface RequestOptions extends RequestInit {
     params?: Record<string, string>;
 }
 
+const getCookie = (name: string) => {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return decodeURIComponent(parts.pop()!.split(';').shift() || '');
+    return '';
+};
+
 async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
     const { params, ...init } = options;
 
@@ -39,11 +46,12 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
         url += `?${searchParams.toString()}`;
     }
 
-    const token = localStorage.getItem('token');
     const headers = new Headers(init.headers);
 
-    if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
+    const method = (init.method || 'GET').toUpperCase();
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+        const csrfToken = getCookie('pc_csrf');
+        if (csrfToken) headers.set('X-CSRF-Token', csrfToken);
     }
 
     // Default to JSON if not FormData
@@ -54,12 +62,14 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
     const response = await fetch(url, {
         ...init,
         headers,
+        credentials: 'include',
     });
 
     if (response.status === 401) {
-        localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.dispatchEvent(new Event('logout'));
+        if (endpoint !== '/auth/logout') {
+            window.dispatchEvent(new Event('logout'));
+        }
         throw new Error('Sesión expirada. Por favor, vuelva a ingresar.');
     }
 
@@ -108,10 +118,7 @@ export const openAuthenticatedFile = async (path: string | null) => {
     if (!path) return;
 
     const fileWindow = window.open('', '_blank');
-    const token = localStorage.getItem('token');
-    const response = await fetch(getFileUrl(path), {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined
-    });
+    const response = await fetch(getFileUrl(path), { credentials: 'include' });
 
     if (!response.ok) {
         fileWindow?.close();

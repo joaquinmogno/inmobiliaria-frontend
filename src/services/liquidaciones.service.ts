@@ -103,11 +103,10 @@ export const liquidacionesService = {
     },
 
     downloadPdf: (id: number) => {
-        const token = localStorage.getItem('token');
         const envUrl = import.meta.env.VITE_API_URL;
         const baseUrl = envUrl ? (envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`) : 'http://localhost:3000/api';
         const url = `${baseUrl}/liquidaciones/${id}/pdf`;
-        fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+        fetch(url, { credentials: 'include' })
             .then(res => res.blob())
             .then(blob => {
                 const blobUrl = URL.createObjectURL(blob);
@@ -116,11 +115,10 @@ export const liquidacionesService = {
     },
 
     downloadPdfPropietario: (id: number) => {
-        const token = localStorage.getItem('token');
         const envUrl = import.meta.env.VITE_API_URL;
         const baseUrl = envUrl ? (envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`) : 'http://localhost:3000/api';
         const url = `${baseUrl}/liquidaciones/${id}/pdf-propietario`;
-        fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+        fetch(url, { credentials: 'include' })
             .then(res => res.blob())
             .then(blob => {
                 const blobUrl = URL.createObjectURL(blob);
