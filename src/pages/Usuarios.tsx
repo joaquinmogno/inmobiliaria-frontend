@@ -124,7 +124,7 @@ export default function Usuarios() {
             setSelectedDeniedPermissions([]);
             loadUsers();
         } catch (error) {
-            alert("Error al guardar usuario");
+            alert(error instanceof Error ? error.message : "Error al guardar usuario");
         }
     };
 
@@ -139,7 +139,7 @@ export default function Usuarios() {
                 await usersService.delete(id);
                 loadUsers();
             } catch (error) {
-                alert("Error al eliminar usuario");
+                alert(error instanceof Error ? error.message : "Error al eliminar usuario");
             }
         }
     };
@@ -152,7 +152,7 @@ export default function Usuarios() {
                 await usersService.resetPassword(id, newPassword);
                 alert("Contraseña reseteada con éxito");
             } catch (error) {
-                alert("Error al resetear contraseña");
+                alert(error instanceof Error ? error.message : "Error al resetear contraseña");
             }
         }
     };
@@ -350,6 +350,9 @@ export default function Usuarios() {
                                             value={formData.password}
                                             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                         />
+                                        <p className="mt-1 text-xs text-gray-500">
+                                            Mínimo 12 caracteres, con mayúscula, minúscula, número y símbolo.
+                                        </p>
                                     </div>
                                 )}
                                 <div>
