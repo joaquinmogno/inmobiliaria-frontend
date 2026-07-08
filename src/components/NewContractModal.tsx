@@ -8,6 +8,14 @@ import { personasService, type Persona } from "../services/personas.service";
 import { type Contract } from "../services/contracts.service";
 import { toast } from "react-hot-toast";
 import { MONEDA_LABELS, type Moneda } from "../utils/currency";
+import {
+    ATTACHMENT_ACCEPT,
+    ATTACHMENT_FORMATS_LABEL,
+    MAIN_CONTRACT_ACCEPT,
+    MAIN_CONTRACT_FORMATS_LABEL,
+    validateAttachmentFile,
+    validateMainContractFile,
+} from "../utils/documentFiles";
 
 interface NewContractModalProps {
     isOpen: boolean;
@@ -17,34 +25,6 @@ interface NewContractModalProps {
 }
 
 const emptyPerson = () => ({ nombreCompleto: "", telefono: "" });
-const MAX_FILE_SIZE_BYTES = 30 * 1024 * 1024;
-const allowedMainContractTypes = new Set(['application/pdf']);
-const allowedAdditionalTypes = new Set(['application/pdf', 'image/jpeg', 'image/png', 'image/webp']);
-const allowedAdditionalExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
-
-function hasAllowedExtension(file: File, extensions: string[]) {
-    return extensions.some(ext => file.name.toLowerCase().endsWith(ext));
-}
-
-function validateMainContractFile(file: File) {
-    if (!allowedMainContractTypes.has(file.type) || !hasAllowedExtension(file, ['.pdf'])) {
-        return "Formato no permitido. El contrato principal debe ser PDF.";
-    }
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-        return "El archivo supera el límite máximo de 30 MB.";
-    }
-    return null;
-}
-
-function validateAdditionalFile(file: File) {
-    if (!allowedAdditionalTypes.has(file.type) || !hasAllowedExtension(file, allowedAdditionalExtensions)) {
-        return "Formato no permitido. Solo se aceptan PDF, JPG, PNG o WEBP.";
-    }
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-        return "El archivo supera el límite máximo de 30 MB.";
-    }
-    return null;
-}
 
 export default function NewContractModal({
     isOpen,
@@ -72,6 +52,7 @@ export default function NewContractModal({
         moneda: "ARS" as Moneda,
         montoHonorarios: "",
         porcentajeHonorarios: "",
+        porcentajeActualizacion: "",
         pagaHonorarios: "INQUILINO",
         diaVencimiento: "10",
         tipoAjuste: "",
@@ -79,6 +60,7 @@ export default function NewContractModal({
         observations: "",
         additionalFiles: [] as File[],
         administrado: true,
+        requiereActualizacion: true,
         frecuenciaActualizacion: "3",
         honorarioInicial: "",
         honorarioInicialMetodoPago: ""   // empty by default — user must choose
@@ -110,6 +92,7 @@ export default function NewContractModal({
                 moneda: editingContract.moneda || "ARS",
                 montoHonorarios: editingContract.montoHonorarios.toString(),
                 porcentajeHonorarios: editingContract.porcentajeHonorarios?.toString() || "",
+                porcentajeActualizacion: editingContract.porcentajeActualizacion?.toString() || "",
                 pagaHonorarios: editingContract.pagaHonorarios as string,
                 diaVencimiento: editingContract.diaVencimiento.toString(),
                 tipoAjuste: editingContract.tipoAjuste || "",
@@ -117,6 +100,7 @@ export default function NewContractModal({
                 observations: editingContract.observaciones || "",
                 additionalFiles: [],
                 administrado: editingContract.administrado,
+                requiereActualizacion: editingContract.requiereActualizacion ?? true,
                 frecuenciaActualizacion: "3",
                 honorarioInicial: "",
                 honorarioInicialMetodoPago: ""
@@ -134,6 +118,7 @@ export default function NewContractModal({
                 moneda: "ARS",
                 montoHonorarios: "",
                 porcentajeHonorarios: "",
+                porcentajeActualizacion: "",
                 pagaHonorarios: "INQUILINO",
                 diaVencimiento: "10",
                 tipoAjuste: "",
@@ -141,6 +126,7 @@ export default function NewContractModal({
                 observations: "",
                 additionalFiles: [],
                 administrado: true,
+                requiereActualizacion: true,
                 frecuenciaActualizacion: "3",
                 honorarioInicial: "",
                 honorarioInicialMetodoPago: ""
@@ -156,7 +142,7 @@ export default function NewContractModal({
 
     // Cálculo automático de fecha de actualización
     useEffect(() => {
-        if (!editingContract && formData.startDate && formData.frecuenciaActualizacion) {
+        if (!editingContract && formData.requiereActualizacion && formData.startDate && formData.frecuenciaActualizacion) {
             const date = new Date(formData.startDate + "T00:00:00");
             const months = parseInt(formData.frecuenciaActualizacion);
             if (!isNaN(date.getTime()) && !isNaN(months)) {
@@ -165,7 +151,21 @@ export default function NewContractModal({
                 setFormData(prev => ({ ...prev, updateDate: suggestedDate }));
             }
         }
-    }, [formData.startDate, formData.frecuenciaActualizacion, editingContract]);
+    }, [formData.startDate, formData.frecuenciaActualizacion, formData.requiereActualizacion, editingContract]);
+
+    const handleCurrencyChange = (moneda: Moneda) => {
+        setFormData(prev => ({
+            ...prev,
+            moneda,
+            ...(!editingContract && moneda === "USD" ? {
+                requiereActualizacion: false,
+                updateDate: "",
+                tipoAjuste: "",
+                porcentajeActualizacion: ""
+            } : {}),
+            ...(!editingContract && moneda === "ARS" ? { requiereActualizacion: true } : {})
+        }));
+    };
 
     const handleChange = (
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -247,9 +247,9 @@ export default function NewContractModal({
     ) => {
         if (e.target.files) {
             const filesArray = Array.from(e.target.files);
-            const invalid = filesArray.find(file => validateAdditionalFile(file));
+            const invalid = filesArray.find(file => validateAttachmentFile(file));
             if (invalid) {
-                toast.error(validateAdditionalFile(invalid) || "Formato no permitido");
+                toast.error(validateAttachmentFile(invalid) || "Formato no permitido");
                 e.target.value = "";
                 return;
             }
@@ -281,8 +281,13 @@ export default function NewContractModal({
         }
 
         // Validate dates
-        if (!formData.startDate || !formData.endDate || !formData.updateDate) {
-            toast.error("Las fechas de inicio, fin y próxima actualización son obligatorias.");
+        if (!formData.startDate || !formData.endDate) {
+            toast.error("Las fechas de inicio y fin son obligatorias.");
+            return;
+        }
+
+        if (formData.requiereActualizacion && !formData.updateDate) {
+            toast.error("La próxima actualización es obligatoria si el contrato tiene actualización programada.");
             return;
         }
 
@@ -300,9 +305,9 @@ export default function NewContractModal({
             }
         }
 
-        const invalidAdditionalFile = formData.additionalFiles.find(file => validateAdditionalFile(file));
+        const invalidAdditionalFile = formData.additionalFiles.find(file => validateAttachmentFile(file));
         if (invalidAdditionalFile) {
-            toast.error(validateAdditionalFile(invalidAdditionalFile) || "Formato no permitido");
+            toast.error(validateAttachmentFile(invalidAdditionalFile) || "Formato no permitido");
             return;
         }
 
@@ -330,6 +335,7 @@ export default function NewContractModal({
                 estado: 'ACTIVO'
             })),
             administrado: formData.administrado,
+            requiereActualizacion: formData.requiereActualizacion,
  	            honorarioInicial: formData.honorarioInicial,
             honorarioInicialMetodoPago: formData.honorarioInicialMetodoPago
         };
@@ -466,9 +472,9 @@ export default function NewContractModal({
                                                         onChange={handleChange}
                                                         disabled={!!selectedProperty || !!editingContract}
                                                     />
-                                                </div>
+			                                        </div>
                                             </div>
-                                        )}
+		                                        )}
                                     </div>
 
                                     {/* ─── Propietarios & Inquilinos ─── */}
@@ -673,7 +679,7 @@ export default function NewContractModal({
 	                                                    required
 	                                                    className="w-full rounded-lg border-gray-300 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
 	                                                    value={formData.moneda}
-	                                                    onChange={(e) => setFormData(prev => ({ ...prev, moneda: e.target.value as Moneda }))}
+	                                                    onChange={(e) => handleCurrencyChange(e.target.value as Moneda)}
 	                                                >
 	                                                    <option value="ARS">{MONEDA_LABELS.ARS}</option>
 	                                                    <option value="USD">{MONEDA_LABELS.USD}</option>
@@ -799,38 +805,67 @@ export default function NewContractModal({
                                                     onChange={handleChange}
                                                 />
                                             </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-700 mb-1">
-                                                    Frecuencia Actualiz. (Meses) *
-                                                </label>
-                                                <NumericInput
-                                                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
-                                                    required
-                                                    placeholder="Ej: 3"
-                                                    value={formData.frecuenciaActualizacion}
-                                                    onChange={(val) => setFormData(prev => ({ ...prev, frecuenciaActualizacion: val.toString() }))}
-                                                />
                                             </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-700 mb-1">
-                                                    Próxima Actualización *
-                                                </label>
-                                                <input
-                                                    type="date"
-                                                    name="updateDate"
-                                                    required
-                                                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
-                                                    value={formData.updateDate}
-                                                    onChange={handleChange}
-                                                />
+                                            <div className="mt-4 flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
+                                                <div>
+                                                    <p className="text-sm font-semibold text-gray-800">Actualización de alquiler</p>
+                                                    <p className="text-xs text-gray-500">Define si este contrato tendrá una actualización programada.</p>
+                                                </div>
+                                                <div className="flex items-center">
+                                                    <span className={`mr-3 text-xs font-bold ${!formData.requiereActualizacion ? 'text-indigo-600' : 'text-gray-400'}`}>NO</span>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setFormData(prev => ({
+                                                            ...prev,
+                                                            requiereActualizacion: !prev.requiereActualizacion,
+                                                            updateDate: prev.requiereActualizacion ? "" : prev.updateDate,
+                                                            tipoAjuste: prev.requiereActualizacion ? "" : prev.tipoAjuste,
+                                                            porcentajeActualizacion: prev.requiereActualizacion ? "" : prev.porcentajeActualizacion
+                                                        }))}
+                                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${formData.requiereActualizacion ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                                                    >
+                                                        <span
+                                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.requiereActualizacion ? 'translate-x-6' : 'translate-x-1'}`}
+                                                        />
+                                                    </button>
+                                                    <span className={`ml-3 text-xs font-bold ${formData.requiereActualizacion ? 'text-indigo-600' : 'text-gray-400'}`}>SÍ</span>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </div>
+                                            {formData.requiereActualizacion && (
+                                                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                            Frecuencia Actualiz. (Meses) *
+                                                        </label>
+                                                        <NumericInput
+                                                            className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
+                                                            required
+                                                            placeholder="Ej: 3"
+                                                            value={formData.frecuenciaActualizacion}
+                                                            onChange={(val) => setFormData(prev => ({ ...prev, frecuenciaActualizacion: val.toString() }))}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                            Próxima Actualización *
+                                                        </label>
+                                                        <input
+                                                            type="date"
+                                                            name="updateDate"
+                                                            required
+                                                            className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
+                                                            value={formData.updateDate}
+                                                            onChange={handleChange}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+		                                        </div>
 
-                                    {/* ─── Tipo de Ajuste ─── */}
-                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                                        <h4 className="text-sm font-semibold text-indigo-900 mb-3 uppercase tracking-wide">
-                                            Tipo de Ajuste
+		                                    {/* ─── Tipo de Ajuste ─── */}
+	                                    {formData.requiereActualizacion && <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+	                                        <h4 className="text-sm font-semibold text-indigo-900 mb-3 uppercase tracking-wide">
+	                                            Tipo de Ajuste
                                         </h4>
                                         <div>
                                             <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -843,10 +878,10 @@ export default function NewContractModal({
                                                 className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
                                                 placeholder="Ej: IPC trimestral, ICL semestral..."
                                                 value={formData.tipoAjuste}
-                                                onChange={handleChange}
-                                            />
-                                        </div>
-                                    </div>
+	                                                onChange={handleChange}
+	                                            />
+	                                        </div>
+	                                    </div>}
 
                                     {/* ─── Observaciones ─── */}
                                     <div>
@@ -868,12 +903,12 @@ export default function NewContractModal({
                                         {/* Contrato Principal */}
                                         <div>
                                             <label className="block text-xs font-medium text-gray-700 mb-1">
-                                                Contrato Principal (PDF)
+                                                Contrato Principal ({MAIN_CONTRACT_FORMATS_LABEL})
                                             </label>
                                             <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer relative h-32 flex items-center justify-center">
                                                 <input
                                                     type="file"
-                                                    accept=".pdf"
+                                                    accept={MAIN_CONTRACT_ACCEPT}
                                                     onChange={handleFileChange}
                                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                                 />
@@ -897,12 +932,12 @@ export default function NewContractModal({
                                         {/* Archivos Adicionales */}
                                         <div>
                                             <label className="block text-xs font-medium text-gray-700 mb-1">
-                                                Archivos Adicionales (Opcional)
+                                                Archivos Adicionales ({ATTACHMENT_FORMATS_LABEL})
                                             </label>
                                             <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer relative h-32 flex items-center justify-center">
                                                 <input
                                                     type="file"
-                                                    accept=".pdf,.jpg,.jpeg,.png,.webp"
+                                                    accept={ATTACHMENT_ACCEPT}
                                                     multiple
                                                     onChange={handleAdditionalFilesChange}
                                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
@@ -911,7 +946,7 @@ export default function NewContractModal({
                                                     <DocumentArrowUpIcon className="w-8 h-8 text-gray-400" />
                                                     <div className="text-sm text-gray-600">
                                                         <span className="font-semibold text-indigo-600">
-                                                            Agregar PDFs
+                                                            Agregar archivos
                                                         </span>
                                                     </div>
                                                 </div>

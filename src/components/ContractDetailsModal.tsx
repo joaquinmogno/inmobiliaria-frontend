@@ -23,6 +23,7 @@ import AuditTrail from "./AuditTrail";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
 import { formatCurrency } from "../utils/currency";
+import { getDocumentActionLabel, getDocumentTypeLabel, isWordDocument } from "../utils/documentFiles";
 
 export interface ContractDetailsModalProps {
     isOpen: boolean;
@@ -43,10 +44,13 @@ export default function ContractDetailsModal({
     const canEditLiquidations = hasPermission(user, "liquidaciones.editar");
     const [currentContract, setCurrentContract] = useState<Contract | null>(initialContract);
 
-    const handleViewPdf = async (path: string | null) => {
+    const handleOpenDocument = async (path: string | null) => {
         if (path) {
             try {
-                await openAuthenticatedFile(path);
+                const action = await openAuthenticatedFile(path);
+                if (action === 'downloaded' && isWordDocument(path)) {
+                    toast.success("El documento Word se descargó correctamente");
+                }
             } catch (error) {
                 toast.error("No se pudo abrir el archivo");
             }
@@ -329,8 +333,10 @@ export default function ContractDetailsModal({
                                                     </div>
                                                     <div>
                                                         <p className="text-xs text-gray-500 mb-1">Actualización</p>
-                                                        <p className="text-sm font-bold text-indigo-600">
-                                                            {formatDate(contract.fechaProximaActualizacion || "")}
+                                                        <p className={`text-sm font-bold ${contract.requiereActualizacion ? 'text-indigo-600' : 'text-gray-500'}`}>
+                                                            {contract.requiereActualizacion
+                                                                ? formatDate(contract.fechaProximaActualizacion || "")
+                                                                : "No programada"}
                                                         </p>
                                                     </div>
                                                 </div>
@@ -412,30 +418,36 @@ export default function ContractDetailsModal({
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                     <div className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg">
                                                         <div className="flex items-center gap-2">
-                                                            <DocumentTextIcon className="w-5 h-5 text-indigo-500" />
+                                                            <DocumentTextIcon className={`w-5 h-5 ${isWordDocument(contract.rutaArchivoContrato) ? 'text-blue-600' : 'text-indigo-500'}`} />
                                                             <span className="text-sm font-medium text-gray-700">Contrato Principal</span>
+                                                            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-600">
+                                                                {getDocumentTypeLabel(contract.rutaArchivoContrato)}
+                                                            </span>
                                                         </div>
                                                         <button
-                                                            onClick={() => handleViewPdf(contract.rutaPdf)}
+                                                            onClick={() => handleOpenDocument(contract.rutaArchivoContrato)}
                                                             className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
                                                         >
-                                                            VER PDF
+                                                            {getDocumentActionLabel(contract.rutaArchivoContrato)}
                                                         </button>
                                                     </div>
 
                                                     {contract.adjuntos?.map((adjunto) => (
                                                         <div key={adjunto.id} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg">
                                                             <div className="flex items-center gap-2">
-                                                                <DocumentTextIcon className="w-5 h-5 text-gray-400" />
+                                                                <DocumentTextIcon className={`w-5 h-5 ${isWordDocument(adjunto.nombreArchivo || adjunto.rutaArchivo) ? 'text-blue-600' : 'text-gray-400'}`} />
                                                                 <span className="text-sm font-medium text-gray-700 truncate max-w-[120px]">
                                                                     {adjunto.nombreArchivo || 'Adjunto'}
                                                                 </span>
+                                                                <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-600">
+                                                                    {getDocumentTypeLabel(adjunto.nombreArchivo || adjunto.rutaArchivo)}
+                                                                </span>
                                                             </div>
                                                             <button
-                                                                onClick={() => handleViewPdf(adjunto.rutaArchivo)}
+                                                                onClick={() => handleOpenDocument(adjunto.rutaArchivo)}
                                                                 className="text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors"
                                                             >
-                                                                VER PDF
+                                                                {getDocumentActionLabel(adjunto.nombreArchivo || adjunto.rutaArchivo)}
                                                             </button>
                                                         </div>
                                                     ))}

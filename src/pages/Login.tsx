@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/auth.service';
 import { useNavigate } from 'react-router-dom';
@@ -9,8 +9,11 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+  const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined)?.trim();
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -21,6 +24,78 @@ const Login = () => {
       setRememberMe(true);
     }
   }, []);
+
+  const handleGoogleCredential = useCallback(async (response: GoogleCredentialResponse) => {
+    if (!response.credential) {
+      setError('No se pudo obtener la credencial de Google. Intentá nuevamente.');
+      return;
+    }
+
+    setIsGoogleLoading(true);
+    setError('');
+    try {
+      const loginResponse = await authService.loginWithGoogle(response.credential);
+      login(loginResponse.user);
+      navigate(loginResponse.user.mustChangePassword ? '/mi-acceso' : '/home');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'No se pudo iniciar sesión con Google.');
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  }, [login, navigate]);
+
+  useEffect(() => {
+    if (!googleClientId || !googleButtonRef.current) return;
+
+    let cancelled = false;
+    let script: HTMLScriptElement | null = null;
+
+    const renderGoogleButton = () => {
+      if (cancelled || !googleButtonRef.current || !window.google?.accounts?.id) return;
+
+      window.google.accounts.id.initialize({
+        client_id: googleClientId,
+        callback: handleGoogleCredential,
+      });
+
+      const buttonWidth = Math.min(googleButtonRef.current.clientWidth || 360, 360);
+      googleButtonRef.current.innerHTML = '';
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: 'outline',
+        size: 'large',
+        type: 'standard',
+        shape: 'rectangular',
+        text: 'continue_with',
+        width: buttonWidth,
+      });
+    };
+
+    if (window.google?.accounts?.id) {
+      renderGoogleButton();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const existingScript = document.querySelector<HTMLScriptElement>('script[src="https://accounts.google.com/gsi/client"]');
+    script = existingScript || document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.addEventListener('load', renderGoogleButton);
+    script.addEventListener('error', () => {
+      if (!cancelled) setError('No se pudo cargar el inicio de sesión con Google.');
+    });
+
+    if (!existingScript) {
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      cancelled = true;
+      script?.removeEventListener('load', renderGoogleButton);
+    };
+  }, [googleClientId, handleGoogleCredential]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,6 +288,23 @@ const Login = () => {
                 )}
               </button>
             </form>
+
+            {googleClientId && (
+              <div className="mt-6">
+                <div className="relative flex items-center justify-center mb-5">
+                  <div className="absolute inset-x-0 top-1/2 h-px bg-slate-700/70" />
+                  <span className="relative bg-slate-900/80 px-4 text-xs font-bold uppercase text-slate-500">o</span>
+                </div>
+                <div className="relative flex min-h-11 justify-center">
+                  <div ref={googleButtonRef} className={`w-full ${isGoogleLoading ? 'pointer-events-none opacity-70' : ''}`} />
+                  {isGoogleLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center rounded bg-white/80 text-sm font-semibold text-slate-700">
+                      Validando Google...
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
