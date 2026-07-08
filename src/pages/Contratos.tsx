@@ -4,6 +4,7 @@ import { Menu, MenuButton, MenuItem, MenuItems, Transition } from "@headlessui/r
 import { contractsService, type Contract } from "../services/contracts.service";
 import { formatCurrency } from "../utils/currency";
 import { openAuthenticatedFile } from "../services/api";
+import { getDocumentActionLabel, isWordDocument } from "../utils/documentFiles";
 import {
   PlusIcon,
   MagnifyingGlassIcon,
@@ -143,6 +144,7 @@ export default function Contratos() {
       formData.append('porcentajeActualizacion', data.porcentajeActualizacion || '');
       formData.append('tipoAjuste', data.tipoAjuste || '');
       formData.append('administrado', data.administrado.toString());
+      formData.append('requiereActualizacion', data.requiereActualizacion.toString());
       if (data.file) {
         formData.append('pdf', data.file);
       }
@@ -230,15 +232,18 @@ export default function Contratos() {
   };
 
 
-  const handleViewPdf = async (path: string | null) => {
+  const handleOpenContractFile = async (path: string | null) => {
     if (path) {
       try {
-        await openAuthenticatedFile(path);
+        const action = await openAuthenticatedFile(path);
+        if (action === 'downloaded' && isWordDocument(path)) {
+          toast.success("El documento Word se descargó correctamente");
+        }
       } catch (error) {
         toast.error("No se pudo abrir el archivo");
       }
     } else {
-      alert("Este contrato no tiene un archivo PDF asociado.");
+      alert("Este contrato no tiene un archivo asociado.");
     }
   };
 
@@ -460,12 +465,12 @@ export default function Contratos() {
                               <MenuItem>
                                 {({ focus }) => (
                                   <button
-                                    onClick={() => handleViewPdf(contract.rutaPdf)}
+                                    onClick={() => handleOpenContractFile(contract.rutaArchivoContrato)}
                                     className={`${focus ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'
                                       } group flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors`}
                                   >
                                     <DocumentTextIcon className="w-4 h-4" />
-                                    Ver contrato
+                                    {getDocumentActionLabel(contract.rutaArchivoContrato)} contrato
                                   </button>
                                 )}
                               </MenuItem>
@@ -572,11 +577,11 @@ export default function Contratos() {
                                         <MenuItem>
                                             {({ focus }) => (
                                                 <button
-                                                    onClick={() => handleViewPdf(contract.rutaPdf)}
+                                                    onClick={() => handleOpenContractFile(contract.rutaArchivoContrato)}
                                                     className={`${focus ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700'} group flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors`}
                                                 >
                                                     <DocumentTextIcon className="w-5 h-5 text-indigo-500" />
-                                                    Ver contrato PDF
+                                                    {getDocumentActionLabel(contract.rutaArchivoContrato)} contrato
                                                 </button>
                                             )}
                                         </MenuItem>

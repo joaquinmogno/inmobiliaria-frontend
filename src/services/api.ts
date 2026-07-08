@@ -1,3 +1,5 @@
+import { getFilenameFromPath, isWordDocument } from "../utils/documentFiles";
+
 const envUrl = import.meta.env.VITE_API_URL;
 const BASE_URL = envUrl 
     ? (envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`) 
@@ -115,7 +117,13 @@ export const getFileUrl = (path: string | null) => {
     return `${BASE_URL}/files/${path}`;
 };
 
-export const openAuthenticatedFile = async (path: string | null) => {
+const getFilenameFromDisposition = (disposition: string | null) => {
+    if (!disposition) return null;
+    const match = disposition.match(/filename="([^"]+)"/i) || disposition.match(/filename=([^;]+)/i);
+    return match ? match[1].trim() : null;
+};
+
+export const openAuthenticatedFile = async (path: string | null): Promise<'opened' | 'downloaded' | undefined> => {
     if (!path) return;
 
     const fileWindow = window.open('', '_blank');
@@ -128,11 +136,26 @@ export const openAuthenticatedFile = async (path: string | null) => {
 
     const blob = await response.blob();
     const blobUrl = URL.createObjectURL(blob);
+    const contentType = response.headers.get('content-type') || blob.type;
+
+    if (isWordDocument(path, contentType)) {
+        fileWindow?.close();
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = getFilenameFromDisposition(response.headers.get('content-disposition')) || getFilenameFromPath(path);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+        return 'downloaded';
+    }
+
     if (fileWindow) {
         fileWindow.location.href = blobUrl;
     } else {
         window.open(blobUrl, '_blank');
     }
+    return 'opened';
 };
 
 export default api;

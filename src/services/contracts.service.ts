@@ -26,7 +26,8 @@ export interface Contract {
     fechaProximaActualizacion: string | null;
     estado: EstadoContrato;
     administrado: boolean;
-    rutaPdf: string | null;
+    requiereActualizacion: boolean;
+    rutaArchivoContrato: string | null;
     observaciones: string | null;
 	    montoAlquiler: number;
 	    montoHonorarios: number;

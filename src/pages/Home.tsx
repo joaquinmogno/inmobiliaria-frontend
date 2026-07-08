@@ -101,7 +101,7 @@ export default function Home() {
         .sort((a, b) => a.daysLeft - b.daysLeft);
 
       const updating = alerts
-        .filter(c => c.fechaProximaActualizacion && getDaysLeft(c.fechaProximaActualizacion) <= 30 && getDaysLeft(c.fechaProximaActualizacion) >= 0)
+        .filter(c => c.requiereActualizacion && c.fechaProximaActualizacion && getDaysLeft(c.fechaProximaActualizacion) <= 30 && getDaysLeft(c.fechaProximaActualizacion) >= 0)
         .map((c) => ({
           id: c.id,
           address: c.propiedad.direccion,

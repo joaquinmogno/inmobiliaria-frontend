@@ -39,6 +39,10 @@ export default function UpdateContractModal({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!contract.requiereActualizacion) {
+            setError("Este contrato no tiene actualización de alquiler programada.");
+            return;
+        }
         if (!montoNuevo || montoNuevo <= 0) {
             setError("El monto debe ser mayor a 0");
             return;
@@ -118,7 +122,9 @@ export default function UpdateContractModal({
                                             <div>
                                                 <p className="text-[10px] text-indigo-500 font-bold uppercase">Próxima Fecha</p>
                                                 <p className="text-sm font-black text-indigo-900">
-                                                    {formatDate(contract.fechaProximaActualizacion || "")}
+                                                    {contract.requiereActualizacion
+                                                        ? formatDate(contract.fechaProximaActualizacion || "")
+                                                        : "No programada"}
                                                 </p>
                                             </div>
                                         </div>
