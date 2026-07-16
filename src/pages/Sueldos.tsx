@@ -7,6 +7,10 @@ import { type User } from "../services/auth.service";
 import { hasPermission } from "../utils/permissions";
 import NumericInput from "../components/NumericInput";
 import { formatCurrency, type Moneda } from "../utils/currency";
+import toast from "react-hot-toast";
+import { requestConfirmation } from "../services/confirmation";
+import FormError, { useFormError } from "../components/FormError";
+import ServerPagination from "../components/ServerPagination";
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString("es-AR");
@@ -17,12 +21,13 @@ const initialFormData = () => ({
 	  monto: "",
 	  moneda: "ARS" as Moneda,
 	  fecha: new Date().toISOString().split("T")[0],
-  periodo: `${String(new Date().getMonth() + 1).padStart(2, "0")}-${new Date().getFullYear()}`,
+  periodo: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`,
   metodoPago: "EFECTIVO",
   observaciones: "",
 });
 
 export default function Sueldos() {
+  const { error: formError, setError: setFormError, reportError, formRef } = useFormError();
   const { user } = useAuth();
   const canView = hasPermission(user, "sueldos.ver");
   const canCreate = hasPermission(user, "sueldos.crear");
@@ -32,13 +37,16 @@ export default function Sueldos() {
   const [sueldos, setSueldos] = useState<PagoSueldo[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [showModal, setShowModal] = useState(false);
   const [editingSueldo, setEditingSueldo] = useState<PagoSueldo | null>(null);
   const [formData, setFormData] = useState(initialFormData);
 
   useEffect(() => {
     fetchData();
-  }, [canView, canCreate, canEdit]);
+  }, [canView, canCreate, canEdit, page]);
 
   const fetchData = async () => {
     if (!canView) {
@@ -49,10 +57,12 @@ export default function Sueldos() {
     try {
       setLoading(true);
       const [sueldosRes, usersRes] = await Promise.all([
-        sueldosService.getAll(),
-        canCreate || canEdit ? usersService.getAll() : Promise.resolve([]),
+        sueldosService.getAll(page, 25),
+        canCreate || canEdit ? usersService.getOptions() : Promise.resolve([]),
       ]);
-      setSueldos(sueldosRes || []);
+      setSueldos(sueldosRes.data || []);
+      setTotal(sueldosRes.meta.total);
+      setTotalPages(sueldosRes.meta.totalPages);
       setUsers(usersRes || []);
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -83,6 +93,7 @@ export default function Sueldos() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError("");
 
     try {
       const payload = {
@@ -101,12 +112,12 @@ export default function Sueldos() {
       setEditingSueldo(null);
       fetchData();
     } catch (error) {
-      alert(editingSueldo ? "Error al editar sueldo" : "Error al registrar sueldo");
+      reportError(error, editingSueldo ? "No se pudo editar el sueldo" : "No se pudo registrar el sueldo");
     }
   };
 
   const handleDelete = async (sueldo: PagoSueldo) => {
-    if (!window.confirm(`¿Eliminar el pago de ${sueldo.usuario.nombreCompleto} del periodo ${sueldo.periodo}?`)) {
+    if (!await requestConfirmation({ title: "Eliminar pago de sueldo", message: `Se eliminará el pago de ${sueldo.usuario.nombreCompleto} del período ${sueldo.periodo}.`, confirmText: "Eliminar" })) {
       return;
     }
 
@@ -114,7 +125,7 @@ export default function Sueldos() {
       await sueldosService.delete(sueldo.id);
       fetchData();
     } catch (error) {
-      alert("Error al eliminar sueldo");
+      toast.error(error instanceof Error ? error.message : "No se pudo eliminar el sueldo");
     }
   };
 
@@ -151,7 +162,7 @@ export default function Sueldos() {
       <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="md:hidden divide-y divide-gray-100">
           {loading ? (
-            <div className="px-4 py-10 text-center text-sm text-gray-400">Cargando...</div>
+            <div className="px-4 py-10 text-center text-sm text-gray-600">Cargando...</div>
           ) : sueldos.length === 0 ? (
             <div className="px-4 py-10 text-center text-sm text-gray-500">No hay pagos registrados.</div>
           ) : (
@@ -203,7 +214,7 @@ export default function Sueldos() {
                   <td colSpan={columnCount} className="px-6 py-10 text-center">
                     <div className="flex justify-center flex-col items-center gap-3">
                       <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                      <p className="text-gray-400 text-sm">Cargando...</p>
+                      <p className="text-gray-600 text-sm">Cargando...</p>
                     </div>
                   </td>
                 </tr>
@@ -248,7 +259,7 @@ export default function Sueldos() {
                           {canEdit && (
                             <button
                               onClick={() => openEditModal(sueldo)}
-                              className="p-2 text-gray-400 hover:text-blue-600 transition-colors"
+                              className="inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-blue-700 transition-colors"
                               title="Editar sueldo"
                             >
                               <PencilSquareIcon className="w-5 h-5" />
@@ -257,7 +268,7 @@ export default function Sueldos() {
                           {canDelete && (
                             <button
                               onClick={() => handleDelete(sueldo)}
-                              className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                              className="inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-red-700 transition-colors"
                               title="Eliminar sueldo"
                             >
                               <TrashIcon className="w-5 h-5" />
@@ -273,6 +284,7 @@ export default function Sueldos() {
           </table>
         </div>
       </div>
+      <ServerPagination page={page} totalPages={totalPages} total={total} pageSize={25} currentCount={sueldos.length} onPageChange={setPage} />
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-gray-900/60 backdrop-blur-sm sm:items-center sm:p-4">
@@ -283,7 +295,8 @@ export default function Sueldos() {
                 {editingSueldo ? "Editar Pago" : "Registrar Pago"}
               </h2>
             </div>
-            <form onSubmit={handleSave} className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-8 sm:pt-4 space-y-4">
+            <form ref={formRef} onSubmit={handleSave} className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-8 sm:pt-4 space-y-4">
+              <FormError message={formError} />
               <div>
                 <label className="block text-xs font-black uppercase text-gray-500 mb-1.5 ml-1">Empleado</label>
                 <select
@@ -325,8 +338,7 @@ export default function Sueldos() {
                 <div>
                   <label className="block text-xs font-black uppercase text-gray-500 mb-1.5 ml-1">Periodo</label>
                   <input
-                    type="text"
-                    placeholder="04-2026"
+                    type="month"
                     required
                     className="w-full bg-gray-50 border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-500"
                     value={formData.periodo}

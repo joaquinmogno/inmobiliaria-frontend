@@ -42,12 +42,12 @@ export default function ContractCard({
 
                     <div className="mt-2 space-y-1">
                         <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                            <UserIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <UserIcon className="w-4 h-4 text-gray-600 flex-shrink-0" />
                             <span className="truncate"><span className="font-medium">Propietario:</span> {owner}</span>
                         </div>
 
                         <div className="flex items-center gap-1.5 text-sm text-gray-600">
-                            <UsersIcon className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                            <UsersIcon className="w-4 h-4 text-gray-600 flex-shrink-0" />
                             <span className="truncate"><span className="font-medium">Inquilino:</span> {tenant}</span>
                         </div>
                     </div>

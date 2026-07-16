@@ -24,6 +24,7 @@ import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
 import { formatCurrency } from "../utils/currency";
 import { getDocumentActionLabel, getDocumentTypeLabel, isWordDocument } from "../utils/documentFiles";
+import { requestConfirmation } from "../services/confirmation";
 
 export interface ContractDetailsModalProps {
     isOpen: boolean;
@@ -55,7 +56,7 @@ export default function ContractDetailsModal({
                 toast.error("No se pudo abrir el archivo");
             }
         } else {
-            alert("Este documento no tiene un archivo asociado.");
+            toast.error("Este documento no tiene un archivo asociado.");
         }
     };
 
@@ -127,17 +128,17 @@ export default function ContractDetailsModal({
 
     const getStatusBadge = (estado: string) => {
         switch (estado) {
-            case 'BORRADOR': return <span className="bg-gray-50 text-gray-500 px-2 py-0.5 rounded text-[10px] font-black border border-gray-200 uppercase tracking-widest">Borrador</span>;
-            case 'PENDIENTE_PAGO': return <span className="bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded text-[10px] font-black border border-yellow-200 uppercase tracking-widest">Pendiente</span>;
-            case 'PAGADA_POR_INQUILINO': return <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-black border border-blue-200 uppercase tracking-widest">Cobrada</span>;
-            case 'LIQUIDADA': return <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-[10px] font-black border border-green-200 uppercase tracking-widest">Finalizada</span>;
-            default: return <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">{estado}</span>;
+            case 'BORRADOR': return <span className="bg-gray-50 text-gray-500 px-2 py-0.5 rounded text-xs font-black border border-gray-200 uppercase tracking-widest">Borrador</span>;
+            case 'PENDIENTE_PAGO': return <span className="bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded text-xs font-black border border-yellow-200 uppercase tracking-widest">Pendiente</span>;
+            case 'PAGADA_POR_INQUILINO': return <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-black border border-blue-200 uppercase tracking-widest">Cobrada</span>;
+            case 'LIQUIDADA': return <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-xs font-black border border-green-200 uppercase tracking-widest">Finalizada</span>;
+            default: return <span className="text-gray-600 text-xs font-bold uppercase tracking-widest">{estado}</span>;
         }
     };
 
     const handleDeletePlan = async (id: number) => {
         if (!canEditLiquidations) return;
-        if (!window.confirm("¿Estás seguro de eliminar este plan? Solo se puede si no tiene cuotas liquidadas.")) return;
+        if (!await requestConfirmation({ title: "Eliminar plan de cuotas", message: "Solo puede eliminarse si no tiene cuotas liquidadas. Esta acción no se puede deshacer.", confirmText: "Eliminar" })) return;
         try {
             await planesCuotasService.delete(id);
             toast.success("Plan eliminado");
@@ -183,13 +184,13 @@ export default function ContractDetailsModal({
                                         className="text-xl font-bold leading-6 text-gray-900 flex items-center gap-2"
                                     >
                                         Detalles del Contrato
-                                        <span className={`text-[10px] uppercase px-2 py-0.5 rounded border ${contract.administrado ? 'bg-green-50 text-green-700 border-green-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
+                                        <span className={`text-xs uppercase px-2 py-0.5 rounded border ${contract.administrado ? 'bg-green-50 text-green-700 border-green-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
                                             {contract.administrado ? 'Administrado' : 'Gestión Única'}
                                         </span>
                                     </Dialog.Title>
                                    <button
                                         onClick={onClose}
-                                        className="text-gray-400 hover:text-gray-500 transition-colors focus:outline-none"
+                                        className="text-gray-600 hover:text-gray-500 transition-colors focus:outline-none"
                                     >
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
@@ -272,7 +273,7 @@ export default function ContractDetailsModal({
                                                                     {p.persona.nombreCompleto}
                                                                 </p>
                                                                 {p.esPrincipal && (
-                                                                    <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded">PRINCIPAL</span>
+                                                                    <span className="text-xs font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded">PRINCIPAL</span>
                                                                 )}
                                                             </div>
                                                             <div className="mt-1 flex items-center gap-2 text-sm text-gray-600">
@@ -298,7 +299,7 @@ export default function ContractDetailsModal({
                                                                     {i.persona.nombreCompleto}
                                                                 </p>
                                                                 {i.esPrincipal && (
-                                                                    <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded">PRINCIPAL</span>
+                                                                    <span className="text-xs font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded">PRINCIPAL</span>
                                                                 )}
                                                             </div>
                                                             <div className="mt-1 flex items-center gap-2 text-sm text-gray-600">
@@ -373,33 +374,33 @@ export default function ContractDetailsModal({
                                                         {contract.actualizaciones.map((actualizacion) => (
                                                             <div key={actualizacion.id} className="bg-white p-3 rounded-lg border border-amber-100 shadow-sm">
                                                                 <div className="flex justify-between items-start mb-2">
-                                                                    <p className="text-[10px] font-bold text-amber-500 uppercase">
+                                                                    <p className="text-xs font-bold text-amber-500 uppercase">
                                                                         {formatDate(actualizacion.fechaActualizacion)}
                                                                     </p>
-                                                                    <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded uppercase font-display">
+                                                                    <span className="text-xs font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded uppercase font-display">
                                                                         Por: {actualizacion.usuario?.nombreCompleto || 'Sistema'}
                                                                     </span>
                                                                 </div>
                                                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                                                     <div>
-                                                                        <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5 font-display">Monto Alquiler</p>
+                                                                        <p className="text-xs text-gray-600 font-bold uppercase mb-0.5 font-display">Monto Alquiler</p>
                                                                         <p className="font-bold text-gray-800 flex items-center gap-1.5">
-	                                                                            <span className="text-gray-400 font-medium">{formatMoney(Number(actualizacion.montoAnterior), actualizacion.moneda || contract.moneda)}</span>
+	                                                                            <span className="text-gray-600 font-medium">{formatMoney(Number(actualizacion.montoAnterior), actualizacion.moneda || contract.moneda)}</span>
 	                                                                            <span className="text-amber-500">→</span>
 	                                                                            <span className="text-indigo-600 font-black tracking-tight">{formatMoney(Number(actualizacion.montoNuevo), actualizacion.moneda || contract.moneda)}</span>
                                                                         </p>
                                                                     </div>
                                                                     <div>
-                                                                        <p className="text-[10px] text-gray-400 font-bold uppercase mb-0.5 font-display">Próxima Actualización</p>
+                                                                        <p className="text-xs text-gray-600 font-bold uppercase mb-0.5 font-display">Próxima Actualización</p>
                                                                         <p className="font-bold text-gray-800 flex items-center gap-1.5">
-                                                                            <span className="text-gray-400 font-medium">{formatDate(actualizacion.fechaProximaAnterior || "")}</span>
+                                                                            <span className="text-gray-600 font-medium">{formatDate(actualizacion.fechaProximaAnterior || "")}</span>
                                                                             <span className="text-amber-500">→</span>
                                                                             <span className="text-indigo-600 font-black tracking-tight">{formatDate(actualizacion.fechaProximaNueva)}</span>
                                                                         </p>
                                                                     </div>
                                                                 </div>
                                                                 {actualizacion.observaciones && (
-                                                                    <div className="mt-2 text-[11px] text-gray-600 italic bg-gray-50/50 p-2 rounded border-l-2 border-amber-300">
+                                                                    <div className="mt-2 text-xs text-gray-600 italic bg-gray-50/50 p-2 rounded border-l-2 border-amber-300">
                                                                         "{actualizacion.observaciones}"
                                                                     </div>
                                                                 )}
@@ -420,7 +421,7 @@ export default function ContractDetailsModal({
                                                         <div className="flex items-center gap-2">
                                                             <DocumentTextIcon className={`w-5 h-5 ${isWordDocument(contract.rutaArchivoContrato) ? 'text-blue-600' : 'text-indigo-500'}`} />
                                                             <span className="text-sm font-medium text-gray-700">Contrato Principal</span>
-                                                            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-600">
+                                                            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-bold text-gray-600">
                                                                 {getDocumentTypeLabel(contract.rutaArchivoContrato)}
                                                             </span>
                                                         </div>
@@ -435,11 +436,11 @@ export default function ContractDetailsModal({
                                                     {contract.adjuntos?.map((adjunto) => (
                                                         <div key={adjunto.id} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg">
                                                             <div className="flex items-center gap-2">
-                                                                <DocumentTextIcon className={`w-5 h-5 ${isWordDocument(adjunto.nombreArchivo || adjunto.rutaArchivo) ? 'text-blue-600' : 'text-gray-400'}`} />
+                                                                <DocumentTextIcon className={`w-5 h-5 ${isWordDocument(adjunto.nombreArchivo || adjunto.rutaArchivo) ? 'text-blue-600' : 'text-gray-600'}`} />
                                                                 <span className="text-sm font-medium text-gray-700 truncate max-w-[120px]">
                                                                     {adjunto.nombreArchivo || 'Adjunto'}
                                                                 </span>
-                                                                <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-bold text-gray-600">
+                                                                <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-bold text-gray-600">
                                                                     {getDocumentTypeLabel(adjunto.nombreArchivo || adjunto.rutaArchivo)}
                                                                 </span>
                                                             </div>
@@ -506,12 +507,12 @@ export default function ContractDetailsModal({
 
                                                         {liq.pagos && liq.pagos.length > 0 && (
                                                             <div className="bg-gray-50 rounded-lg p-2.5 space-y-2">
-                                                                <p className="text-[10px] uppercase font-bold text-gray-400 tracking-wider">Detalle de Pagos</p>
+                                                                <p className="text-xs uppercase font-bold text-gray-600 tracking-wider">Detalle de Pagos</p>
                                                                 {liq.pagos.map(pago => (
                                                                     <div key={pago.id} className="flex justify-between items-center text-xs">
                                                                         <div className="flex items-center gap-2">
                                                                             <span className="text-gray-600">{new Date(pago.fechaPago).toLocaleDateString("es-AR")}</span>
-                                                                            <span className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-[10px] font-medium text-gray-500">{pago.metodoPago}</span>
+                                                                            <span className="bg-white border border-gray-200 px-1.5 py-0.5 rounded text-xs font-medium text-gray-500">{pago.metodoPago}</span>
                                                                         </div>
                                                                         <span className="font-bold text-gray-700">{formatMoney(Number(pago.monto), pago.moneda || liq.moneda)}</span>
                                                                     </div>
@@ -554,7 +555,7 @@ export default function ContractDetailsModal({
                                                         <div className="flex justify-between items-start mb-3">
                                                             <div>
                                                                 <h5 className="font-bold text-gray-900">{plan.concepto}</h5>
-                                                                <p className="text-[10px] text-gray-500 uppercase tracking-widest">
+                                                                <p className="text-xs text-gray-500 uppercase tracking-widest">
                                                                     ID Plan: #{plan.id} • {plan.tipoMovimiento === 'INGRESO' ? 'Paga Inquilino' : 'Descuento Dueño'}
                                                                     {plan.tipoMovimiento === 'INGRESO' && (
                                                                         <span className={`ml-2 px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${plan.esParaInmobiliaria ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>
@@ -568,7 +569,7 @@ export default function ContractDetailsModal({
                                                                 {canEditLiquidations && (
                                                                     <button
                                                                         onClick={() => handleDeletePlan(plan.id)}
-                                                                        className="text-gray-400 hover:text-red-500 transition-colors"
+                                                                        className="text-gray-600 hover:text-red-500 transition-colors"
                                                                         title="Eliminar"
                                                                     >
                                                                         <TrashIcon className="w-4 h-4" />
@@ -582,19 +583,19 @@ export default function ContractDetailsModal({
                                                             {plan.cuotas?.map(cuota => (
                                                                 <div key={cuota.id} className="p-2 flex justify-between items-center px-4">
                                                                     <div className="flex items-center gap-3">
-                                                                        <span className="text-xs font-bold text-gray-400">#{cuota.numeroCuota}</span>
+                                                                        <span className="text-xs font-bold text-gray-600">#{cuota.numeroCuota}</span>
                                                                         <span className="text-sm text-gray-700 font-medium">{formatMoney(Number(cuota.monto), cuota.moneda || plan.moneda)}</span>
                                                                     </div>
                                                                     <div className="flex items-center gap-3">
                                                                         {cuota.liquidacion ? (
-                                                                            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded cursor-help" title={`En liquidación ${cuota.liquidacion.id}`}>
+                                                                            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded cursor-help" title={`En liquidación ${cuota.liquidacion.id}`}>
                                                                                 En Liq. {new Date(cuota.liquidacion.periodo).toLocaleDateString("es-AR", { month: "short", year: "2-digit", timeZone: "UTC" }).replace('.', '')}
                                                                             </span>
                                                                         ) : (
-                                                                            <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded uppercase">Pendiente</span>
+                                                                            <span className="text-xs font-bold text-gray-600 bg-gray-100 px-2 py-0.5 rounded uppercase">Pendiente</span>
                                                                         )}
                                                                         {cuota.estado === 'PAGADA' ? (
-                                                                            <span className="bg-green-50 text-green-700 text-[10px] font-bold px-1.5 py-0.5 rounded">PAGADA</span>
+                                                                            <span className="bg-green-50 text-green-700 text-xs font-bold px-1.5 py-0.5 rounded">PAGADA</span>
                                                                         ) : null}
                                                                     </div>
                                                                 </div>
@@ -615,11 +616,11 @@ export default function ContractDetailsModal({
                                     <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                                                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Creado por</p>
+                                                <p className="text-xs font-bold uppercase tracking-wider text-gray-600">Creado por</p>
                                                 <p className="text-sm font-semibold text-gray-800">{contract.creadoPor?.nombreCompleto || "Sin dato"}</p>
 	                                            </div>
 	                                            <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
-                                                <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Última modificación</p>
+                                                <p className="text-xs font-bold uppercase tracking-wider text-gray-600">Última modificación</p>
                                                 <p className="text-sm font-semibold text-gray-800">{contract.actualizadoPor?.nombreCompleto || "Sin dato"}</p>
                                             </div>
                                         </div>

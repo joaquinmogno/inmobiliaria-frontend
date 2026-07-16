@@ -1,27 +1,34 @@
 import { Routes, Route, Navigate } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import MainLayout from "../layouts/MainLayout";
-import Home from "../pages/Home";
-import Contratos from "../pages/Contratos";
-import Papelera from "../pages/Papelera";
-import Usuarios from "../pages/Usuarios";
-import Personas from "../pages/Personas";
-import Propiedades from "../pages/Propiedades";
 import Login from "../pages/Login";
 import ProtectedRoute from "../components/ProtectedRoute";
 import PermissionGuard from "../components/PermissionGuard";
-import Liquidaciones from "../pages/Liquidaciones";
-import LiquidacionDetalle from "../pages/LiquidacionDetalle";
-import HistorialPagos from "../pages/HistorialPagos";
-import Configuracion from "../pages/Configuracion";
-import CajaChica from "../pages/CajaChica";
-import SuperAdminDashboard from "../pages/SuperAdminDashboard";
-import Sueldos from "../pages/Sueldos";
-import MiAcceso from "../pages/MiAcceso";
+import RoleGuard from "../components/RoleGuard";
+import RecuperarContrasena from "../pages/RecuperarContrasena";
+
+const Home = lazy(() => import("../pages/Home"));
+const Contratos = lazy(() => import("../pages/Contratos"));
+const Papelera = lazy(() => import("../pages/Papelera"));
+const Usuarios = lazy(() => import("../pages/Usuarios"));
+const Personas = lazy(() => import("../pages/Personas"));
+const Propiedades = lazy(() => import("../pages/Propiedades"));
+const Liquidaciones = lazy(() => import("../pages/Liquidaciones"));
+const LiquidacionDetalle = lazy(() => import("../pages/LiquidacionDetalle"));
+const HistorialPagos = lazy(() => import("../pages/HistorialPagos"));
+const Configuracion = lazy(() => import("../pages/Configuracion"));
+const CajaChica = lazy(() => import("../pages/CajaChica"));
+const SuperAdminDashboard = lazy(() => import("../pages/SuperAdminDashboard"));
+const Sueldos = lazy(() => import("../pages/Sueldos"));
+const MiAcceso = lazy(() => import("../pages/MiAcceso"));
+const NotFound = lazy(() => import("../pages/NotFound"));
 
 export default function AppRouter() {
   return (
+    <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center text-sm font-medium text-gray-500">Cargando...</div>}>
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/recuperar-contrasena" element={<RecuperarContrasena />} />
 
       <Route element={<ProtectedRoute />}>
         <Route element={<MainLayout />}>
@@ -36,14 +43,15 @@ export default function AppRouter() {
           <Route path="/liquidaciones/:id" element={<PermissionGuard permission="liquidaciones.ver"><LiquidacionDetalle /></PermissionGuard>} />
           <Route path="/pagos" element={<PermissionGuard permission="pagos.ver"><HistorialPagos /></PermissionGuard>} />
           <Route path="/cajachica" element={<PermissionGuard permission="caja_chica.ver"><CajaChica /></PermissionGuard>} />
-          <Route path="/configuracion" element={<PermissionGuard permission="configuracion.perfil.ver"><Configuracion /></PermissionGuard>} />
+          <Route path="/configuracion" element={<PermissionGuard permissions={["configuracion.perfil.ver", "configuracion.perfil.editar", "configuracion.backups.ver", "configuracion.backups.crear", "configuracion.backups.eliminar", "configuracion.backups.descargar", "configuracion.auditoria.ver"]}><Configuracion /></PermissionGuard>} />
           <Route path="/sueldos" element={<PermissionGuard permission="sueldos.ver"><Sueldos /></PermissionGuard>} />
-          <Route path="/superadmin" element={<SuperAdminDashboard />} />
+          <Route path="/superadmin" element={<RoleGuard role="SUPERADMIN"><SuperAdminDashboard /></RoleGuard>} />
         </Route>
       </Route>
 
-      {/* Redirección por defecto */}
-      <Route path="*" element={<Navigate to="/home" replace />} />
+      <Route path="/" element={<Navigate to="/home" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
+    </Suspense>
   );
 }

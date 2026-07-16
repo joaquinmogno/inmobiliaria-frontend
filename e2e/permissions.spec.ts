@@ -101,8 +101,12 @@ async function mockApi(page: Page, user: ReturnType<typeof buildUser>) {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([sampleContract]) });
   });
 
-  await page.route("**/api/contratos", async route => {
-    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([sampleContract]) });
+  await page.route("**/api/contratos?**", async route => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: [sampleContract], meta: { total: 1, page: 1, limit: 10, totalPages: 1 } })
+    });
   });
 
   await page.route("**/api/contratos/101", async route => {

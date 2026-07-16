@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
-import { cajachicaService, type MovimientoCaja, type CajaChicaResponse } from "../services/cajachica.service";
+import { cajachicaService, type MovimientoCaja, type CajaChicaSummary } from "../services/cajachica.service";
 import NumericInput from "../components/NumericInput";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
 import {
-    MagnifyingGlassIcon,
     PlusIcon,
     CurrencyDollarIcon,
     BuildingLibraryIcon,
@@ -12,22 +11,25 @@ import {
     HomeIcon,
     UserGroupIcon,
     ChartBarIcon,
-    ReceiptPercentIcon,
-    FunnelIcon
+    ReceiptPercentIcon
 } from "@heroicons/react/24/outline";
 import { formatCurrency, type Moneda } from "../utils/currency";
+import FilterBar, { persistFilter, readPersistedFilter } from "../components/FilterBar";
+import FormError, { useFormError } from "../components/FormError";
 
 export default function CajaChica() {
+    const { error: formError, setError: setFormError, reportError, formRef } = useFormError();
     const { user } = useAuth();
     const canCreate = hasPermission(user, "caja_chica.crear");
     const [movimientos, setMovimientos] = useState<MovimientoCaja[]>([]);
-    const [meta, setMeta] = useState<CajaChicaResponse['meta'] | null>(null);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [meta, setMeta] = useState<CajaChicaSummary | null>(null);
+    const [total, setTotal] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
+    const [searchTerm, setSearchTerm] = useState(() => readPersistedFilter("caja-chica"));
+    const [debouncedSearch, setDebouncedSearch] = useState(() => readPersistedFilter("caja-chica"));
     const [currentPage, setCurrentPage] = useState(1);
     const [tipoFilter, setTipoFilter] = useState("");
     const [cuentaFilter, setCuentaFilter] = useState("");
-    const [showMobileFilters, setShowMobileFilters] = useState(false);
     // Default a mes actual
     const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
     const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
@@ -48,6 +50,7 @@ export default function CajaChica() {
     const itemsPerPage = 20;
 
     useEffect(() => {
+        persistFilter("caja-chica", searchTerm);
         const timer = setTimeout(() => { setDebouncedSearch(searchTerm); }, 300);
         return () => clearTimeout(timer);
     }, [searchTerm]);
@@ -55,6 +58,12 @@ export default function CajaChica() {
     useEffect(() => {
         refreshData(currentPage, debouncedSearch, tipoFilter, cuentaFilter, selectedMonth, selectedYear);
     }, [currentPage, debouncedSearch, tipoFilter, cuentaFilter, selectedMonth, selectedYear]);
+
+    useEffect(() => {
+        cajachicaService.getSummary(selectedMonth, selectedYear).then(setMeta).catch(error => {
+            console.error("Error loading caja summary:", error);
+        });
+    }, [selectedMonth, selectedYear]);
 
     // Auto-asignar cuenta según método de pago en el formulario manual
     useEffect(() => {
@@ -77,7 +86,8 @@ export default function CajaChica() {
                 anio
             );
             setMovimientos(response.data);
-            setMeta(response.meta);
+            setTotal(response.meta.total);
+            setTotalPages(response.meta.totalPages);
         } catch (error) {
             console.error("Error loading caja chica:", error);
         } finally {
@@ -102,6 +112,7 @@ export default function CajaChica() {
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
+        setFormError("");
         try {
             await cajachicaService.create({
                 ...formData,
@@ -112,6 +123,7 @@ export default function CajaChica() {
             });
             setIsModalOpen(false);
             refreshData(1, debouncedSearch, tipoFilter, cuentaFilter, selectedMonth, selectedYear);
+            cajachicaService.getSummary(selectedMonth, selectedYear).then(setMeta);
             setFormData({
 	                tipo: 'INGRESO',
 	                concepto: '',
@@ -124,41 +136,41 @@ export default function CajaChica() {
             });
         } catch (error) {
             console.error("Error al guardar movimiento:", error);
-            alert("Error al guardar el movimiento");
+            reportError(error, "No se pudo guardar el movimiento");
         }
     };
 
     return (
         <div className="max-w-7xl mx-auto space-y-6 pb-20">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="flex flex-col items-stretch justify-between gap-4 xl:flex-row xl:items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Gestión Financiera</h1>
                     <p className="text-sm text-gray-500">Control unificado de ingresos, egresos y rentabilidad</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center xl:flex-nowrap">
                     <div className="hidden lg:flex items-center gap-4 bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100">
                          <div className="flex items-center gap-2">
                              <div className="w-2 h-2 rounded-full bg-amber-400"></div>
-                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Efectivo:</span>
+                             <span className="text-xs font-bold text-gray-600 uppercase tracking-tight">Efectivo:</span>
                              <span className="text-xs font-bold text-gray-900">{formatCurrency(meta?.balanceCaja || 0)}</span>
                          </div>
                          <div className="w-px h-4 bg-gray-100"></div>
                          <div className="flex items-center gap-2">
                              <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Banco:</span>
+                             <span className="text-xs font-bold text-gray-600 uppercase tracking-tight">Banco:</span>
                              <span className="text-xs font-bold text-gray-900">{formatCurrency(meta?.balanceBanco || 0)}</span>
                          </div>
                          <div className="w-px h-4 bg-gray-100"></div>
                          <div className="flex items-center gap-2">
                              <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse"></div>
-                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">Plata Ajena:</span>
+                             <span className="text-xs font-bold text-gray-600">Fondos pendientes de entregar:</span>
                              <span className="text-xs font-bold text-red-600">{formatCurrency(meta?.fondosEnCustodia || 0)}</span>
                          </div>
                     </div>
                     {canCreate && <button
                         onClick={() => setIsModalOpen(true)}
-                        className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition-colors cursor-pointer"
+                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition-colors cursor-pointer sm:w-auto"
                     >
                         <PlusIcon className="w-5 h-5" />
                         Nuevo Movimiento
@@ -175,7 +187,7 @@ export default function CajaChica() {
                             <div className="bg-green-50 p-2 rounded-xl">
                                 <UserGroupIcon className="w-5 h-5 text-green-600" />
                             </div>
-                            <span className="text-[10px] font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full uppercase tracking-widest">Ingresos</span>
+                            <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">Cobrado a inquilinos</span>
                         </div>
                         <p className="text-xs font-medium text-gray-500 mb-1">Cobrado Inquilinos</p>
                         <p className="text-xl font-black text-gray-900">
@@ -189,7 +201,7 @@ export default function CajaChica() {
                             <div className="bg-red-50 p-2 rounded-xl">
                                 <HomeIcon className="w-5 h-5 text-red-600" />
                             </div>
-                            <span className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full uppercase tracking-widest">Salidas</span>
+                            <span className="text-xs font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full uppercase tracking-widest">Salidas</span>
                         </div>
                         <p className="text-xs font-medium text-gray-500 mb-1">Pagado Propietarios</p>
                         <p className="text-xl font-black text-gray-900">
@@ -203,9 +215,9 @@ export default function CajaChica() {
                             <div className="bg-white/20 p-2 rounded-xl">
                                 <ChartBarIcon className="w-5 h-5 text-white" />
                             </div>
-                            <span className="text-[10px] font-bold text-white bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-widest">Inmobiliaria</span>
+                            <span className="text-xs font-bold text-white bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-widest">Inmobiliaria</span>
                         </div>
-                        <p className="text-xs font-medium text-indigo-100 mb-1">Ganancia Bruta (Comisiones)</p>
+                        <p className="mb-1 text-xs font-medium text-indigo-100">Honorarios de la inmobiliaria</p>
                         <p className="text-xl font-black text-white">
                             {formatCurrency(meta.gananciaBruta)}
                         </p>
@@ -217,7 +229,7 @@ export default function CajaChica() {
                             <div className="bg-amber-50 p-2 rounded-xl">
                                 <ReceiptPercentIcon className="w-5 h-5 text-amber-600" />
                             </div>
-                            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full uppercase tracking-widest">Gastos</span>
+                            <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full uppercase tracking-widest">Gastos</span>
                         </div>
                         <p className="text-xs font-medium text-gray-500 mb-1">Gastos Operativos</p>
                         <p className="text-xl font-black text-gray-900">
@@ -231,9 +243,9 @@ export default function CajaChica() {
                             <div className="bg-green-500/20 p-2 rounded-xl">
                                 <CurrencyDollarIcon className="w-5 h-5 text-green-400" />
                             </div>
-                            <span className="text-[10px] font-bold text-green-400 bg-green-500/10 px-2 py-0.5 rounded-full uppercase tracking-widest">Neto Real</span>
+                            <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-bold text-white">Resultado neto de la inmobiliaria</span>
                         </div>
-                        <p className="text-xs font-medium text-gray-400 mb-1">Resultado Final</p>
+                        <p className="text-xs font-medium text-gray-600 mb-1">Resultado Final</p>
                         <p className="text-xl font-black text-white">
                             {formatCurrency(meta.resultadoNeto)}
                         </p>
@@ -242,7 +254,7 @@ export default function CajaChica() {
 	            )}
 
 	            {meta && (
-	                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+	                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
 	                    {(["ARS", "USD"] as Moneda[]).map(moneda => {
 	                        const totals = meta.totalesPorMoneda?.[moneda] || {
 	                            totalIngresos: moneda === "ARS" ? meta.totalIngresosARS : meta.totalIngresosUSD,
@@ -254,19 +266,19 @@ export default function CajaChica() {
 	                            <section key={moneda} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
 	                                <div className="flex items-center justify-between mb-3">
 	                                    <h2 className="text-xs font-black uppercase tracking-widest text-gray-500">{moneda}</h2>
-	                                    <span className="text-[10px] font-bold text-gray-400">Balance separado</span>
+	                                    <span className="text-xs font-bold text-gray-600">Balance separado</span>
 	                                </div>
-	                                <div className="grid grid-cols-3 gap-3">
+	                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
 	                                    <div>
-	                                        <p className="text-[10px] font-bold uppercase text-green-600">Ingresos</p>
+	                                        <p className="text-xs font-bold text-green-700">Cobrado a inquilinos</p>
 	                                        <p className="text-sm font-black text-gray-900">{formatCurrency(totals.totalIngresos, moneda)}</p>
 	                                    </div>
 	                                    <div>
-	                                        <p className="text-[10px] font-bold uppercase text-red-600">Egresos</p>
+	                                        <p className="text-xs font-bold uppercase text-red-600">Egresos</p>
 	                                        <p className="text-sm font-black text-gray-900">{formatCurrency(totals.totalEgresos, moneda)}</p>
 	                                    </div>
 	                                    <div>
-	                                        <p className="text-[10px] font-bold uppercase text-indigo-600">Balance</p>
+	                                        <p className="text-xs font-bold uppercase text-indigo-600">Balance</p>
 	                                        <p className="text-sm font-black text-gray-900">{formatCurrency(totals.balance, moneda)}</p>
 	                                    </div>
 	                                </div>
@@ -281,56 +293,45 @@ export default function CajaChica() {
                 <div className="bg-white p-3 rounded-xl border border-amber-100 flex items-center gap-3">
                     <BanknotesIcon className="w-5 h-5 text-amber-500" />
                     <div>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase">Efectivo</p>
+                        <p className="text-xs text-gray-600 font-bold uppercase">Efectivo</p>
                         <p className="text-sm font-bold">{formatCurrency(meta?.balanceCaja || 0)}</p>
                     </div>
                 </div>
                 <div className="bg-white p-3 rounded-xl border border-blue-100 flex items-center gap-3">
                     <BuildingLibraryIcon className="w-5 h-5 text-blue-500" />
                     <div>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase">Banco</p>
+                        <p className="text-xs text-gray-600 font-bold uppercase">Banco</p>
                         <p className="text-sm font-bold">{formatCurrency(meta?.balanceBanco || 0)}</p>
                     </div>
                 </div>
                 <div className="bg-white p-3 rounded-xl border border-red-100 flex items-center gap-3 min-[380px]:col-span-2">
                     <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse"></div>
                     <div>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase">Plata Ajena (Custodia)</p>
+                        <p className="text-xs font-bold text-gray-600">Fondos pendientes de entregar</p>
                         <p className="text-sm font-bold text-red-600">{formatCurrency(meta?.fondosEnCustodia || 0)}</p>
                     </div>
                 </div>
             </div>
 
-            {/* Filters */}
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-                <button
-                    type="button"
-                    onClick={() => setShowMobileFilters(prev => !prev)}
-                    className="mb-3 flex w-full items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-bold text-gray-700 md:hidden"
-                >
-                    <span className="inline-flex items-center gap-2">
-                        <FunnelIcon className="h-5 w-5 text-indigo-600" />
-                        Filtros y período
-                    </span>
-                    <span className="text-xs text-gray-400">{showMobileFilters ? "Ocultar" : "Mostrar"}</span>
-                </button>
-                <div className={`${showMobileFilters ? "flex" : "hidden"} flex-wrap items-center gap-3 md:flex`}>
+            <FilterBar query={searchTerm} onQueryChange={setSearchTerm} resultCount={total} placeholder="Buscar concepto..." onClear={() => { setSearchTerm(""); setTipoFilter(""); setCuentaFilter(""); }}>
                 {/* Período */}
                 <div className="flex items-center gap-2 mr-2 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100">
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Período:</span>
+                    <span className="text-xs font-black text-gray-600 uppercase tracking-widest">Período:</span>
                     <select
+                        aria-label="Mes"
                         value={selectedMonth}
                         onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                        className="bg-transparent border-none text-sm font-bold text-gray-700 focus:ring-0 cursor-pointer p-0"
+                        className="min-h-11 bg-transparent border-none px-2 py-2 text-sm font-bold text-gray-700 focus:ring-0 cursor-pointer"
                     >
                         {["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"].map((m, i) => (
                             <option key={i+1} value={i+1}>{m}</option>
                         ))}
                     </select>
                     <select
+                        aria-label="Año"
                         value={selectedYear}
                         onChange={(e) => setSelectedYear(Number(e.target.value))}
-                        className="bg-transparent border-none text-sm font-bold text-gray-700 focus:ring-0 cursor-pointer p-0"
+                        className="min-h-11 bg-transparent border-none px-2 py-2 text-sm font-bold text-gray-700 focus:ring-0 cursor-pointer"
                     >
                         {[2024, 2025, 2026, 2027].map(y => (
                             <option key={y} value={y}>{y}</option>
@@ -338,44 +339,33 @@ export default function CajaChica() {
                     </select>
                 </div>
 
-                <div className="relative flex-1 min-w-[200px]">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <MagnifyingGlassIcon className="w-5 h-5 text-gray-400" />
-                    </div>
-                    <input
-                        type="text"
-                        placeholder="Buscar concepto..."
-                        className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                </div>
                 <select
+                    aria-label="Tipo de movimiento"
                     value={tipoFilter}
                     onChange={(e) => setTipoFilter(e.target.value)}
-                    className="block w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm cursor-pointer"
+                    className="block min-h-11 w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm cursor-pointer"
                 >
                     <option value="">Todos los tipos</option>
-                    <option value="INGRESO">Ingresos</option>
+                    <option value="INGRESO">Entradas</option>
                     <option value="EGRESO">Egresos</option>
                 </select>
                 <select
+                    aria-label="Cuenta"
                     value={cuentaFilter}
                     onChange={(e) => setCuentaFilter(e.target.value)}
-                    className="block w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm cursor-pointer"
+                    className="block min-h-11 w-full sm:w-40 px-3 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm cursor-pointer"
                 >
                     <option value="">Efectivo + Banco</option>
                     <option value="CAJA">Solo Efectivo</option>
                     <option value="BANCO">Solo Banco</option>
                 </select>
-                </div>
-            </div>
+            </FilterBar>
 
             {/* Table */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-h-[300px]">
                 <div className="md:hidden divide-y divide-gray-100">
                     {isLoading ? (
-                        <div className="px-4 py-12 text-center text-sm text-gray-400 animate-pulse">Cargando movimientos...</div>
+                        <div className="px-4 py-12 text-center text-sm text-gray-600 animate-pulse">Cargando movimientos...</div>
                     ) : movimientos.length === 0 ? (
                         <div className="px-4 py-12 text-center text-sm text-gray-500">No hay registros que coincidan con los filtros.</div>
                     ) : (
@@ -383,7 +373,7 @@ export default function CajaChica() {
                             <article key={mov.id} className="p-4">
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
-                                        <p className="text-[11px] font-black uppercase tracking-wider text-gray-400">{formatMovementDate(mov.fecha)}</p>
+                                        <p className="text-xs font-black uppercase tracking-wider text-gray-600">{formatMovementDate(mov.fecha)}</p>
                                         <h3 className="mt-1 text-sm font-black leading-snug text-gray-900">{mov.concepto}</h3>
                                         {mov.observaciones && <p className="mt-1 text-xs text-gray-500">{mov.observaciones}</p>}
                                     </div>
@@ -392,10 +382,10 @@ export default function CajaChica() {
                                     </span>
                                 </div>
                                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                                    <span className={`px-2.5 py-1 text-[10px] font-black rounded-full uppercase tracking-widest ${mov.tipo === 'INGRESO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                    <span className={`px-2.5 py-1 text-xs font-black rounded-full uppercase tracking-widest ${mov.tipo === 'INGRESO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                         {mov.tipo === 'INGRESO' ? 'Ingreso' : 'Egreso'}
                                     </span>
-                                    <span className={`px-2.5 py-1 text-[10px] font-black rounded-full uppercase tracking-widest ${mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+                                    <span className={`px-2.5 py-1 text-xs font-black rounded-full uppercase tracking-widest ${mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
                                         {mov.cuenta === 'BANCO' ? 'Banco' : 'Caja'}
                                     </span>
                                     <span className="text-xs font-medium text-gray-500">{mov.creadoPor?.nombreCompleto || 'Sistema'}</span>
@@ -417,7 +407,7 @@ export default function CajaChica() {
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {isLoading ? (
-                            <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-400 animate-pulse">Cargando movimientos...</td></tr>
+                            <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-600 animate-pulse">Cargando movimientos...</td></tr>
                         ) : movimientos.length === 0 ? (
                             <tr><td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-500">No hay registros que coincidan con los filtros.</td></tr>
                         ) : (
@@ -428,15 +418,15 @@ export default function CajaChica() {
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="text-sm font-semibold text-gray-900">{mov.concepto}</div>
-                                        {mov.observaciones && <div className="text-xs text-gray-400 mt-0.5">{mov.observaciones}</div>}
+                                        {mov.observaciones && <div className="text-xs text-gray-600 mt-0.5">{mov.observaciones}</div>}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2.5 py-1 text-[10px] font-black rounded-full uppercase tracking-widest ${mov.tipo === 'INGRESO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                        <span className={`px-2.5 py-1 text-xs font-black rounded-full uppercase tracking-widest ${mov.tipo === 'INGRESO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                             {mov.tipo === 'INGRESO' ? 'Ingreso' : 'Egreso'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2.5 py-1 text-[10px] font-black rounded-full uppercase tracking-widest ${mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+                                        <span className={`px-2.5 py-1 text-xs font-black rounded-full uppercase tracking-widest ${mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
                                             {mov.cuenta === 'BANCO' ? '🏦 Banco' : '💵 Caja'}
                                         </span>
                                     </td>
@@ -453,11 +443,11 @@ export default function CajaChica() {
                         )}
                     </tbody>
                 </table>
-                {meta && meta.totalPages > 1 && (
+                {totalPages > 1 && (
                     <div className="bg-gray-50 px-4 sm:px-6 py-3 border-t border-gray-100 flex justify-between items-center gap-3">
                         <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="text-sm text-indigo-600 disabled:opacity-40 font-medium cursor-pointer">Anterior</button>
-                        <span className="text-center text-xs sm:text-sm text-gray-500">Pág {currentPage} de {meta.totalPages} · {meta.total} registros</span>
-                        <button onClick={() => setCurrentPage(p => Math.min(meta.totalPages, p + 1))} disabled={currentPage === meta.totalPages} className="text-sm text-indigo-600 disabled:opacity-40 font-medium cursor-pointer">Siguiente</button>
+                        <span className="text-center text-xs sm:text-sm text-gray-500">Pág {currentPage} de {totalPages} · {total} registros</span>
+                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="text-sm text-indigo-600 disabled:opacity-40 font-medium cursor-pointer">Siguiente</button>
                     </div>
                 )}
             </div>
@@ -468,9 +458,10 @@ export default function CajaChica() {
                     <div className="flex max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
                         <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                             <h3 className="text-lg font-bold text-gray-900">Nuevo Movimiento Manual</h3>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">✕</button>
+                            <button onClick={() => setIsModalOpen(false)} className="text-gray-600 hover:text-gray-600 cursor-pointer">✕</button>
                         </div>
-                        <form onSubmit={handleCreate} className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
+                        <form ref={formRef} onSubmit={handleCreate} className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
+                            <FormError message={formError} />
                             <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>

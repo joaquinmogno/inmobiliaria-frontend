@@ -52,16 +52,22 @@ export interface PaginatedResponse<T> {
 }
 
 export const liquidacionesService = {
-    getAll: async (contratoId?: number, page: number = 1, limit: number = 50, search?: string) => {
+    getAll: async (contratoId?: number, page: number = 1, limit: number = 50, search?: string, filters: { estado?: string; periodo?: string; propietarioId?: string; soloDeuda?: boolean } = {}) => {
         return api.get<PaginatedResponse<Liquidacion>>('/liquidaciones', {
             params: { 
                 ...(contratoId ? { contratoId: contratoId.toString() } : {}),
                 page: page.toString(),
                 limit: limit.toString(),
-                ...(search ? { search } : {})
+                ...(search ? { search } : {}),
+                ...(filters.estado ? { estado: filters.estado } : {}),
+                ...(filters.periodo ? { periodo: filters.periodo } : {}),
+                ...(filters.propietarioId ? { propietarioId: filters.propietarioId } : {}),
+                ...(filters.soloDeuda ? { soloDeuda: 'true' } : {})
             }
         });
     },
+
+    getFilters: async () => api.get<{ periodos: string[]; propietarios: Array<{ id: number; nombreCompleto: string }> }>('/liquidaciones/filtros'),
 
     getById: async (id: number) => {
         return api.get<Liquidacion>(`/liquidaciones/${id}`);

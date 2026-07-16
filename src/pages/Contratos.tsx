@@ -7,13 +7,10 @@ import { openAuthenticatedFile } from "../services/api";
 import { getDocumentActionLabel, isWordDocument } from "../utils/documentFiles";
 import {
   PlusIcon,
-  MagnifyingGlassIcon,
   EllipsisVerticalIcon,
   EyeIcon,
   DocumentTextIcon,
   TrashIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   PencilSquareIcon,
 } from "@heroicons/react/24/outline";
 import NewContractModal from "../components/NewContractModal";
@@ -23,6 +20,8 @@ import ConfirmationModal from "../components/ConfirmationModal";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
+import ServerPagination from "../components/ServerPagination";
+import FilterBar, { persistFilter, readPersistedFilter } from "../components/FilterBar";
 
 
 export default function Contratos() {
@@ -32,9 +31,11 @@ export default function Contratos() {
   const canDelete = hasPermission(user, "contratos.eliminar");
   const canViewFiles = hasPermission(user, "contratos.archivos.ver");
   const [contractsList, setContractsList] = useState<Contract[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [searchTerm, setSearchTerm] = useState(() => readPersistedFilter("contratos"));
+  const [debouncedSearch, setDebouncedSearch] = useState(() => readPersistedFilter("contratos"));
   const [currentPage, setCurrentPage] = useState(1);
+  const [totalContracts, setTotalContracts] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
   const [, setIsLoading] = useState(true);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -45,6 +46,7 @@ export default function Contratos() {
   const location = useLocation();
 
   useEffect(() => {
+    persistFilter("contratos", searchTerm);
     if (location.state?.openNewContractModal && canCreate) {
       setEditingContract(null);
       setIsModalOpen(true);
@@ -60,15 +62,20 @@ export default function Contratos() {
   }, [searchTerm]);
 
   useEffect(() => {
-    refreshData(debouncedSearch);
-  }, [debouncedSearch]);
+    const controller = new AbortController();
+    refreshData(debouncedSearch, currentPage, controller.signal);
+    return () => controller.abort();
+  }, [debouncedSearch, currentPage, showExpired]);
 
-  const refreshData = async (searchQuery: string = "") => {
+  const refreshData = async (searchQuery: string = debouncedSearch, page: number = currentPage, signal?: AbortSignal) => {
     setIsLoading(true);
     try {
-      const data = await contractsService.getAll(searchQuery);
-      setContractsList(data);
+      const response = await contractsService.getAll({ search: searchQuery, page, limit: 10, expired: showExpired, signal });
+      setContractsList(response.data);
+      setTotalContracts(response.meta.total);
+      setTotalPages(response.meta.totalPages);
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
       console.error("Error loading contracts:", error);
     } finally {
       setIsLoading(false);
@@ -77,27 +84,7 @@ export default function Contratos() {
 
   const itemsPerPage = 10;
 
-  // Helper to check if expired
-  const isExpired = (dateString: string) => {
-    const today = new Date();
-    const targetDate = new Date(dateString);
-    return targetDate < today;
-  };
-
-  // Filter logic
-  const filteredContracts = contractsList
-    .filter((contract) => contract.estado === "ACTIVO")
-    .filter((contract) => {
-      const expired = isExpired(contract.fechaFin);
-      return showExpired ? expired : !expired;
-    });
-
-  // Pagination logic
-  const totalPages = Math.ceil(filteredContracts.length / itemsPerPage);
-  const currentContracts = filteredContracts.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  const currentContracts = contractsList;
 
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= totalPages) {
@@ -243,7 +230,7 @@ export default function Contratos() {
         toast.error("No se pudo abrir el archivo");
       }
     } else {
-      alert("Este contrato no tiene un archivo asociado.");
+      toast.error("Este contrato no tiene un archivo asociado.");
     }
   };
 
@@ -313,31 +300,15 @@ export default function Contratos() {
         type="danger"
       />
 
-      {/* Filters */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <div className="relative max-w-md">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <MagnifyingGlassIcon className="w-5 h-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            placeholder="Buscar por dirección, propietario, inquilino o teléfono..."
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-lg leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm transition duration-150 ease-in-out"
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1); // Reset to first page on search
-            }}
-          />
-        </div>
-      </div>
+      <FilterBar query={searchTerm} onQueryChange={value => { setSearchTerm(value); setCurrentPage(1); }} onClear={() => { setSearchTerm(""); setCurrentPage(1); }} resultCount={totalContracts} placeholder="Buscar por dirección, propietario, inquilino o teléfono..." />
 
       {/* Contenedor Principal Tablas/Tarjetas */}
-      <div className="md:bg-white md:rounded-xl md:shadow-sm md:border md:border-gray-200 min-h-[400px] flex flex-col">
+      <div className="lg:bg-white lg:rounded-xl lg:shadow-sm lg:border lg:border-gray-200 min-h-[400px] flex flex-col">
         {/* VISTA DESKTOP */}
-        <div className="hidden md:block overflow-x-auto rounded-t-xl">
+        <div className="relative hidden overflow-x-auto rounded-t-xl lg:block">
+          <p className="sr-only">Deslizá horizontalmente para ver más columnas.</p>
           <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50 whitespace-nowrap">
+            <thead className="sticky top-0 z-10 bg-gray-50 whitespace-nowrap">
               <tr>
                 <th
                   scope="col"
@@ -375,7 +346,7 @@ export default function Contratos() {
                 >
                   Alquiler
                 </th>
-                <th scope="col" className="relative px-6 py-3">
+                <th scope="col" className="sticky right-0 z-20 bg-gray-50 px-6 py-3 shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">
                   <span className="sr-only">Acciones</span>
                 </th>
               </tr>
@@ -388,7 +359,7 @@ export default function Contratos() {
                     className="hover:bg-gray-50 transition-colors"
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="max-w-64 truncate text-sm font-medium text-gray-900" title={formatAddress(contract.propiedad)}>
                         {formatAddress(contract.propiedad)}
                       </div>
                         {showExpired && (
@@ -397,18 +368,18 @@ export default function Contratos() {
                         </div>
                       )}
                       {!showExpired && (
-                        <div className={`text-[10px] font-bold mt-1 inline-block px-2 py-0.5 rounded border ${contract.administrado ? 'bg-green-50 text-green-700 border-green-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
+                        <div className={`text-xs font-bold mt-1 inline-block px-2 py-0.5 rounded border ${contract.administrado ? 'bg-green-50 text-green-700 border-green-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
                           {contract.administrado ? 'ADMINISTRADO' : 'GESTIÓN ÚNICA'}
                         </div>
                       )}
                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
+                      <div className="max-w-52 truncate text-sm text-gray-900" title={contract.inquilinos.find(i => i.esPrincipal)?.persona.nombreCompleto || "Sin inquilino"}>
                         {contract.inquilinos.find(i => i.esPrincipal)?.persona.nombreCompleto || "Sin inquilino"}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
+                      <div className="max-w-52 truncate text-sm text-gray-900" title={contract.propietarios.find(p => p.esPrincipal)?.persona.nombreCompleto || "Sin propietario"}>
                         {contract.propietarios.find(p => p.esPrincipal)?.persona.nombreCompleto || "Sin propietario"}
                       </div>
                     </td>
@@ -428,10 +399,10 @@ export default function Contratos() {
                       </div>
                     </td>
 
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="sticky right-0 z-10 bg-white px-6 py-4 whitespace-nowrap text-right text-sm font-medium shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">
                       <Menu as="div" className="inline-block text-left">
                         <div>
-                          <MenuButton className="text-gray-400 hover:text-indigo-600 p-1.5 rounded-full hover:bg-indigo-50 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                          <MenuButton aria-label="Acciones del contrato" className="inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-indigo-600 rounded-full hover:bg-indigo-50 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
                             <EllipsisVerticalIcon className="w-5 h-5" />
                           </MenuButton>
                         </div>
@@ -525,7 +496,7 @@ export default function Contratos() {
         </div>
 
         {/* VISTA MOBILE */}
-        <div className="md:hidden space-y-4">
+        <div className="space-y-4 lg:hidden">
             {currentContracts.map((contract) => (
                 <div key={contract.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
                     <div className="flex justify-between items-start">
@@ -536,16 +507,16 @@ export default function Contratos() {
                              <div>
                                   <p className="font-bold text-gray-900 leading-tight">{formatAddress(contract.propiedad)}</p>
                                   {showExpired ? (
-                                     <p className="text-[10px] font-bold text-red-600 uppercase mt-0.5">Venció {new Date(contract.fechaFin).toLocaleDateString("es-AR")}</p>
+                                     <p className="text-xs font-bold text-red-600 uppercase mt-0.5">Venció {new Date(contract.fechaFin).toLocaleDateString("es-AR")}</p>
                                   ) : (
-                                     <p className={`text-[9px] font-bold uppercase mt-0.5 inline-block px-1.5 py-0.5 rounded border ${contract.administrado ? 'bg-green-50 text-green-700 border-green-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
+                                     <p className={`text-xs font-bold uppercase mt-0.5 inline-block px-1.5 py-0.5 rounded border ${contract.administrado ? 'bg-green-50 text-green-700 border-green-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
                                         {contract.administrado ? 'ADMINISTRADO' : 'GESTIÓN ÚNICA'}
                                      </p>
                                   )}
                              </div>
                         </div>
                         <Menu as="div" className="relative">
-                            <MenuButton className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all duration-200 cursor-pointer focus:outline-none">
+                            <MenuButton aria-label="Acciones del contrato" className="flex h-11 w-11 items-center justify-center text-gray-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-full transition-all duration-200 cursor-pointer focus:outline-none">
                                 <EllipsisVerticalIcon className="w-6 h-6" />
                             </MenuButton>
                             <Transition
@@ -621,14 +592,14 @@ export default function Contratos() {
                     <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 text-sm flex flex-col gap-2 mt-1">
                          <div className="flex justify-between items-center bg-white p-2 border border-gray-100 rounded-md">
                              <div className="flex flex-col">
-                                 <span className="text-[10px] uppercase font-bold text-gray-400">Inquilino</span>
+                                 <span className="text-xs uppercase font-bold text-gray-600">Inquilino</span>
                                  <span className="font-semibold text-gray-700">{contract.inquilinos.find(i => i.esPrincipal)?.persona.nombreCompleto || "N/A"}</span>
                              </div>
                              <WhatsAppLink phone={contract.inquilinos.find(i => i.esPrincipal)?.persona.telefono || ""} />
                          </div>
                          <div className="flex justify-between items-center bg-white p-2 border border-gray-100 rounded-md">
                              <div className="flex flex-col">
-                                 <span className="text-[10px] uppercase font-bold text-gray-400">Propietario</span>
+                                 <span className="text-xs uppercase font-bold text-gray-600">Propietario</span>
                                  <span className="font-semibold text-gray-700">{contract.propietarios.find(p => p.esPrincipal)?.persona.nombreCompleto || "N/A"}</span>
                              </div>
                              <WhatsAppLink phone={contract.propietarios.find(p => p.esPrincipal)?.persona.telefono || ""} />
@@ -649,54 +620,7 @@ export default function Contratos() {
         </div>
 
         {/* Pagination Footer */}
-        {totalPages > 1 && (
-          <div className="bg-white px-4 py-3 border-t border-gray-200 flex items-center justify-between sm:px-6">
-            <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm text-gray-700">
-                  Mostrando{" "}
-                  <span className="font-medium">
-                    {(currentPage - 1) * itemsPerPage + 1}
-                  </span>{" "}
-                  a{" "}
-                  <span className="font-medium">
-                    {Math.min(currentPage * itemsPerPage, filteredContracts.length)}
-                  </span>{" "}
-                  de{" "}
-                  <span className="font-medium">{filteredContracts.length}</span>{" "}
-                  resultados
-                </p>
-              </div>
-              <div>
-                <nav
-                  className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
-                  aria-label="Pagination"
-                >
-                  <button
-                    onClick={() => handlePageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className="sr-only">Anterior</span>
-                    <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
-                  </button>
-                  {/* Simple page numbers could go here, but for now just prev/next as requested */}
-                  <span className="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
-                    Página {currentPage} de {totalPages}
-                  </span>
-                  <button
-                    onClick={() => handlePageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <span className="sr-only">Siguiente</span>
-                    <ChevronRightIcon className="h-5 w-5" aria-hidden="true" />
-                  </button>
-                </nav>
-              </div>
-            </div>
-          </div>
-        )}
+        <ServerPagination page={currentPage} totalPages={totalPages} total={totalContracts} pageSize={itemsPerPage} currentCount={currentContracts.length} onPageChange={handlePageChange} />
       </div>
     </div>
   );

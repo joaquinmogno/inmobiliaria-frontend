@@ -35,8 +35,8 @@ export const authService = {
         return response;
     },
 
-    loginWithGoogle: async (idToken: string): Promise<LoginResponse> => {
-        const response = await api.post<LoginResponse>('/auth/google', { idToken });
+    loginWithGoogle: async (idToken: string, currentPassword?: string): Promise<LoginResponse> => {
+        const response = await api.post<LoginResponse>('/auth/google', { idToken, currentPassword });
         if (response.user) {
             localStorage.setItem('user', JSON.stringify(response.user));
             localStorage.setItem('loginTimestamp', Date.now().toString());
@@ -46,6 +46,10 @@ export const authService = {
 
     changePassword: async (currentPassword: string, newPassword: string) => {
         return api.post('/auth/change-password', { currentPassword, newPassword });
+    },
+
+    completePasswordReset: async (token: string, newPassword: string) => {
+        return api.post<{ message: string }>('/auth/complete-password-reset', { token, newPassword });
     },
 
     me: async (): Promise<User> => {

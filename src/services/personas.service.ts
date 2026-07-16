@@ -1,4 +1,5 @@
 import api from './api';
+import type { PaginatedResponse } from './api';
 
 export interface Persona {
     id: number;
@@ -14,8 +15,15 @@ export interface Persona {
 export type CreatePersonaData = Omit<Persona, 'id' | 'roles'>;
 
 export const personasService = {
-    getAll: async (search?: string) => {
-        return api.get<Persona[]>('/personas', { params: search ? { search } : undefined });
+    getAll: async (options: { search?: string; page?: number; limit?: number; signal?: AbortSignal } = {}) => {
+        const params: Record<string, string> = { page: String(options.page ?? 1), limit: String(options.limit ?? 25) };
+        if (options.search) params.search = options.search;
+        return api.get<PaginatedResponse<Persona>>('/personas', { params, signal: options.signal });
+    },
+
+    search: async (search?: string) => {
+        const response = await personasService.getAll({ search, limit: 100 });
+        return response.data;
     },
 
     create: async (data: Partial<Persona>) => {

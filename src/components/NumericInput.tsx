@@ -59,6 +59,7 @@ export default function NumericInput({
         <input
           {...props}
           type="text"
+          inputMode={props.inputMode || "decimal"}
           className={`${className} ${icon ? 'pl-11' : 'px-4'}`}
           style={{ ...(icon ? { paddingLeft: "2.75rem" } : {}), ...style }}
           value={displayValue}

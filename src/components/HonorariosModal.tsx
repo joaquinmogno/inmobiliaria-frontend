@@ -63,7 +63,7 @@ export default function HonorariosModal({ isOpen, onClose, onSave, currentMonto,
                                     <Dialog.Title as="h3" className="text-lg font-bold text-gray-900">
                                         Editar Honorarios
                                     </Dialog.Title>
-                                    <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
+                                    <button onClick={onClose} className="text-gray-600 hover:text-gray-500">
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
                                 </div>

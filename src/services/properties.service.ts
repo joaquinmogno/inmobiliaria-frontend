@@ -1,4 +1,5 @@
 import api from './api';
+import type { PaginatedResponse } from './api';
 
 export type TipoPropiedad = 'DEPARTAMENTO' | 'CASA' | 'LOCAL' | 'OTRO';
 export type EstadoPropiedad = 'DISPONIBLE' | 'ALQUILADO' | 'INACTIVO';
@@ -14,8 +15,15 @@ export interface Property {
 }
 
 export const propertiesService = {
-    getAll: async (search?: string) => {
-        return api.get<Property[]>('/propiedades', { params: search ? { search } : undefined });
+    getAll: async (options: { search?: string; page?: number; limit?: number; signal?: AbortSignal } = {}) => {
+        const params: Record<string, string> = { page: String(options.page ?? 1), limit: String(options.limit ?? 25) };
+        if (options.search) params.search = options.search;
+        return api.get<PaginatedResponse<Property>>('/propiedades', { params, signal: options.signal });
+    },
+
+    search: async (search?: string) => {
+        const response = await propertiesService.getAll({ search, limit: 100 });
+        return response.data;
     },
 
     create: async (data: Omit<Property, 'id'>) => {

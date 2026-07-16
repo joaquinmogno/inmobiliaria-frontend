@@ -4,6 +4,7 @@ import { XMarkIcon, BanknotesIcon, CalendarIcon, CreditCardIcon, ChatBubbleBotto
 import NumericInput from "./NumericInput";
 import type { MetodoPago } from "../services/pagos.service";
 import { formatCurrency, type Moneda } from "../utils/currency";
+import FormError, { useFormError } from "./FormError";
 
 interface PaymentModalProps {
     isOpen: boolean;
@@ -14,6 +15,7 @@ interface PaymentModalProps {
 }
 
 export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount, moneda = "ARS" }: PaymentModalProps) {
+    const { error: formError, setError: setFormError, formRef } = useFormError();
     const [monto, setMonto] = useState("");
     const [fechaPago, setFechaPago] = useState(new Date().toISOString().split('T')[0]);
     const [metodoPago, setMetodoPago] = useState<MetodoPago>("EFECTIVO");
@@ -27,8 +29,12 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        const amount = Number(monto);
+        setFormError("");
+        if (!Number.isFinite(amount) || amount <= 0) return setFormError("El monto debe ser mayor a cero.");
+        if (suggestedAmount !== undefined && amount > suggestedAmount) return setFormError(`El monto no puede superar ${formatCurrency(suggestedAmount, moneda)}.`);
         onSave({
-            monto: Number(monto),
+            monto: amount,
             fechaPago,
             metodoPago,
             observaciones: observaciones || undefined
@@ -74,13 +80,14 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
                                     </div>
                                     <button
                                         onClick={onClose}
-                                        className="p-2 text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all focus:outline-none"
+                                        className="flex h-11 w-11 items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all focus:outline-none"
                                     >
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
                                 </div>
 
-                                <form onSubmit={handleSubmit} className="space-y-6">
+                                <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
+                                    <FormError message={formError} />
                                     {/* Amount Input */}
 	                                    <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100/50">
 	                                        {suggestedAmount !== undefined && (
@@ -88,12 +95,13 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
 	                                                Saldo sugerido: {formatCurrency(suggestedAmount, moneda)}
 	                                            </p>
 	                                        )}
-	                                        <label className="block text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-2">
+	                                        <label className="block text-xs font-black text-indigo-600 uppercase tracking-widest mb-2">
                                             Monto Entregado
                                         </label>
                                         <NumericInput
                                             required
                                             min="0.01"
+                                            max={suggestedAmount}
                                             placeholder="0.00"
                                             className="block w-full pl-12 pr-4 py-4 text-2xl font-black text-indigo-900 bg-white border-2 border-transparent focus:border-indigo-500 focus:ring-0 rounded-2xl transition-all shadow-sm"
                                             value={monto}
@@ -105,12 +113,12 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
                                     <div className="grid grid-cols-2 gap-4">
                                         {/* Date Input */}
                                         <div>
-                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                                            <label className="block text-xs font-black text-gray-600 uppercase tracking-widest mb-2">
                                                 Fecha
                                             </label>
                                             <div className="relative">
                                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                    <CalendarIcon className="w-4 h-4 text-gray-400" />
+                                                    <CalendarIcon className="w-4 h-4 text-gray-600" />
                                                 </div>
                                                 <input
                                                     type="date"
@@ -124,12 +132,12 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
 
                                         {/* Method Selection */}
                                         <div>
-                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                                            <label className="block text-xs font-black text-gray-600 uppercase tracking-widest mb-2">
                                                 Método
                                             </label>
                                             <div className="relative">
                                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                    <CreditCardIcon className="w-4 h-4 text-gray-400" />
+                                                    <CreditCardIcon className="w-4 h-4 text-gray-600" />
                                                 </div>
                                                 <select
                                                     className="block w-full pl-9 pr-3 py-2.5 text-sm font-bold text-gray-900 bg-gray-50 border border-transparent focus:border-indigo-500 focus:ring-0 rounded-xl transition-all appearance-none"
@@ -147,12 +155,12 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
 
                                     {/* Observations */}
                                     <div>
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                                        <label className="block text-xs font-black text-gray-600 uppercase tracking-widest mb-2">
                                             Observaciones (Opcional)
                                         </label>
                                         <div className="relative">
                                             <div className="absolute top-3 left-3 pointer-events-none">
-                                                <ChatBubbleBottomCenterTextIcon className="w-4 h-4 text-gray-400" />
+                                                <ChatBubbleBottomCenterTextIcon className="w-4 h-4 text-gray-600" />
                                             </div>
                                             <textarea
                                                 rows={2}
@@ -174,7 +182,7 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
                                         <button
                                             type="button"
                                             onClick={onClose}
-                                            className="w-full py-3 text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors"
+                                            className="w-full py-3 text-sm font-bold text-gray-600 hover:text-gray-600 transition-colors"
                                         >
                                             Cancelar
                                         </button>

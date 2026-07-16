@@ -65,7 +65,7 @@ export default function MovimientoModal({ isOpen, onClose, onSave, moneda = "ARS
                                     </Dialog.Title>
                                     <button
                                         onClick={onClose}
-                                        className="text-gray-400 hover:text-gray-500 transition-colors focus:outline-none"
+                                        className="text-gray-600 hover:text-gray-500 transition-colors focus:outline-none"
                                     >
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>

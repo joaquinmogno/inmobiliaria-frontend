@@ -15,19 +15,31 @@ import { inmobiliariaService, type Inmobiliaria } from "../services/inmobiliaria
 import { auditService, type AuditLog } from "../services/audit.service";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission, PERMISSION_LABELS, type PermissionKey } from "../utils/permissions";
+import toast from "react-hot-toast";
+import { requestConfirmation } from "../services/confirmation";
+import FormError, { useFormError } from "../components/FormError";
 
 export default function Configuracion() {
+  const { error: profileError, setError: setProfileError, reportError: reportProfileError, formRef: profileFormRef } = useFormError();
   const [backups, setBackups] = useState<BackupFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const { user, updateInmobiliaria } = useAuth();
   const canViewProfile = hasPermission(user, "configuracion.perfil.ver");
   const canEditProfile = hasPermission(user, "configuracion.perfil.editar");
-  const canViewBackups = hasPermission(user, "configuracion.backups.ver");
-  const canCreateBackups = hasPermission(user, "configuracion.backups.crear");
-  const canDeleteBackups = hasPermission(user, "configuracion.backups.eliminar");
-  const canDownloadBackups = hasPermission(user, "configuracion.backups.descargar");
+  const isSuperAdmin = (user?.rol || user?.role) === "SUPERADMIN";
+  const canViewBackups = isSuperAdmin && hasPermission(user, "configuracion.backups.ver");
+  const canCreateBackups = isSuperAdmin && hasPermission(user, "configuracion.backups.crear");
+  const canDeleteBackups = isSuperAdmin && hasPermission(user, "configuracion.backups.eliminar");
+  const canDownloadBackups = isSuperAdmin && hasPermission(user, "configuracion.backups.descargar");
   const canViewAudit = hasPermission(user, "configuracion.auditoria.ver");
+  type ConfigTab = "profile" | "backups" | "audit";
+  const availableTabs: Array<{ id: ConfigTab; label: string }> = [
+    ...(canViewProfile ? [{ id: "profile" as const, label: "Inmobiliaria" }] : []),
+    ...(canViewBackups ? [{ id: "backups" as const, label: "Backups" }] : []),
+    ...(canViewAudit ? [{ id: "audit" as const, label: "Auditoría" }] : []),
+  ];
+  const [activeTab, setActiveTab] = useState<ConfigTab>(() => availableTabs[0]?.id || "profile");
   const [inmobiliaria, setInmobiliaria] = useState<Partial<Inmobiliaria>>({});
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSuccess, setProfileSuccess] = useState(false);
@@ -133,7 +145,7 @@ export default function Configuracion() {
       await backupsService.createDbBackup();
       await loadBackups();
     } catch (error: any) {
-      alert(error.message || "Error al crear backup de base de datos");
+      toast.error(error.message || "No se pudo crear el backup de base de datos");
     } finally {
       setActionLoading(null);
     }
@@ -146,7 +158,7 @@ export default function Configuracion() {
       await backupsService.createUploadsBackup();
       await loadBackups();
     } catch (error: any) {
-      alert(error.message || "Error al crear backup de archivos");
+      toast.error(error.message || "No se pudo crear el backup de archivos");
     } finally {
       setActionLoading(null);
     }
@@ -154,17 +166,27 @@ export default function Configuracion() {
 
   const handleDelete = async (type: 'db' | 'uploads', filename: string) => {
     if (!canDeleteBackups) return;
-    if (!window.confirm("¿Estás seguro de que deseas eliminar este backup?")) return;
+    if (!await requestConfirmation({ title: "Eliminar backup", message: `Se eliminará definitivamente ${filename}. Esta acción no se puede deshacer.`, confirmText: "Eliminar" })) return;
     try {
       await backupsService.deleteBackup(type, filename);
       await loadBackups();
     } catch (error) {
-      alert("Error al eliminar backup");
+      toast.error(error instanceof Error ? error.message : "No se pudo eliminar el backup");
+    }
+  };
+
+  const handleVerify = async (file: BackupFile) => {
+    try {
+      const result = await backupsService.verifyBackup(file.type, file.name);
+      toast.success(result.message);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "No se pudo verificar el backup");
     }
   };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+    setProfileError("");
     if (!canEditProfile) return;
     setProfileLoading(true);
     setProfileSuccess(false);
@@ -178,7 +200,7 @@ export default function Configuracion() {
       // Opcional: Recargar la página o actualizar el contexto para que el Header cambie
       // window.location.reload(); 
     } catch (error) {
-      alert("Error al actualizar el perfil");
+      reportProfileError(error, "No se pudo actualizar el perfil");
     } finally {
       setProfileLoading(false);
     }
@@ -200,10 +222,10 @@ export default function Configuracion() {
 
     return (
       <div className="space-y-1">
-        <p className="text-xs font-black uppercase tracking-wide text-gray-400">{title}</p>
+        <p className="text-xs font-black uppercase tracking-wide text-gray-600">{title}</p>
         <div className="flex flex-wrap gap-1.5">
           {permissions.map(permission => (
-            <span key={`${title}-${permission}`} className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-100 text-[11px] font-bold text-gray-600">
+            <span key={`${title}-${permission}`} className="px-2 py-1 rounded-lg bg-gray-50 border border-gray-100 text-xs font-bold text-gray-600">
               {getPermissionLabel(permission)}
             </span>
           ))}
@@ -262,8 +284,16 @@ export default function Configuracion() {
         </button>
       </div>
 
+      <label className="sr-only" htmlFor="configuration-section">Sección de configuración</label>
+      <select id="configuration-section" value={activeTab} onChange={event => setActiveTab(event.target.value as typeof activeTab)} className="min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm font-semibold text-gray-700 min-[390px]:hidden">
+        {availableTabs.map(tab => <option key={tab.id} value={tab.id}>{tab.label}</option>)}
+      </select>
+      <nav className="hidden gap-1 overflow-x-auto rounded-lg border border-gray-200 bg-white p-1 min-[390px]:flex" aria-label="Secciones de configuración">
+        {availableTabs.map(tab => <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} aria-current={activeTab === tab.id ? "page" : undefined} className={`min-h-11 whitespace-nowrap rounded-md px-4 text-sm font-semibold ${activeTab === tab.id ? "bg-indigo-600 text-white" : "text-gray-700 hover:bg-gray-100"}`}>{tab.label}</button>)}
+      </nav>
+
       {/* Sección Perfil Inmobiliaria */}
-      {canViewProfile && (
+      {canViewProfile && activeTab === "profile" && (
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -276,7 +306,8 @@ export default function Configuracion() {
             </span>
           )}
         </div>
-        <form onSubmit={handleUpdateProfile} className="p-6">
+        <form ref={profileFormRef} onSubmit={handleUpdateProfile} className="p-6">
+          <FormError message={profileError} />
           <div className="max-w-md">
             <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la Inmobiliaria</label>
             <div className="flex flex-col gap-3 sm:flex-row">
@@ -305,7 +336,7 @@ export default function Configuracion() {
       </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {activeTab === "backups" && <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Panel de Acciones */}
         {canViewBackups && (
         <div className="lg:col-span-1 space-y-6">
@@ -404,11 +435,16 @@ export default function Configuracion() {
                           <p className="break-all text-sm font-black text-gray-900">{file.name}</p>
                           <p className="mt-1 text-xs text-gray-500">{new Date(file.date).toLocaleString('es-AR')} · {formatSize(file.size)}</p>
                         </div>
-                        <span className={`shrink-0 inline-flex items-center px-2 py-1 rounded text-[10px] font-bold ${file.type === 'db' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'}`}>
+                        <span className={`shrink-0 inline-flex items-center px-2 py-1 rounded text-xs font-bold ${file.type === 'db' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'}`}>
                           {file.type === 'db' ? 'DB' : 'Archivos'}
                         </span>
                       </div>
                       <div className="mt-3 grid grid-cols-2 gap-2">
+                        {canCreateBackups && (
+                          <button onClick={() => void handleVerify(file)} className="min-h-11 rounded-xl bg-emerald-50 px-3 text-xs font-bold text-emerald-700">
+                            Verificar
+                          </button>
+                        )}
                         {canDownloadBackups && (
                           <button onClick={() => backupsService.downloadBackup(file.type, file.name)} className="min-h-11 rounded-xl bg-indigo-50 px-3 text-xs font-bold text-indigo-700">
                             Descargar
@@ -469,10 +505,19 @@ export default function Configuracion() {
                           {new Date(file.date).toLocaleString('es-AR')}
                         </td>
                         <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
+                          {canCreateBackups && (
+                            <button
+                              onClick={() => void handleVerify(file)}
+                              className="inline-flex h-11 w-11 items-center justify-center text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                              title="Verificar restauración temporal"
+                            >
+                              Verificar
+                            </button>
+                          )}
                           {canDownloadBackups && (
                             <button
                               onClick={() => backupsService.downloadBackup(file.type, file.name)}
-                              className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              className="inline-flex h-11 w-11 items-center justify-center text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                               title="Descargar"
                             >
                               <ArrowDownTrayIcon className="w-5 h-5" />
@@ -480,7 +525,7 @@ export default function Configuracion() {
                           )}
                           {canDeleteBackups && <button
                             onClick={() => handleDelete(file.type, file.name)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="inline-flex h-11 w-11 items-center justify-center text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Eliminar"
                           >
                             <TrashIcon className="w-5 h-5" />
@@ -495,10 +540,10 @@ export default function Configuracion() {
           </div>
         </div>
         )}
-      </div>
+      </div>}
 
       {/* Registro de Auditoría */}
-      {canViewAudit && (
+      {canViewAudit && activeTab === "audit" && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -562,7 +607,7 @@ export default function Configuracion() {
                   </div>
                 ))
               ) : logs.length === 0 ? (
-                <div className="px-6 py-12 text-center text-gray-400 italic">No se han registrado acciones críticas aún.</div>
+                <div className="px-6 py-12 text-center text-gray-600 italic">No se han registrado acciones críticas aún.</div>
               ) : (
                 logs.map((log) => (
                   <article key={log.id} className="p-4">
@@ -571,10 +616,10 @@ export default function Configuracion() {
                         <p className="text-xs font-black uppercase tracking-wider text-indigo-700">{log.accion.replace(/_/g, ' ')}</p>
                         <h3 className="mt-1 text-sm font-bold text-gray-900">{log.usuario?.nombreCompleto || 'Sistema'}</h3>
                       </div>
-                      <span className="shrink-0 text-[11px] font-bold text-gray-400">{new Date(log.fechaCreacion).toLocaleDateString('es-AR')}</span>
+                      <span className="shrink-0 text-xs font-bold text-gray-600">{new Date(log.fechaCreacion).toLocaleDateString('es-AR')}</span>
                     </div>
                     <p className="mt-2 text-sm text-gray-600">{renderAuditDetail(log)}</p>
-                    {log.entidadId && <p className="mt-1 text-xs text-gray-400">{log.entidad} #{log.entidadId}</p>}
+                    {log.entidadId && <p className="mt-1 text-xs text-gray-600">{log.entidad} #{log.entidadId}</p>}
                   </article>
                 ))
               )}
@@ -599,7 +644,7 @@ export default function Configuracion() {
                   ))
                 ) : logs.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-gray-400 italic">
+                    <td colSpan={4} className="px-6 py-12 text-center text-gray-600 italic">
                       No se han registrado acciones críticas aún.
                     </td>
                   </tr>
@@ -617,7 +662,7 @@ export default function Configuracion() {
                       <td className="px-6 py-4 text-gray-600">
                         {renderAuditDetail(log)}
                         {log.entidadId && (
-                          <span className="ml-2 text-xs text-gray-400">
+                          <span className="ml-2 text-xs text-gray-600">
                             ({log.entidad} #{log.entidadId})
                           </span>
                         )}
