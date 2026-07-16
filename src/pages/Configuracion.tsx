@@ -27,11 +27,10 @@ export default function Configuracion() {
   const { user, updateInmobiliaria } = useAuth();
   const canViewProfile = hasPermission(user, "configuracion.perfil.ver");
   const canEditProfile = hasPermission(user, "configuracion.perfil.editar");
-  const isSuperAdmin = (user?.rol || user?.role) === "SUPERADMIN";
-  const canViewBackups = isSuperAdmin && hasPermission(user, "configuracion.backups.ver");
-  const canCreateBackups = isSuperAdmin && hasPermission(user, "configuracion.backups.crear");
-  const canDeleteBackups = isSuperAdmin && hasPermission(user, "configuracion.backups.eliminar");
-  const canDownloadBackups = isSuperAdmin && hasPermission(user, "configuracion.backups.descargar");
+  const canViewBackups = hasPermission(user, "configuracion.backups.ver");
+  const canCreateBackups = hasPermission(user, "configuracion.backups.crear");
+  const canDeleteBackups = hasPermission(user, "configuracion.backups.eliminar");
+  const canDownloadBackups = hasPermission(user, "configuracion.backups.descargar");
   const canViewAudit = hasPermission(user, "configuracion.auditoria.ver");
   type ConfigTab = "profile" | "backups" | "audit";
   const availableTabs: Array<{ id: ConfigTab; label: string }> = [
@@ -440,7 +439,7 @@ export default function Configuracion() {
                         </span>
                       </div>
                       <div className="mt-3 grid grid-cols-2 gap-2">
-                        {canCreateBackups && (
+                        {canDownloadBackups && (
                           <button onClick={() => void handleVerify(file)} className="min-h-11 rounded-xl bg-emerald-50 px-3 text-xs font-bold text-emerald-700">
                             Verificar
                           </button>
@@ -505,7 +504,7 @@ export default function Configuracion() {
                           {new Date(file.date).toLocaleString('es-AR')}
                         </td>
                         <td className="px-6 py-4 text-right space-x-2 whitespace-nowrap">
-                          {canCreateBackups && (
+                          {canDownloadBackups && (
                             <button
                               onClick={() => void handleVerify(file)}
                               className="inline-flex h-11 w-11 items-center justify-center text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
