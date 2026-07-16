@@ -2,6 +2,8 @@ import Header from "./Header";
 import Sidebar from "./Sidebar";
 import { Outlet } from "react-router-dom";
 import { useState } from "react";
+import ReauthenticationDialog from "../components/ReauthenticationDialog";
+import GlobalConfirmationDialog from "../components/GlobalConfirmationDialog";
 
 export default function MainLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -16,6 +18,8 @@ export default function MainLayout() {
         <main className="min-w-0 flex-1 bg-gray-100 overflow-y-auto overflow-x-hidden p-4 sm:p-6 w-full">
           <Outlet />
         </main>
+        <ReauthenticationDialog />
+        <GlobalConfirmationDialog />
       </div>
     </div>
   );

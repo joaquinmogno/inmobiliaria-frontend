@@ -4,6 +4,8 @@ import { contractsService, type Contract } from "../services/contracts.service";
 import ConfirmationModal from "../components/ConfirmationModal";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
+import ServerPagination from "../components/ServerPagination";
+import { toast } from "react-hot-toast";
 
 export interface TrashedContract extends Contract {
   daysUntilDeletion: number;
@@ -15,25 +17,29 @@ export default function Papelera() {
   const canDeleteContracts = hasPermission(user, "contratos.eliminar");
   const [trashedContracts, setTrashedContracts] = useState<TrashedContract[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [retentionDays, setRetentionDays] = useState<number | null>(null);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [contractToDelete, setContractToDelete] = useState<number | null>(null);
 
   useEffect(() => {
-    refreshData();
-  }, []);
+    refreshData(currentPage);
+  }, [currentPage]);
 
-  const refreshData = async () => {
+  const refreshData = async (page: number = currentPage) => {
     setIsLoading(true);
     try {
-      const data = await contractsService.getAll();
-      const trashed = data
-        .filter(c => c.estado === 'PAPELERA')
-        .map(c => ({
-          ...c,
-          daysUntilDeletion: 90 // Mocking this for now as backend might not provide it
-        }));
+      const response = await contractsService.getAll({ page, limit: 10, status: 'PAPELERA' });
+      const trashed = response.data.filter(
+        (contract): contract is TrashedContract => typeof contract.daysUntilDeletion === 'number'
+      );
       setTrashedContracts(trashed);
+      setTotal(response.meta.total);
+      setTotalPages(response.meta.totalPages);
+      setRetentionDays(response.meta.retentionDays ?? null);
     } catch (error) {
       console.error("Error loading trashed contracts:", error);
     } finally {
@@ -47,7 +53,7 @@ export default function Papelera() {
       await contractsService.restore(id);
       refreshData();
     } catch (error) {
-      alert("Error al restaurar el contrato");
+      toast.error(error instanceof Error ? error.message : "Error al restaurar el contrato");
     }
   };
 
@@ -61,9 +67,10 @@ export default function Papelera() {
     if (contractToDelete) {
       try {
         await contractsService.permanentlyDelete(contractToDelete);
-        refreshData();
+        if (trashedContracts.length === 1 && currentPage > 1) setCurrentPage(currentPage - 1);
+        else refreshData();
       } catch (error) {
-        alert("Error al eliminar el contrato permanentemente");
+        toast.error(error instanceof Error ? error.message : "Error al eliminar el contrato permanentemente");
       } finally {
         setContractToDelete(null);
       }
@@ -92,7 +99,7 @@ export default function Papelera() {
         <div className="bg-white rounded-lg shadow-sm p-10 text-center">
           <div className="max-w-md mx-auto">
             <div className="bg-gray-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <TrashIcon className="w-8 h-8 text-gray-400" />
+              <TrashIcon className="w-8 h-8 text-gray-600" />
             </div>
 
             <h2 className="text-xl font-bold text-gray-900 mb-2">La papelera está vacía</h2>
@@ -106,7 +113,9 @@ export default function Papelera() {
                 <div>
                   <h3 className="font-semibold text-blue-900 mb-1 text-sm">Información</h3>
                   <p className="text-xs text-blue-800">
-                    Los contratos eliminados se conservan por 90 días antes de ser eliminados permanentemente del sistema.
+                    {retentionDays
+                      ? `Los contratos sin historia financiera se conservan por ${retentionDays} días antes de la purga automática.`
+                      : 'Los contratos eliminados se conservan según la política configurada antes de la purga automática.'}
                   </p>
                 </div>
               </div>
@@ -154,6 +163,8 @@ export default function Papelera() {
           ))}
         </div>
       )}
+
+      <ServerPagination page={currentPage} totalPages={totalPages} total={total} pageSize={10} currentCount={trashedContracts.length} onPageChange={setCurrentPage} />
 
       <ConfirmationModal
         isOpen={isDeleteModalOpen}

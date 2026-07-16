@@ -67,7 +67,7 @@ export default function AuditTrail({ logs = [], emptyText = "Todavía no hay eve
                     <p className="mt-1 text-sm text-gray-700">
                         {formatDetail(log.detalle) || "Sin detalle adicional"}
                     </p>
-                    <p className="mt-2 text-[11px] font-semibold text-gray-500">
+                    <p className="mt-2 text-xs font-semibold text-gray-500">
                         Por: {log.usuario?.nombreCompleto || "Sistema"}
                     </p>
                 </div>

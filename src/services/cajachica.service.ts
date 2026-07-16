@@ -31,6 +31,10 @@ export interface CajaChicaResponse {
         page: number;
         limit: number;
         totalPages: number;
+    };
+}
+
+export interface CajaChicaSummary {
         balanceGeneral: number;
         totalIngresos: number;
         totalEgresos: number;
@@ -61,7 +65,6 @@ export interface CajaChicaResponse {
         gananciaBruta: number;
         resultadoNeto: number;
         fondosEnCustodia: number;
-    };
 }
 
 export const cajachicaService = {
@@ -75,6 +78,9 @@ export const cajachicaService = {
         
         return api.get<CajaChicaResponse>('/cajachica', { params });
     },
+
+    getSummary: async (mes: number, anio: number) =>
+        api.get<CajaChicaSummary>('/cajachica/resumen', { params: { mes: String(mes), anio: String(anio) } }),
 
     create: async (data: {
         tipo: 'INGRESO' | 'EGRESO';

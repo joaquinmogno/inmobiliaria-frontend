@@ -74,12 +74,12 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
               <h2 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
                 Mi Perfil
               </h2>
-              <p className="text-sm font-medium text-gray-400">{user?.email}</p>
+              <p className="text-sm font-medium text-gray-600">{user?.email}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
           >
             <XMarkIcon className="w-5 h-5 text-gray-500" />
           </button>
@@ -120,7 +120,7 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
                 <button
                   type="button"
                   onClick={() => setShowCurrentPassword((prev) => !prev)}
-                  className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-700 transition-colors"
+                  className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-600 hover:text-gray-700 transition-colors"
                   aria-label={showCurrentPassword ? "Ocultar contraseña actual" : "Mostrar contraseña actual"}
                 >
                   {showCurrentPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
@@ -143,7 +143,7 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
                 <button
                   type="button"
                   onClick={() => setShowNewPassword((prev) => !prev)}
-                  className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-700 transition-colors"
+                  className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-600 hover:text-gray-700 transition-colors"
                   aria-label={showNewPassword ? "Ocultar nueva contraseña" : "Mostrar nueva contraseña"}
                 >
                   {showNewPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
@@ -166,7 +166,7 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
                 <button
                   type="button"
                   onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-400 hover:text-gray-700 transition-colors"
+                  className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-600 hover:text-gray-700 transition-colors"
                   aria-label={showConfirmPassword ? "Ocultar confirmación de contraseña" : "Mostrar confirmación de contraseña"}
                 >
                   {showConfirmPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}

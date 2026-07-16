@@ -1,6 +1,7 @@
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment, useState } from 'react';
 import { superadminService } from '../services/superadmin.service';
+import FormError, { useFormError } from './FormError';
 
 interface NewInmobiliariaModalProps {
     isOpen: boolean;
@@ -10,7 +11,7 @@ interface NewInmobiliariaModalProps {
 
 export default function NewInmobiliariaModal({ isOpen, onClose, onSuccess }: NewInmobiliariaModalProps) {
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
+    const { error, setError, formRef } = useFormError();
 
     const [formData, setFormData] = useState({
         nombre: '',
@@ -34,8 +35,7 @@ export default function NewInmobiliariaModal({ isOpen, onClose, onSuccess }: New
             onSuccess();
             onClose();
         } catch (err: unknown) {
-            const error = err as { response?: { data?: { message?: string } } };
-            setError(error.response?.data?.message || 'Error al crear la inmobiliaria');
+            setError(err instanceof Error ? err.message : 'Error al crear la inmobiliaria');
         } finally {
             setLoading(false);
         }
@@ -72,13 +72,8 @@ export default function NewInmobiliariaModal({ isOpen, onClose, onSuccess }: New
                                     Añadir Nueva Inmobiliaria
                                 </Dialog.Title>
 
-                                {error && (
-                                    <div className="mb-4 bg-red-50 text-red-600 p-3 rounded-lg text-sm border border-red-100">
-                                        {error}
-                                    </div>
-                                )}
-
-                                <form onSubmit={handleSubmit} className="space-y-4">
+                                <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
+                                    <FormError message={error} />
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Inmobiliaria *</label>
                                         <input
@@ -140,7 +135,9 @@ export default function NewInmobiliariaModal({ isOpen, onClose, onSuccess }: New
                                             type="password"
                                             name="passwordAdmin"
                                             required
-                                            minLength={6}
+                                            minLength={12}
+                                            pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{12,}"
+                                            title="Mínimo 12 caracteres, con mayúscula, minúscula y número"
                                             value={formData.passwordAdmin}
                                             onChange={handleChange}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"

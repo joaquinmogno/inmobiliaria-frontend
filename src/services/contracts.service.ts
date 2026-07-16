@@ -1,4 +1,5 @@
 import api from './api';
+import type { PaginatedResponse } from './api';
 import type { AuditLogItem } from '../components/AuditTrail';
 import type { Moneda } from '../utils/currency';
 
@@ -25,6 +26,8 @@ export interface Contract {
     fechaFin: string;
     fechaProximaActualizacion: string | null;
     estado: EstadoContrato;
+    eliminadoEn?: string | null;
+    daysUntilDeletion?: number;
     administrado: boolean;
     requiereActualizacion: boolean;
     rutaArchivoContrato: string | null;
@@ -81,8 +84,20 @@ export const getDaysLeft = (dateString: string) => {
 
 
 export const contractsService = {
-    getAll: async (search?: string) => {
-        return api.get<Contract[]>('/contratos', { params: search ? { search } : undefined });
+    getAll: async (options: { search?: string; page?: number; limit?: number; expired?: boolean; status?: EstadoContrato; signal?: AbortSignal } = {}) => {
+        const params: Record<string, string> = {
+            page: String(options.page ?? 1),
+            limit: String(options.limit ?? 10)
+        };
+        if (options.search) params.search = options.search;
+        if (options.expired !== undefined) params.expired = String(options.expired);
+        if (options.status) params.status = options.status;
+        return api.get<PaginatedResponse<Contract>>('/contratos', { params, signal: options.signal });
+    },
+
+    search: async (search?: string) => {
+        const response = await contractsService.getAll({ search, limit: 100, status: 'ACTIVO' });
+        return response.data;
     },
 
     create: async (data: FormData) => {

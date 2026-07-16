@@ -50,37 +50,39 @@ export default function Header({ toggleMobileMenu }: HeaderProps) {
     <header className="h-16 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white flex items-center justify-between px-4 sm:px-6 shadow-lg z-30 relative">
 
       {/* Logo + nombre sistema con botón móvil */}
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
         {toggleMobileMenu && (
           <button onClick={toggleMobileMenu} className="sm:hidden p-1 rounded-md hover:bg-white/10 active:bg-white/20 transition-colors">
             <Bars3Icon className="w-6 h-6 text-white" />
           </button>
         )}
-        <div className="flex items-center gap-4 cursor-pointer" onClick={() => navigate("/home")}>
-          <div className="bg-white rounded-xl h-11 w-[160px] flex items-center justify-center shadow-md overflow-hidden">
+        <div className="flex min-w-0 items-center gap-4 cursor-pointer" onClick={() => navigate("/home")}>
+          <div className="flex h-11 w-[132px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-md sm:w-[160px]">
             <img
-              src="/logo.png"
+              src="/logo-440.webp"
+              width="440"
+              height="240"
               alt="PropControl Logo"
               className="h-full w-full object-contain scale-[2]"
             />
           </div>
-          <div className="leading-tight hidden sm:block">
-            <h1 className="font-bold text-lg text-white/95">{user?.inmobiliaria?.nombre || ""}</h1>
+          <div className="hidden min-w-0 leading-tight sm:block">
+            <h1 className="max-w-40 truncate font-bold text-lg text-white/95 lg:max-w-64" title={user?.inmobiliaria?.nombre || ""}>{user?.inmobiliaria?.nombre || ""}</h1>
           </div>
         </div>
       </div>
 
       {/* Usuario */}
-      <div className="flex items-center gap-6">
+      <div className="flex shrink-0 items-center">
         {/* Dropdown del usuario */}
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setIsUserMenuOpen((prev) => !prev)}
             className="flex items-center gap-3 hover:bg-indigo-700/50 rounded-lg px-3 py-2 transition-colors"
           >
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-medium">{user?.fullName || "Usuario"}</p>
-              <p className="text-xs text-indigo-200 capitalize">{user?.role?.toLowerCase() || "Agente"}</p>
+            <div className="hidden max-w-40 text-right xl:block">
+              <p className="truncate text-sm font-medium" title={user?.fullName || "Usuario"}>{user?.fullName || "Usuario"}</p>
+              <p className="hidden truncate text-xs text-indigo-200 capitalize 2xl:block">{user?.role?.toLowerCase() || "Agente"}</p>
             </div>
 
             <div className="w-10 h-10 bg-indigo-500 rounded-full flex items-center justify-center font-semibold ring-2 ring-white/30">

@@ -5,15 +5,13 @@ import { liquidacionesService, type Liquidacion } from "../services/liquidacione
 import { contractsService, type Contract } from "../services/contracts.service";
 import {
     PlusIcon,
-    MagnifyingGlassIcon,
     ChevronLeftIcon,
     ChevronRightIcon,
     EyeIcon,
     TrashIcon,
     EllipsisVerticalIcon,
     HomeIcon,
-    BanknotesIcon,
-    FunnelIcon
+    BanknotesIcon
 } from "@heroicons/react/24/outline";
 import { toast } from "react-hot-toast";
 import ConfirmationModal from "../components/ConfirmationModal";
@@ -22,6 +20,7 @@ import OwnerPaymentModal from "../components/OwnerPaymentModal";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
 import { formatCurrency } from "../utils/currency";
+import FilterBar, { persistFilter, readPersistedFilter } from "../components/FilterBar";
 
 export default function Liquidaciones() {
     const { user } = useAuth();
@@ -30,16 +29,17 @@ export default function Liquidaciones() {
     const canDelete = hasPermission(user, "liquidaciones.eliminar");
     const [liquidaciones, setLiquidaciones] = useState<Liquidacion[]>([]);
     const [contracts, setContracts] = useState<Contract[]>([]);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [searchTerm, setSearchTerm] = useState(() => readPersistedFilter("liquidaciones"));
+    const [debouncedSearch, setDebouncedSearch] = useState(() => readPersistedFilter("liquidaciones"));
     const [filterEstado, setFilterEstado] = useState<string>("");
     const [filterPeriodo, setFilterPeriodo] = useState<string>("");
     const [filterPropietarioId, setFilterPropietarioId] = useState<string>("");
     const [filterSoloDeuda, setFilterSoloDeuda] = useState<boolean>(false);
-    const [showMobileFilters, setShowMobileFilters] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
+    const [periodOptions, setPeriodOptions] = useState<string[]>([]);
+    const [uniquePropietarios, setUniquePropietarios] = useState<Array<{ id: number; nombreCompleto: string }>>([]);
     const [isLoading, setIsLoading] = useState(true);
     const navigate = useNavigate();
 
@@ -53,6 +53,7 @@ export default function Liquidaciones() {
     const itemsPerPage = 10;
 
     useEffect(() => {
+        persistFilter("liquidaciones", searchTerm);
         const timer = setTimeout(() => {
             setDebouncedSearch(searchTerm);
         }, 300);
@@ -61,7 +62,7 @@ export default function Liquidaciones() {
 
     useEffect(() => {
         refreshData(currentPage, debouncedSearch);
-    }, [currentPage, debouncedSearch]);
+    }, [currentPage, debouncedSearch, filterEstado, filterPeriodo, filterPropietarioId, filterSoloDeuda]);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -69,12 +70,18 @@ export default function Liquidaciones() {
 
     useEffect(() => {
         loadContracts();
+        liquidacionesService.getFilters().then(filters => {
+            setPeriodOptions(filters.periodos);
+            setUniquePropietarios(filters.propietarios);
+        }).catch(() => toast.error("No se pudieron cargar los filtros"));
     }, []);
 
     const refreshData = async (page: number = 1, searchQuery: string = "") => {
         setIsLoading(true);
         try {
-            const response = await liquidacionesService.getAll(undefined, page, itemsPerPage, searchQuery);
+            const response = await liquidacionesService.getAll(undefined, page, itemsPerPage, searchQuery, {
+                estado: filterEstado, periodo: filterPeriodo, propietarioId: filterPropietarioId, soloDeuda: filterSoloDeuda
+            });
             const data = Array.isArray(response) ? response : response.data;
             const meta = Array.isArray(response) ? undefined : response.meta;
             setLiquidaciones(data || []);
@@ -93,36 +100,15 @@ export default function Liquidaciones() {
 
     const loadContracts = async () => {
         try {
-            const data = await contractsService.getAll();
-            if (Array.isArray(data)) {
-                setContracts(data.filter(c => c.estado === 'ACTIVO'));
-            } else {
-                setContracts([]);
-            }
+            const response = await contractsService.getAll({ limit: 100, status: 'ACTIVO' });
+            setContracts(response.data);
         } catch (error) {
             console.error("Error loading contracts:", error);
             toast.error("No se pudieron cargar los contratos para la liquidación");
         }
     };
 
-    const filteredLiquidaciones = liquidaciones.filter((liq) => {
-        const matchesEstado = filterEstado === "" || liq.estado === filterEstado;
-        const matchesPeriodo = filterPeriodo === "" || liq.periodo === filterPeriodo;
-        const matchesPropietario = filterPropietarioId === "" || liq.contrato?.propietarios.some((p: any) => p.personaId === Number(filterPropietarioId));
-        
-        const totalPagado = liq.pagos?.reduce((acc, p) => acc + Number(p.monto), 0) || 0;
-        const deuda = Number(liq.netoACobrar) - totalPagado;
-        const matchesSoloDeuda = !filterSoloDeuda || deuda > 0;
-
-        return matchesEstado && matchesPeriodo && matchesPropietario && matchesSoloDeuda;
-    });
-
-    const periodOptions = Array.from(new Set(liquidaciones.map(l => l.periodo))).sort().reverse();
-    const uniquePropietarios = Array.from(new Map(
-        liquidaciones.flatMap(l => l.contrato?.propietarios.map((p: any) => p.persona) || [])
-            .filter(Boolean)
-            .map((p: any) => [p.id, p])
-    ).values());
+    const filteredLiquidaciones = liquidaciones;
 
     function formatFullAddress(prop: any) {
         if (!prop) return "";
@@ -195,13 +181,13 @@ export default function Liquidaciones() {
     const getStatusBadge = (estado: string) => {
         switch (estado) {
             case 'BORRADOR':
-                return <span className="bg-gray-50 text-gray-600 px-2 py-0.5 rounded-lg text-[10px] font-black border border-gray-200 uppercase tracking-widest">Borrador</span>;
+                return <span className="bg-gray-50 text-gray-600 px-2 py-0.5 rounded-lg text-xs font-black border border-gray-200 uppercase tracking-widest">Borrador</span>;
             case 'PENDIENTE_PAGO':
-                return <span className="bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-lg text-[10px] font-black border border-yellow-200 uppercase tracking-widest">Pendiente</span>;
+                return <span className="bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded-lg text-xs font-black border border-yellow-200 uppercase tracking-widest">Pendiente</span>;
             case 'PAGADA_POR_INQUILINO':
-                return <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg text-[10px] font-black border border-blue-200 uppercase tracking-widest">Pagada Inquilino</span>;
+                return <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg text-xs font-black border border-blue-200 uppercase tracking-widest">Pagada Inquilino</span>;
             case 'LIQUIDADA':
-                return <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-lg text-[10px] font-black border border-green-200 uppercase tracking-widest">Finalizada</span>;
+                return <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-lg text-xs font-black border border-green-200 uppercase tracking-widest">Finalizada</span>;
             default:
                 return <span className="text-gray-500 font-medium">{estado}</span>;
         }
@@ -224,40 +210,16 @@ export default function Liquidaciones() {
                 </button>}
             </div>
 
-            {/* Filters */}
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-4">
-                <button
-                    type="button"
-                    onClick={() => setShowMobileFilters(prev => !prev)}
-                    className="flex w-full items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-bold text-gray-700 md:hidden"
-                >
-                    <span className="inline-flex items-center gap-2">
-                        <FunnelIcon className="h-5 w-5 text-indigo-600" />
-                        Buscar y filtrar
-                    </span>
-                    <span className="text-xs text-gray-400">{showMobileFilters ? "Ocultar" : "Mostrar"}</span>
-                </button>
-                <div className={`${showMobileFilters ? "flex" : "hidden"} flex-col gap-4 md:flex md:flex-row`}>
-                    <div className="relative flex-1">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <MagnifyingGlassIcon className="w-5 h-5 text-gray-400" />
-                        </div>
-                        <input
-                            type="text"
-                            placeholder="Propiedad, inquilino o dueño..."
-                            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-xl bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 sm:text-sm transition-all"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
+            <FilterBar query={searchTerm} onQueryChange={setSearchTerm} resultCount={filteredLiquidaciones.length} placeholder="Propiedad, inquilino o propietario..." onClear={() => { setSearchTerm(""); setFilterPeriodo(""); setFilterPropietarioId(""); setFilterEstado(""); setFilterSoloDeuda(false); }}>
                     <div className="flex flex-wrap gap-2">
                         <select
+                            aria-label="Período"
                             value={filterPeriodo}
                             onChange={(e) => {
                                 setFilterPeriodo(e.target.value);
                                 setCurrentPage(1);
                             }}
-                            className="block w-full md:w-44 pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-xl cursor-pointer bg-white"
+                            className="block min-h-11 w-full md:w-44 pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-xl cursor-pointer bg-white"
                         >
                             <option value="">Todos los periodos</option>
                             {periodOptions.map(periodo => (
@@ -267,12 +229,13 @@ export default function Liquidaciones() {
                             ))}
                         </select>
                         <select
+                            aria-label="Propietario"
                             value={filterPropietarioId}
                             onChange={(e) => {
                                 setFilterPropietarioId(e.target.value);
                                 setCurrentPage(1);
                             }}
-                            className="block w-full md:w-44 pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-xl cursor-pointer bg-white"
+                            className="block min-h-11 w-full md:w-44 pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-xl cursor-pointer bg-white"
                         >
                             <option value="">Todos los dueños</option>
                             {uniquePropietarios.map(prop => prop && (
@@ -282,12 +245,13 @@ export default function Liquidaciones() {
                             ))}
                         </select>
                         <select
+                            aria-label="Estado"
                             value={filterEstado}
                             onChange={(e) => {
                                 setFilterEstado(e.target.value);
                                 setCurrentPage(1);
                             }}
-                            className="block w-full md:w-40 pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-xl cursor-pointer bg-white"
+                            className="block min-h-11 w-full md:w-40 pl-3 pr-10 py-2 text-sm border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 rounded-xl cursor-pointer bg-white"
                         >
                             <option value="">Todos los estados</option>
                             <option value="BORRADOR">Borrador</option>
@@ -296,25 +260,23 @@ export default function Liquidaciones() {
                             <option value="LIQUIDADA">Finalizada</option>
                         </select>
                     </div>
-                </div>
-                
-                <div className={`${showMobileFilters ? "flex" : "hidden"} items-center gap-4 pt-1 md:flex`}>
+                <div className="flex items-center gap-4">
                     <button
                         onClick={() => {
                             setFilterSoloDeuda(!filterSoloDeuda);
                             setCurrentPage(1);
                         }}
-                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                        className={`flex min-h-11 items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold transition-all border ${
                             filterSoloDeuda 
                             ? 'bg-red-50 text-red-700 border-red-200 ring-2 ring-red-100' 
                             : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'
                         }`}
                     >
                         <div className={`w-2 h-2 rounded-full ${filterSoloDeuda ? 'bg-red-500 pulse' : 'bg-gray-300'}`} />
-                        SOLO CON DEUDA
+                        Solo con deuda
                     </button>
                 </div>
-            </div>
+            </FilterBar>
 
             {/* Contenedor Principal Tablas/Tarjetas */}
             <div className="md:bg-white md:rounded-2xl md:shadow-sm md:border md:border-gray-100 min-h-[500px] flex flex-col">
@@ -323,13 +285,13 @@ export default function Liquidaciones() {
                     <table className="min-w-full divide-y divide-gray-100">
                         <thead className="bg-gray-50/50">
                             <tr>
-                                <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Propiedad</th>
-                                <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Periodo</th>
-                                <th className="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Inquilino</th>
-                                <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Total Inquilino</th>
-                                <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Pagado</th>
-                                <th className="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Deuda</th>
-                                <th className="px-6 py-4 text-center text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">Estado</th>
+                                <th className="px-6 py-4 text-left text-xs font-black text-gray-600 uppercase tracking-[0.2em]">Propiedad</th>
+                                <th className="px-6 py-4 text-left text-xs font-black text-gray-600 uppercase tracking-[0.2em]">Periodo</th>
+                                <th className="px-6 py-4 text-left text-xs font-black text-gray-600 uppercase tracking-[0.2em]">Inquilino</th>
+                                <th className="px-6 py-4 text-right text-xs font-black text-gray-600 uppercase tracking-[0.2em]">Total Inquilino</th>
+                                <th className="px-6 py-4 text-right text-xs font-black text-gray-600 uppercase tracking-[0.2em]">Pagado</th>
+                                <th className="px-6 py-4 text-right text-xs font-black text-gray-600 uppercase tracking-[0.2em]">Deuda</th>
+                                <th className="px-6 py-4 text-center text-xs font-black text-gray-600 uppercase tracking-[0.2em]">Estado</th>
                                 <th className="relative px-6 py-4"><span className="sr-only">Acciones</span></th>
                             </tr>
                         </thead>
@@ -345,7 +307,7 @@ export default function Liquidaciones() {
                                                 <span className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">
                                                     {formatFullAddress(liq.contrato?.propiedad)}
                                                 </span>
-                                                <span className="text-[10px] text-gray-400 font-medium uppercase">
+                                                <span className="text-xs text-gray-600 font-medium uppercase">
                                                     DUEÑO: {liq.contrato?.propietarios.find((p: any) => p.esPrincipal)?.persona.nombreCompleto || '-'}
                                                 </span>
                                             </div>
@@ -371,7 +333,7 @@ export default function Liquidaciones() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right">
-                                            <span className={`text-sm font-black ${deuda > 0 ? 'text-red-600' : 'text-gray-400 font-medium'}`}>
+                                            <span className={`text-sm font-black ${deuda > 0 ? 'text-red-600' : 'text-gray-600 font-medium'}`}>
 	                                                {deuda > 0 ? formatCurrency(deuda, liq.moneda) : '-'}
                                             </span>
                                         </td>
@@ -379,13 +341,13 @@ export default function Liquidaciones() {
                                             <div className="flex flex-col items-center gap-1">
                                                 {getStatusBadge(liq.estado)}
                                                 {liq.estado === 'PENDIENTE_PAGO' && totalPagado > 0 && Number(liq.netoACobrar) - totalPagado > 0 && (
-                                                    <span className="text-[9px] font-bold text-orange-600 uppercase tracking-tight">Pago Parcial</span>
+                                                    <span className="text-xs font-bold text-orange-600 uppercase tracking-tight">Pago Parcial</span>
                                                 )}
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                             <Menu as="div" className="relative inline-block text-left">
-                                                <MenuButton className="text-gray-400 hover:text-indigo-600 p-1.5 rounded-xl hover:bg-white transition-all cursor-pointer">
+                                                <MenuButton className="text-gray-600 hover:text-indigo-600 p-1.5 rounded-xl hover:bg-white transition-all cursor-pointer">
                                                     <EllipsisVerticalIcon className="w-5 h-5" />
                                                 </MenuButton>
                                                 <Transition
@@ -492,14 +454,14 @@ export default function Liquidaciones() {
                                         <span className="font-bold text-gray-900 leading-tight">
                                             {formatFullAddress(liq.contrato?.propiedad)}
                                         </span>
-                                        <span className="text-[11px] text-indigo-600 font-extrabold uppercase mt-0.5">
+                                        <span className="text-xs text-indigo-600 font-extrabold uppercase mt-0.5">
                                             {formatPeriod(liq.periodo)}
                                         </span>
                                     </div>
                                     <div className="flex flex-col items-end gap-1">
                                         {getStatusBadge(liq.estado)}
                                         {liq.estado === 'PENDIENTE_PAGO' && totalPagado > 0 && deuda > 0 && (
-                                            <span className="text-[9px] font-bold text-orange-600 uppercase tracking-tight">Pago Parcial</span>
+                                            <span className="text-xs font-bold text-orange-600 uppercase tracking-tight">Pago Parcial</span>
                                         )}
                                     </div>
                                 </div>
@@ -507,19 +469,19 @@ export default function Liquidaciones() {
                                 <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 flex flex-col gap-2">
                                     <div className="flex justify-between items-center bg-white p-2 border border-gray-100 rounded-lg">
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] uppercase font-bold text-gray-400">Inquilino (A Cobrar)</span>
+                                            <span className="text-xs uppercase font-bold text-gray-600">Inquilino (A Cobrar)</span>
                                             <span className="font-semibold text-gray-700 text-sm">{liq.contrato?.inquilinos.find((i: any) => i.esPrincipal)?.persona.nombreCompleto || '-'}</span>
                                         </div>
                                         <div className="flex flex-col items-end">
 	                                            <span className="text-sm font-black text-gray-900">{formatCurrency(liq.netoACobrar, liq.moneda)}</span>
-                                            <span className={`text-[11px] font-bold ${deuda > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                            <span className={`text-xs font-bold ${deuda > 0 ? 'text-red-600' : 'text-green-600'}`}>
 	                                                {deuda > 0 ? `DEBE: ${formatCurrency(deuda, liq.moneda)}` : 'PAGADO'}
                                             </span>
                                         </div>
                                     </div>
                                     <div className="flex justify-between items-center bg-white p-2 border border-blue-50 rounded-lg">
                                         <div className="flex flex-col">
-                                            <span className="text-[10px] uppercase font-bold text-gray-400">Dueño (A Transferir)</span>
+                                            <span className="text-xs uppercase font-bold text-gray-600">Dueño (A Transferir)</span>
                                             <span className="font-semibold text-gray-700 text-sm">{liq.contrato?.propietarios.find((p: any) => p.esPrincipal)?.persona.nombreCompleto || '-'}</span>
                                         </div>
                                         <div className="flex flex-col items-end">
@@ -530,7 +492,7 @@ export default function Liquidaciones() {
                                 
                                 <Menu as="div" className="relative w-full">
                                     <MenuButton className="mt-1 w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-600 rounded-xl py-2.5 text-sm font-bold hover:bg-gray-50 transition-colors cursor-pointer">
-                                        <EllipsisVerticalIcon className="w-5 h-5 text-gray-400" /> Opciones Avanzadas
+                                        <EllipsisVerticalIcon className="w-5 h-5 text-gray-600" /> Opciones Avanzadas
                                     </MenuButton>
                                     <Transition
                                         as={Fragment}
@@ -634,7 +596,7 @@ export default function Liquidaciones() {
                                 <button
                                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                                     disabled={currentPage === 1}
-                                    className="p-2 border border-gray-200 rounded-xl bg-white text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition-all disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-gray-500 cursor-pointer"
+                                    className="flex h-11 w-11 items-center justify-center border border-gray-200 rounded-xl bg-white text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 transition-all disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-gray-500 cursor-pointer"
                                 >
                                     <ChevronLeftIcon className="h-5 w-5" />
                                 </button>
@@ -644,7 +606,7 @@ export default function Liquidaciones() {
                                 <button
                                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                                     disabled={currentPage === totalPages}
-                                    className="p-2 border border-gray-200 rounded-xl bg-white text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition-all disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-gray-500 cursor-pointer"
+                                    className="flex h-11 w-11 items-center justify-center border border-gray-200 rounded-xl bg-white text-gray-600 hover:bg-indigo-50 hover:text-indigo-700 transition-all disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-gray-500 cursor-pointer"
                                 >
                                     <ChevronRightIcon className="h-5 w-5" />
                                 </button>

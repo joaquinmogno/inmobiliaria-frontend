@@ -4,15 +4,17 @@ import AccessDenied from "../pages/AccessDenied";
 import { hasPermission, type PermissionKey } from "../utils/permissions";
 
 interface PermissionGuardProps {
-  permission: PermissionKey;
+  permission?: PermissionKey;
+  permissions?: PermissionKey[];
   children: ReactNode;
 }
 
-export default function PermissionGuard({ permission, children }: PermissionGuardProps) {
+export default function PermissionGuard({ permission, permissions, children }: PermissionGuardProps) {
   const { user } = useAuth();
 
-  if (!hasPermission(user, permission)) {
-    return <AccessDenied />;
+  const allowed = permission ? hasPermission(user, permission) : Boolean(permissions?.some(item => hasPermission(user, item)));
+  if (!allowed) {
+    return <AccessDenied permission={permission || permissions?.join(" o ")} />;
   }
 
   return <>{children}</>;

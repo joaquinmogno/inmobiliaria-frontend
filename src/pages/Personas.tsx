@@ -4,12 +4,16 @@ import {
     PlusIcon,
     PencilSquareIcon,
     TrashIcon,
-    MagnifyingGlassIcon,
 } from "@heroicons/react/24/outline";
 import { personasService, type Persona, type CreatePersonaData } from "../services/personas.service";
 import WhatsAppLink from "../components/WhatsAppLink";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
+import ServerPagination from "../components/ServerPagination";
+import toast from "react-hot-toast";
+import { requestConfirmation } from "../services/confirmation";
+import FilterBar, { persistFilter, readPersistedFilter } from "../components/FilterBar";
+import FormError, { useFormError } from "../components/FormError";
 
 export default function Personas() {
     const { user } = useAuth();
@@ -18,10 +22,14 @@ export default function Personas() {
     const canDelete = hasPermission(user, "personas.eliminar");
     const [personas, setPersonas] = useState<Persona[]>([]);
     const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [searchTerm, setSearchTerm] = useState(() => readPersistedFilter("personas"));
+    const [debouncedSearch, setDebouncedSearch] = useState(() => readPersistedFilter("personas"));
+    const [currentPage, setCurrentPage] = useState(1);
+    const [total, setTotal] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingPersona, setEditingPersona] = useState<Persona | null>(null);
+    const { error: formError, setError: setFormError, reportError, formRef } = useFormError();
     const [formData, setFormData] = useState<CreatePersonaData>({
         nombreCompleto: "",
         dni: "",
@@ -32,7 +40,9 @@ export default function Personas() {
     });
 
     useEffect(() => {
+        persistFilter("personas", searchTerm);
         const timer = setTimeout(() => {
+            setCurrentPage(1);
             setDebouncedSearch(searchTerm);
         }, 300);
 
@@ -40,15 +50,20 @@ export default function Personas() {
     }, [searchTerm]);
 
     useEffect(() => {
-        loadPersonas(debouncedSearch);
-    }, [debouncedSearch]);
+        const controller = new AbortController();
+        loadPersonas(debouncedSearch, currentPage, controller.signal);
+        return () => controller.abort();
+    }, [debouncedSearch, currentPage]);
 
-    const loadPersonas = async (searchQuery: string = "") => {
+    const loadPersonas = async (searchQuery: string = debouncedSearch, page: number = currentPage, signal?: AbortSignal) => {
         setLoading(true);
         try {
-            const data = await personasService.getAll(searchQuery);
-            setPersonas(data);
+            const response = await personasService.getAll({ search: searchQuery, page, limit: 25, signal });
+            setPersonas(response.data);
+            setTotal(response.meta.total);
+            setTotalPages(response.meta.totalPages);
         } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') return;
             console.error("Error loading personas:", error);
         } finally {
             setLoading(false);
@@ -57,6 +72,7 @@ export default function Personas() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setFormError("");
         try {
             if (editingPersona) {
                 await personasService.update(editingPersona.id, formData);
@@ -68,17 +84,17 @@ export default function Personas() {
             resetForm();
             loadPersonas();
         } catch (error) {
-            alert("Error al guardar persona");
+            reportError(error, "No se pudo guardar la persona");
         }
     };
 
     const handleDelete = async (id: number) => {
-        if (window.confirm("¿Estás seguro de eliminar esta persona?")) {
+        if (await requestConfirmation({ title: "Eliminar persona", message: "La persona se eliminará si no tiene contratos o dependencias asociadas.", confirmText: "Eliminar" })) {
             try {
                 await personasService.delete(id);
                 loadPersonas(debouncedSearch);
             } catch (error: any) {
-                alert(error.response?.data?.message || "Error al eliminar persona");
+                toast.error(error instanceof Error ? error.message : "No se pudo eliminar la persona");
             }
         }
     };
@@ -129,31 +145,19 @@ export default function Personas() {
                 </button>}
             </div>
 
-            {/* Buscador */}
-            <div className="mb-6 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                    type="text"
-                    placeholder="Buscar por nombre, DNI o email..."
-                    className="pl-10 w-full md:w-1/3 px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-            </div>
+            <div className="mb-6"><FilterBar query={searchTerm} onQueryChange={setSearchTerm} onClear={() => setSearchTerm("")} resultCount={total} placeholder="Buscar por nombre, DNI o email..." /></div>
 
             {/* VISTA DESKTOP */}
-            <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden lg:block">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
-                        <thead>
+                        <thead className="sticky top-0 z-10 bg-gray-50">
                             <tr className="bg-gray-50/50 border-b border-gray-100">
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Persona</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Contacto</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Roles</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Acciones</th>
+                                <th className="sticky right-0 z-20 bg-gray-50 px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
@@ -164,8 +168,8 @@ export default function Personas() {
                                             <div className="bg-indigo-50 p-2 rounded-lg">
                                                 <UserGroupIcon className="w-5 h-5 text-indigo-600" />
                                             </div>
-                                            <div>
-                                                <p className="font-semibold text-gray-900">{p.nombreCompleto}</p>
+                                            <div className="min-w-0 max-w-64">
+                                                <p className="truncate font-semibold text-gray-900" title={p.nombreCompleto}>{p.nombreCompleto}</p>
                                                 <p className="text-sm text-gray-500">{p.dni || "Sin ID"}</p>
                                             </div>
                                         </div>
@@ -178,7 +182,7 @@ export default function Personas() {
                                             ) : (
                                                 <p className="text-gray-500">-</p>
                                             )}
-                                            <p className="text-gray-400 text-xs truncate max-w-[150px]" title={p.direccion || undefined}>{p.direccion}</p>
+                                            <p className="text-gray-600 text-xs truncate max-w-[150px]" title={p.direccion || undefined}>{p.direccion}</p>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
@@ -190,7 +194,7 @@ export default function Personas() {
                                                     </span>
                                                 ))
                                             ) : (
-                                                <span className="text-xs text-gray-400">Sin roles</span>
+                                                <span className="text-xs text-gray-600">Sin roles</span>
                                             )}
                                         </div>
                                     </td>
@@ -200,18 +204,18 @@ export default function Personas() {
                                             {p.estado}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-right">
+                                    <td className="sticky right-0 z-10 bg-white px-6 py-4 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">
                                         <div className="flex justify-end gap-2">
                                             {canEdit && <button
                                                 onClick={() => handleEdit(p)}
-                                                className="p-2 text-gray-400 hover:text-blue-600 transition-colors bg-white hover:bg-blue-50 rounded-lg"
+                                                className="inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-blue-700 transition-colors bg-white hover:bg-blue-50 rounded-lg"
                                                 title="Editar"
                                             >
                                                 <PencilSquareIcon className="w-5 h-5" />
                                             </button>}
                                             {canDelete && <button
                                                 onClick={() => handleDelete(p.id)}
-                                                className="p-2 text-gray-400 hover:text-red-600 transition-colors bg-white hover:bg-red-50 rounded-lg"
+                                                className="inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-red-700 transition-colors bg-white hover:bg-red-50 rounded-lg"
                                                 title="Eliminar"
                                             >
                                                 <TrashIcon className="w-5 h-5" />
@@ -233,7 +237,7 @@ export default function Personas() {
             </div>
 
             {/* VISTA MOBILE */}
-            <div className="md:hidden space-y-4">
+            <div className="space-y-4 lg:hidden">
                 {personas.map((p) => (
                     <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
                         <div className="flex justify-between items-start">
@@ -243,24 +247,24 @@ export default function Personas() {
                                 </div>
                                 <div>
                                     <p className="font-bold text-gray-900 leading-tight">{p.nombreCompleto}</p>
-                                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">{p.dni ? `DNI ${p.dni}` : "SIN ID"}</p>
+                                    <p className="text-xs font-bold text-gray-600 uppercase tracking-wider mt-0.5">{p.dni ? `DNI ${p.dni}` : "SIN ID"}</p>
                                 </div>
                             </div>
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider shrink-0 ${p.estado === 'ACTIVO' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                            <span className={`px-2 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider shrink-0 ${p.estado === 'ACTIVO' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                 {p.estado}
                             </span>
                         </div>
                         
                         <div className="flex flex-col gap-1.5 mt-1 bg-gray-50 p-3 rounded-lg border border-gray-100 text-sm">
-                             {p.email && <p className="text-gray-700 break-all"><span className="text-xs text-gray-400 uppercase font-bold mr-1">EMAIL:</span> {p.email}</p>}
-                             {p.telefono && <div className="flex items-center gap-1 text-gray-700"><span className="text-xs text-gray-400 uppercase font-bold mr-1">TEL:</span> <WhatsAppLink phone={p.telefono} /></div>}
+                             {p.email && <p className="text-gray-700 break-all"><span className="text-xs text-gray-600 uppercase font-bold mr-1">EMAIL:</span> {p.email}</p>}
+                             {p.telefono && <div className="flex items-center gap-1 text-gray-700"><span className="text-xs text-gray-600 uppercase font-bold mr-1">TEL:</span> <WhatsAppLink phone={p.telefono} /></div>}
                              {p.direccion && <p className="text-gray-700 text-xs mt-1 truncate" title={p.direccion}>{p.direccion}</p>}
                         </div>
 
                         {p.roles && p.roles.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-1">
                                  {p.roles.map(role => (
-                                     <span key={role} className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-100">
+                                     <span key={role} className="px-2 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-100">
                                          {role}
                                      </span>
                                  ))}
@@ -290,6 +294,8 @@ export default function Personas() {
                 )}
             </div>
 
+            <ServerPagination page={currentPage} totalPages={totalPages} total={total} pageSize={25} currentCount={personas.length} onPageChange={setCurrentPage} />
+
             {/* Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -298,12 +304,13 @@ export default function Personas() {
                             <h2 className="text-2xl font-bold text-gray-900">
                                 {editingPersona ? "Editar Persona" : "Nueva Persona"}
                             </h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                            <button onClick={() => setIsModalOpen(false)} className="text-gray-600 hover:text-gray-600">
                                 ✕
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-6">
+                        <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
+                            <FormError message={formError} />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="md:col-span-2">
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Nombre y Apellido / Razón Social *</label>

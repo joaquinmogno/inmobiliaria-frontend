@@ -64,7 +64,7 @@ export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAm
                                     </div>
                                     <button
                                         onClick={onClose}
-                                        className="grid h-11 w-11 shrink-0 place-items-center text-gray-400 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all focus:outline-none"
+                                        className="grid h-11 w-11 shrink-0 place-items-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all focus:outline-none"
                                     >
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
@@ -73,13 +73,13 @@ export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAm
                                 <form onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-8 sm:pt-5 space-y-6">
                                     {/* Info Amount */}
                                     <div className="bg-orange-50/50 p-4 sm:p-6 rounded-2xl border border-orange-100/50">
-                                        <label className="block text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1">
+                                        <label className="block text-xs font-black text-orange-600 uppercase tracking-widest mb-1">
                                             Monto a Entregar (Total Neto)
                                         </label>
 	                                        <div className="text-2xl sm:text-3xl font-black text-orange-900">
 	                                            {formatCurrency(suggestedAmount || 0, moneda)}
 	                                        </div>
-                                        <p className="text-[10px] text-orange-400 mt-2 font-medium uppercase">
+                                        <p className="text-xs text-orange-400 mt-2 font-medium uppercase">
                                             Este monto se registrará como un EGRESO en caja chica.
                                         </p>
                                     </div>
@@ -87,12 +87,12 @@ export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAm
                                     <div className="grid grid-cols-1 gap-4 min-[380px]:grid-cols-2">
                                         {/* Date Input */}
                                         <div>
-                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                                            <label className="block text-xs font-black text-gray-600 uppercase tracking-widest mb-2">
                                                 Fecha de Pago
                                             </label>
                                             <div className="relative">
                                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                    <CalendarIcon className="w-4 h-4 text-gray-400" />
+                                                    <CalendarIcon className="w-4 h-4 text-gray-600" />
                                                 </div>
                                                 <input
                                                     type="date"
@@ -106,12 +106,12 @@ export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAm
 
                                         {/* Method Selection */}
                                         <div>
-                                            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                                            <label className="block text-xs font-black text-gray-600 uppercase tracking-widest mb-2">
                                                 Método
                                             </label>
                                             <div className="relative">
                                                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                                    <CreditCardIcon className="w-4 h-4 text-gray-400" />
+                                                    <CreditCardIcon className="w-4 h-4 text-gray-600" />
                                                 </div>
                                                 <select
                                                     className="block min-h-11 w-full pl-9 pr-3 py-2.5 text-base font-bold text-gray-900 bg-gray-50 border border-transparent focus:border-indigo-500 focus:ring-0 rounded-xl transition-all appearance-none sm:text-sm"
@@ -129,12 +129,12 @@ export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAm
 
                                     {/* Observations */}
                                     <div>
-                                        <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                                        <label className="block text-xs font-black text-gray-600 uppercase tracking-widest mb-2">
                                             Observaciones (Opcional)
                                         </label>
                                         <div className="relative">
                                             <div className="absolute top-3 left-3 pointer-events-none">
-                                                <ChatBubbleBottomCenterTextIcon className="w-4 h-4 text-gray-400" />
+                                                <ChatBubbleBottomCenterTextIcon className="w-4 h-4 text-gray-600" />
                                             </div>
                                             <textarea
                                                 rows={2}
@@ -156,7 +156,7 @@ export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAm
                                         <button
                                             type="button"
                                             onClick={onClose}
-                                            className="w-full py-3 text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors"
+                                            className="w-full py-3 text-sm font-bold text-gray-600 hover:text-gray-600 transition-colors"
                                         >
                                             Cancelar
                                         </button>

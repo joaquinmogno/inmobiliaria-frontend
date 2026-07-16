@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/auth.service';
 import { useNavigate } from 'react-router-dom';
 import { EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
+import { ApiError } from '../services/api';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -12,6 +14,8 @@ const Login = () => {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [pendingGoogleCredential, setPendingGoogleCredential] = useState('');
+  const [googleLinkPassword, setGoogleLinkPassword] = useState('');
   const googleButtonRef = useRef<HTMLDivElement>(null);
   const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined)?.trim();
   const { login } = useAuth();
@@ -38,11 +42,24 @@ const Login = () => {
       login(loginResponse.user);
       navigate(loginResponse.user.mustChangePassword ? '/mi-acceso' : '/home');
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'No se pudo iniciar sesión con Google.');
+      if (error instanceof ApiError && error.code === 'GOOGLE_LINK_REQUIRES_PASSWORD') {
+        setPendingGoogleCredential(response.credential);
+        setGoogleLinkPassword('');
+      } else setError(error instanceof Error ? error.message : 'No se pudo iniciar sesión con Google.');
     } finally {
       setIsGoogleLoading(false);
     }
   }, [login, navigate]);
+
+  const confirmGoogleLink = async (event: React.FormEvent) => {
+    event.preventDefault(); setIsGoogleLoading(true); setError('');
+    try {
+      const loginResponse = await authService.loginWithGoogle(pendingGoogleCredential, googleLinkPassword);
+      setPendingGoogleCredential(''); login(loginResponse.user);
+      navigate(loginResponse.user.mustChangePassword ? '/mi-acceso' : '/home');
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'No se pudo vincular la cuenta.'); }
+    finally { setIsGoogleLoading(false); }
+  };
 
   useEffect(() => {
     if (!googleClientId || !googleButtonRef.current) return;
@@ -121,7 +138,12 @@ const Login = () => {
     <div className="min-h-screen flex relative font-sans">
       {/* Background with overlay */}
       <div className="absolute inset-0 z-0">
-        <img src="/pto_madero.jpg" alt="Background" className="w-full h-full object-cover" />
+        <picture className="block h-full w-full">
+          <source media="(max-width: 767px)" srcSet="/pto_madero-768.webp" type="image/webp" />
+          <source srcSet="/pto_madero-1280.avif" type="image/avif" />
+          <source srcSet="/pto_madero-1280.webp" type="image/webp" />
+          <img src="/pto_madero.jpg" alt="" width="2040" height="918" fetchPriority="high" className="h-full w-full object-cover" />
+        </picture>
         <div className="absolute inset-0 bg-gradient-to-br from-slate-950/95 via-slate-900/90 to-slate-950/80" />
       </div>
 
@@ -133,7 +155,9 @@ const Login = () => {
           <div className="flex flex-col gap-8 mt-12 animate-in fade-in slide-in-from-left-8 duration-1000">
             <div className="h-16 lg:h-20 max-w-[280px] bg-white rounded-2xl flex items-center justify-center p-4 shadow-[0_8px_32px_rgba(0,0,0,0.2)] overflow-hidden">
               <img
-                src="/logo.png"
+                src="/logo-440.webp"
+                width="440"
+                height="240"
                 alt="PropControl Logo"
                 className="w-full h-full object-contain filter"
                 onError={(e) => {
@@ -178,7 +202,9 @@ const Login = () => {
             <div className="md:hidden flex justify-center mb-8">
                <div className="h-14 sm:h-16 bg-white rounded-[1.25rem] flex items-center justify-center px-6 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                  <img
-                   src="/logo.png"
+                   src="/logo-440.webp"
+                   width="440"
+                   height="240"
                    alt="PropControl Logo"
                    className="h-full object-contain"
                    onError={(e) => {
@@ -241,6 +267,7 @@ const Login = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                     className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-500 hover:text-slate-300 transition-colors"
                   >
                     {showPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
@@ -308,6 +335,14 @@ const Login = () => {
           </div>
         </div>
       </div>
+      <Dialog open={Boolean(pendingGoogleCredential)} onClose={() => !isGoogleLoading && setPendingGoogleCredential('')} className="relative z-50">
+        <DialogBackdrop className="fixed inset-0 bg-black/60" />
+        <div className="fixed inset-0 flex items-center justify-center p-4"><DialogPanel className="w-full max-w-sm rounded-lg bg-white p-6 shadow-2xl">
+          <DialogTitle className="text-xl font-bold text-gray-900">Vincular cuenta de Google</DialogTitle>
+          <p className="mt-2 text-sm text-gray-600">Confirmá tu contraseña actual de PropControl. Solo se solicitará en esta primera vinculación.</p>
+          <form onSubmit={confirmGoogleLink} className="mt-5 space-y-4"><label className="block text-sm font-semibold text-gray-700">Contraseña actual<input autoFocus required type="password" value={googleLinkPassword} onChange={event => setGoogleLinkPassword(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-3" /></label><div className="flex justify-end gap-3"><button type="button" disabled={isGoogleLoading} onClick={() => setPendingGoogleCredential('')} className="min-h-11 px-4 font-semibold text-gray-700">Cancelar</button><button disabled={isGoogleLoading} className="min-h-11 rounded-lg bg-indigo-600 px-4 font-semibold text-white disabled:opacity-50">{isGoogleLoading ? 'Vinculando...' : 'Vincular cuenta'}</button></div></form>
+        </DialogPanel></div>
+      </Dialog>
     </div>
   );
 };

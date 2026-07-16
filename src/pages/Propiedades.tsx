@@ -4,11 +4,15 @@ import {
     PlusIcon,
     PencilSquareIcon,
     TrashIcon,
-    MagnifyingGlassIcon,
 } from "@heroicons/react/24/outline";
 import { propertiesService, type Property, type TipoPropiedad, type EstadoPropiedad } from "../services/properties.service";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
+import ServerPagination from "../components/ServerPagination";
+import toast from "react-hot-toast";
+import { requestConfirmation } from "../services/confirmation";
+import FilterBar, { persistFilter, readPersistedFilter } from "../components/FilterBar";
+import FormError, { useFormError } from "../components/FormError";
 
 export default function Propiedades() {
     const { user } = useAuth();
@@ -17,10 +21,14 @@ export default function Propiedades() {
     const canDelete = hasPermission(user, "propiedades.eliminar");
     const [properties, setProperties] = useState<Property[]>([]);
     const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [searchTerm, setSearchTerm] = useState(() => readPersistedFilter("propiedades"));
+    const [debouncedSearch, setDebouncedSearch] = useState(() => readPersistedFilter("propiedades"));
+    const [currentPage, setCurrentPage] = useState(1);
+    const [total, setTotal] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+    const { error: formError, setError: setFormError, reportError, formRef } = useFormError();
     const [formData, setFormData] = useState<Omit<Property, 'id'>>({
         direccion: "",
         piso: "",
@@ -31,7 +39,9 @@ export default function Propiedades() {
     });
 
     useEffect(() => {
+        persistFilter("propiedades", searchTerm);
         const timer = setTimeout(() => {
+            setCurrentPage(1);
             setDebouncedSearch(searchTerm);
         }, 300);
 
@@ -39,15 +49,20 @@ export default function Propiedades() {
     }, [searchTerm]);
 
     useEffect(() => {
-        loadProperties(debouncedSearch);
-    }, [debouncedSearch]);
+        const controller = new AbortController();
+        loadProperties(debouncedSearch, currentPage, controller.signal);
+        return () => controller.abort();
+    }, [debouncedSearch, currentPage]);
 
-    const loadProperties = async (searchQuery: string = "") => {
+    const loadProperties = async (searchQuery: string = debouncedSearch, page: number = currentPage, signal?: AbortSignal) => {
         setLoading(true);
         try {
-            const data = await propertiesService.getAll(searchQuery);
-            setProperties(data);
+            const response = await propertiesService.getAll({ search: searchQuery, page, limit: 25, signal });
+            setProperties(response.data);
+            setTotal(response.meta.total);
+            setTotalPages(response.meta.totalPages);
         } catch (error) {
+            if (error instanceof DOMException && error.name === 'AbortError') return;
             console.error("Error loading properties:", error);
         } finally {
             setLoading(false);
@@ -56,6 +71,7 @@ export default function Propiedades() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setFormError("");
         try {
             if (editingProperty) {
                 await propertiesService.update(editingProperty.id, formData);
@@ -67,17 +83,17 @@ export default function Propiedades() {
             resetForm();
             loadProperties();
         } catch (error) {
-            alert("Error al guardar propiedad");
+            reportError(error, "No se pudo guardar la propiedad");
         }
     };
 
     const handleDelete = async (id: number) => {
-        if (window.confirm("¿Estás seguro de eliminar esta propiedad?")) {
+        if (await requestConfirmation({ title: "Eliminar propiedad", message: "La propiedad se eliminará si no tiene contratos o dependencias asociadas.", confirmText: "Eliminar" })) {
             try {
                 await propertiesService.delete(id);
                 loadProperties(debouncedSearch);
             } catch (error: any) {
-                alert(error.response?.data?.message || "Error al eliminar propiedad");
+                toast.error(error instanceof Error ? error.message : "No se pudo eliminar la propiedad");
             }
         }
     };
@@ -137,31 +153,19 @@ export default function Propiedades() {
                 </button>}
             </div>
 
-            {/* Buscador */}
-            <div className="mb-6 relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                    type="text"
-                    placeholder="Buscar por dirección, tipo o estado..."
-                    className="pl-10 w-full md:w-1/3 px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
-            </div>
+            <div className="mb-6"><FilterBar query={searchTerm} onQueryChange={setSearchTerm} onClear={() => setSearchTerm("")} resultCount={total} placeholder="Buscar por dirección, tipo o estado..." /></div>
 
             {/* VISTA DESKTOP */}
-            <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden lg:block">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
-                        <thead>
+                        <thead className="sticky top-0 z-10 bg-gray-50">
                             <tr className="bg-gray-50/50 border-b border-gray-100">
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Propiedad</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Detalles</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Tipo</th>
                                 <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right">Acciones</th>
+                                <th className="sticky right-0 z-20 bg-gray-50 px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
@@ -172,15 +176,15 @@ export default function Propiedades() {
                                             <div className="bg-indigo-50 p-2 rounded-lg">
                                                 <HomeModernIcon className="w-5 h-5 text-indigo-600" />
                                             </div>
-                                            <div>
-                                                <p className="font-semibold text-gray-900">{p.direccion}</p>
+                                            <div className="min-w-0 max-w-72">
+                                                <p className="truncate font-semibold text-gray-900" title={p.direccion}>{p.direccion}</p>
                                                 <p className="text-sm text-gray-500">{p.piso ? `Piso ${p.piso}` : ""} {p.departamento ? `Depto ${p.departamento}` : ""}</p>
                                             </div>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="text-sm">
-                                            <p className="text-gray-400 text-xs truncate max-w-[200px]" title={p.observaciones || ""}>
+                                            <p className="text-gray-600 text-xs truncate max-w-[200px]" title={p.observaciones || ""}>
                                                 {p.observaciones || "Sin observaciones"}
                                             </p>
                                         </div>
@@ -195,18 +199,18 @@ export default function Propiedades() {
                                             {p.estado}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-right">
+                                    <td className="sticky right-0 z-10 bg-white px-6 py-4 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">
                                         <div className="flex justify-end gap-2">
                                             {canEdit && <button
                                                 onClick={() => handleEdit(p)}
-                                                className="p-2 text-gray-400 hover:text-blue-600 transition-colors bg-white hover:bg-blue-50 rounded-lg"
+                                                className="inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-blue-700 transition-colors bg-white hover:bg-blue-50 rounded-lg"
                                                 title="Editar"
                                             >
                                                 <PencilSquareIcon className="w-5 h-5" />
                                             </button>}
                                             {canDelete && <button
                                                 onClick={() => handleDelete(p.id)}
-                                                className="p-2 text-gray-400 hover:text-red-600 transition-colors bg-white hover:bg-red-50 rounded-lg"
+                                                className="inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-red-700 transition-colors bg-white hover:bg-red-50 rounded-lg"
                                                 title="Eliminar"
                                             >
                                                 <TrashIcon className="w-5 h-5" />
@@ -228,7 +232,7 @@ export default function Propiedades() {
             </div>
 
             {/* VISTA MOBILE */}
-            <div className="md:hidden space-y-4">
+            <div className="space-y-4 lg:hidden">
                 {properties.map((p) => (
                     <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
                         <div className="flex justify-between items-start">
@@ -238,22 +242,22 @@ export default function Propiedades() {
                                 </div>
                                 <div>
                                     <p className="font-bold text-gray-900 leading-tight">{p.direccion}</p>
-                                    <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">{p.piso ? `PISO ${p.piso}` : ""} {p.departamento ? `DEPTO ${p.departamento}` : ""}</p>
+                                    <p className="text-xs font-bold text-gray-600 uppercase tracking-wider mt-0.5">{p.piso ? `PISO ${p.piso}` : ""} {p.departamento ? `DEPTO ${p.departamento}` : ""}</p>
                                 </div>
                             </div>
-                            <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${getStatusBadgeClass(p.estado)}`}>
+                            <span className={`px-2 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider ${getStatusBadgeClass(p.estado)}`}>
                                 {p.estado}
                             </span>
                         </div>
                         
                         <div className="flex items-center justify-between mt-1">
-                             <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700">
+                             <span className="px-2 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700">
                                  {p.tipo}
                              </span>
                         </div>
 
                         {p.observaciones && (
-                             <p className="text-[11px] text-gray-500 line-clamp-2 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
+                             <p className="text-xs text-gray-500 line-clamp-2 bg-gray-50 p-2.5 rounded-lg border border-gray-100">
                                  {p.observaciones}
                              </p>
                         )}
@@ -281,6 +285,8 @@ export default function Propiedades() {
                 )}
             </div>
 
+            <ServerPagination page={currentPage} totalPages={totalPages} total={total} pageSize={25} currentCount={properties.length} onPageChange={setCurrentPage} />
+
             {/* Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -289,12 +295,13 @@ export default function Propiedades() {
                             <h2 className="text-2xl font-bold text-gray-900">
                                 {editingProperty ? "Editar Propiedad" : "Nueva Propiedad"}
                             </h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                            <button onClick={() => setIsModalOpen(false)} className="text-gray-600 hover:text-gray-600">
                                 ✕
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-6">
+                        <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
+                            <FormError message={formError} />
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="md:col-span-2">
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Dirección *</label>

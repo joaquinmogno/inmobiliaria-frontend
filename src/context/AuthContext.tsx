@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { authService, type User } from '../services/auth.service';
 import { toast } from 'react-hot-toast';
 
@@ -18,6 +18,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
     const [loading, setLoading] = useState<boolean>(true);
+    const lastValidationRef = useRef(0);
+    const refreshPromiseRef = useRef<Promise<User | null> | null>(null);
 
     const clearSession = useCallback(() => {
         authService.logout();
@@ -33,17 +35,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const refreshUser = useCallback(async () => {
         if (!authService.isAuthenticated()) return null;
+        if (refreshPromiseRef.current) return refreshPromiseRef.current;
 
-        try {
+        const request = (async () => { try {
             const freshUser = await authService.me();
             setUser(freshUser);
             setIsAuthenticated(true);
             localStorage.setItem('user', JSON.stringify(freshUser));
+            lastValidationRef.current = Date.now();
             return freshUser;
         } catch (error) {
             clearSession();
             return null;
-        }
+        } finally {
+            refreshPromiseRef.current = null;
+        } })();
+        refreshPromiseRef.current = request;
+        return request;
     }, [clearSession]);
 
     useEffect(() => {
@@ -57,7 +65,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         };
 
         const handleFocus = () => {
-            refreshUser();
+            if (Date.now() - lastValidationRef.current >= 60_000) refreshUser();
         };
 
         window.addEventListener('logout', handleLogoutEvent);

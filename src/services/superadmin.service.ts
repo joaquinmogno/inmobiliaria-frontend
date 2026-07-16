@@ -20,13 +20,18 @@ export interface InmobiliariaClient {
     }
 }
 
+export interface PaginatedInmobiliarias {
+    data: InmobiliariaClient[];
+    meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
 export const superadminService = {
     getMetrics: async (): Promise<SuperAdminMetrics> => {
         return await api.get('/superadmin/metrics');
     },
     
-    getInmobiliarias: async (): Promise<InmobiliariaClient[]> => {
-        return await api.get('/superadmin/inmobiliarias');
+    getInmobiliarias: async (page = 1, limit = 25, search = ''): Promise<PaginatedInmobiliarias> => {
+        return await api.get('/superadmin/inmobiliarias', { params: { page: String(page), limit: String(limit), ...(search ? { search } : {}) } });
     },
 
     createInmobiliaria: async (data: { nombre: string, direccion?: string, emailAdmin: string, passwordAdmin: string, nombreCompletoAdmin: string }) => {

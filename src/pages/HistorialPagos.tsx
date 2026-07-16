@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { pagosService, type Pago } from "../services/pagos.service";
-import { MagnifyingGlassIcon, ChevronLeftIcon, ChevronRightIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
+import { ChevronLeftIcon, ChevronRightIcon, DocumentTextIcon } from "@heroicons/react/24/outline";
 import { formatCurrency } from "../utils/currency";
+import FilterBar, { persistFilter, readPersistedFilter } from "../components/FilterBar";
 
 export default function HistorialPagos() {
     const [pagos, setPagos] = useState<Pago[]>([]);
-    const [searchTerm, setSearchTerm] = useState("");
-    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [searchTerm, setSearchTerm] = useState(() => readPersistedFilter("pagos"));
+    const [debouncedSearch, setDebouncedSearch] = useState(() => readPersistedFilter("pagos"));
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalItems, setTotalItems] = useState(0);
@@ -15,6 +16,7 @@ export default function HistorialPagos() {
     const itemsPerPage = 15;
 
     useEffect(() => {
+        persistFilter("pagos", searchTerm);
         const timer = setTimeout(() => {
             setDebouncedSearch(searchTerm);
         }, 300);
@@ -76,22 +78,7 @@ export default function HistorialPagos() {
                 </div>
             </div>
 
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-                <div className="flex flex-col md:flex-row gap-4">
-                    <div className="relative flex-1 max-w-md">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <MagnifyingGlassIcon className="w-5 h-5 text-gray-400" />
-                        </div>
-                        <input
-                            type="text"
-                            placeholder="Buscar por propiedad, inquilino, observaciones..."
-                            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-xl bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 sm:text-sm transition-all"
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                    </div>
-                </div>
-            </div>
+            <FilterBar query={searchTerm} onQueryChange={setSearchTerm} onClear={() => setSearchTerm("")} resultCount={totalItems} placeholder="Buscar por propiedad, inquilino u observaciones..." />
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                 <div className="md:hidden divide-y divide-gray-100">
@@ -112,7 +99,7 @@ export default function HistorialPagos() {
                             <article key={pago.id} className="p-4">
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
-                                        <p className="text-[11px] font-black uppercase tracking-wider text-gray-400">
+                                        <p className="text-xs font-black uppercase tracking-wider text-gray-600">
                                             {new Date(pago.fechaPago).toLocaleDateString("es-AR", {
                                                 day: "2-digit",
                                                 month: "2-digit",
@@ -132,8 +119,8 @@ export default function HistorialPagos() {
                                     </span>
                                 </div>
                                 <div className="mt-3 rounded-xl bg-gray-50 p-3 text-xs text-gray-600">
-                                    <p><span className="font-bold text-gray-400 uppercase">Inquilino:</span> {pago.liquidacion?.contrato?.inquilinos.find((i: any) => i.esPrincipal)?.persona.nombreCompleto || 'N/A'}</p>
-                                    <p className="mt-1"><span className="font-bold text-gray-400 uppercase">Registró:</span> {pago.creadoPor?.nombreCompleto || pago.auditLogs?.[0]?.usuario?.nombreCompleto || 'Sistema'}</p>
+                                    <p><span className="font-bold text-gray-600 uppercase">Inquilino:</span> {pago.liquidacion?.contrato?.inquilinos.find((i: any) => i.esPrincipal)?.persona.nombreCompleto || 'N/A'}</p>
+                                    <p className="mt-1"><span className="font-bold text-gray-600 uppercase">Registró:</span> {pago.creadoPor?.nombreCompleto || pago.auditLogs?.[0]?.usuario?.nombreCompleto || 'Sistema'}</p>
                                 </div>
                             </article>
                         ))

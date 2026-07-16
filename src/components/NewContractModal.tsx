@@ -16,6 +16,7 @@ import {
     validateAttachmentFile,
     validateMainContractFile,
 } from "../utils/documentFiles";
+import FormError, { useFormError } from "./FormError";
 
 interface NewContractModalProps {
     isOpen: boolean;
@@ -37,6 +38,8 @@ export default function NewContractModal({
     const [searchingExistingProperty, setSearchingExistingProperty] = useState(false);
     const [searchingExistingOwner, setSearchingExistingOwner] = useState(false);
     const [searchingExistingTenant, setSearchingExistingTenant] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { error: formError, setError: setFormError, reportError, formRef } = useFormError();
 
     const [owners, setOwners] = useState<{ id?: number; nombreCompleto: string; telefono: string }[]>([emptyPerson()]);
     const [tenants, setTenants] = useState<{ id?: number; nombreCompleto: string; telefono: string }[]>([emptyPerson()]);
@@ -269,45 +272,47 @@ export default function NewContractModal({
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) return;
+        setFormError("");
 
         // Validate required parties
         if (owners.length === 0 || owners.some(o => !o.nombreCompleto.trim())) {
-            toast.error("Debe agregar al menos un propietario con nombre completo.");
+            setFormError("Debe agregar al menos un propietario con nombre completo.");
             return;
         }
         if (tenants.length === 0 || tenants.some(t => !t.nombreCompleto.trim())) {
-            toast.error("Debe agregar al menos un inquilino con nombre completo.");
+            setFormError("Debe agregar al menos un inquilino con nombre completo.");
             return;
         }
 
         // Validate dates
         if (!formData.startDate || !formData.endDate) {
-            toast.error("Las fechas de inicio y fin son obligatorias.");
+            setFormError("Las fechas de inicio y fin son obligatorias.");
             return;
         }
 
         if (formData.requiereActualizacion && !formData.updateDate) {
-            toast.error("La próxima actualización es obligatoria si el contrato tiene actualización programada.");
+            setFormError("La próxima actualización es obligatoria si el contrato tiene actualización programada.");
             return;
         }
 
         // Validate método de pago si hay honorario
         if (formData.honorarioInicial && !formData.honorarioInicialMetodoPago) {
-            toast.error("Debe seleccionar un método de pago para el honorario inicial.");
+            setFormError("Debe seleccionar un método de pago para el honorario inicial.");
             return;
         }
 
         if (formData.file) {
             const error = validateMainContractFile(formData.file);
             if (error) {
-                toast.error(error);
+                setFormError(error);
                 return;
             }
         }
 
         const invalidAdditionalFile = formData.additionalFiles.find(file => validateAttachmentFile(file));
         if (invalidAdditionalFile) {
-            toast.error(validateAttachmentFile(invalidAdditionalFile) || "Formato no permitido");
+            setFormError(validateAttachmentFile(invalidAdditionalFile) || "Formato no permitido");
             return;
         }
 
@@ -340,13 +345,18 @@ export default function NewContractModal({
             honorarioInicialMetodoPago: formData.honorarioInicialMetodoPago
         };
 
-        await onSave(dataToSave);
-
-        // Reset state
-        setSelectedProperty(null);
-        setOwners([emptyPerson()]);
-        setTenants([emptyPerson()]);
-        onClose();
+        setIsSubmitting(true);
+        try {
+            await onSave(dataToSave);
+            setSelectedProperty(null);
+            setOwners([emptyPerson()]);
+            setTenants([emptyPerson()]);
+            onClose();
+        } catch (error) {
+            reportError(error, "No se pudo guardar el contrato");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -385,14 +395,16 @@ export default function NewContractModal({
                                         {editingContract ? 'Editar Contrato' : 'Nuevo Contrato'}
                                     </Dialog.Title>
                                     <button
-                                        onClick={onClose}
-                                        className="text-gray-400 hover:text-gray-500 transition-colors focus:outline-none"
+                                        onClick={() => !isSubmitting && onClose()}
+                                        disabled={isSubmitting}
+                                        className="text-gray-600 hover:text-gray-500 transition-colors focus:outline-none"
                                     >
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
                                 </div>
 
-                                <form onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+                                <form ref={formRef} onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+                                    <FormError message={formError} />
                                     {/* ─── Sección Inmueble ─── */}
                                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                                         <div className="flex justify-between items-center mb-3">
@@ -421,7 +433,7 @@ export default function NewContractModal({
                                             <AutocompleteSelector<Property>
                                                 label="Buscar Propiedad"
                                                 placeholder="Buscar por dirección..."
-                                                onSearch={propertiesService.getAll}
+                                                onSearch={propertiesService.search}
                                                 onSelect={handlePropertySelect}
                                                 renderItem={(p) => `${p.direccion}${p.piso ? ` ${p.piso}°` : ""}${p.departamento ? ` ${p.departamento}` : ""}`}
                                                 renderSelection={(p) => `${p.direccion}${p.piso ? ` ${p.piso}°` : ""}${p.departamento ? ` ${p.departamento}` : ""}`}
@@ -507,7 +519,7 @@ export default function NewContractModal({
                                                                 <XMarkIcon className="w-4 h-4" />
                                                             </button>
                                                         )}
-                                                        <p className="text-[10px] font-bold text-indigo-400 mb-2">
+                                                        <p className="text-xs font-bold text-indigo-400 mb-2">
                                                             {index === 0 ? "PROPIETARIO PRINCIPAL" : `CO-PROPIETARIO ${index}`}
                                                             {owner.id && <span className="ml-2 text-green-500">(existente)</span>}
                                                         </p>
@@ -550,7 +562,7 @@ export default function NewContractModal({
                                                                 <AutocompleteSelector<Persona>
                                                                     label="Buscar Propietario"
                                                                     placeholder="Nombre o DNI..."
-                                                                    onSearch={personasService.getAll}
+                                                                    onSearch={personasService.search}
                                                                     onSelect={addOwner}
                                                                     renderItem={(p) => `${p.nombreCompleto} ${p.dni ? `(${p.dni})` : ""}`}
                                                                     renderSelection={() => ""}
@@ -560,7 +572,7 @@ export default function NewContractModal({
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setSearchingExistingOwner(false)}
-                                                                    className="text-xs text-gray-400 hover:text-gray-600 mt-1"
+                                                                    className="text-xs text-gray-600 hover:text-gray-600 mt-1"
                                                                 >
                                                                     Cancelar búsqueda
                                                                 </button>
@@ -599,7 +611,7 @@ export default function NewContractModal({
                                                                 <XMarkIcon className="w-4 h-4" />
                                                             </button>
                                                         )}
-                                                        <p className="text-[10px] font-bold text-indigo-400 mb-2">
+                                                        <p className="text-xs font-bold text-indigo-400 mb-2">
                                                             {index === 0 ? "INQUILINO PRINCIPAL" : `CO-INQUILINO ${index}`}
                                                             {tenant.id && <span className="ml-2 text-green-500">(existente)</span>}
                                                         </p>
@@ -642,7 +654,7 @@ export default function NewContractModal({
                                                                 <AutocompleteSelector<Persona>
                                                                     label="Buscar Inquilino"
                                                                     placeholder="Nombre o DNI..."
-                                                                    onSearch={personasService.getAll}
+                                                                    onSearch={personasService.search}
                                                                     onSelect={addTenant}
                                                                     renderItem={(p) => `${p.nombreCompleto} ${p.dni ? `(${p.dni})` : ""}`}
                                                                     renderSelection={() => ""}
@@ -652,7 +664,7 @@ export default function NewContractModal({
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => setSearchingExistingTenant(false)}
-                                                                    className="text-xs text-gray-400 hover:text-gray-600 mt-1"
+                                                                    className="text-xs text-gray-600 hover:text-gray-600 mt-1"
                                                                 >
                                                                     Cancelar búsqueda
                                                                 </button>
@@ -685,7 +697,7 @@ export default function NewContractModal({
 	                                                    <option value="USD">{MONEDA_LABELS.USD}</option>
 	                                                </select>
 	                                                {editingContract && (
-	                                                    <p className="mt-1 text-[11px] text-gray-500">
+	                                                    <p className="mt-1 text-xs text-gray-500">
 	                                                        Si el contrato ya tiene liquidaciones, pagos o caja asociada, no se puede modificar.
 	                                                    </p>
 	                                                )}
@@ -700,7 +712,7 @@ export default function NewContractModal({
                                                     className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
                                                     value={formData.montoAlquiler}
                                                     onChange={(val) => setFormData(prev => ({ ...prev, montoAlquiler: val.toString() }))}
-                                                    icon={<BanknotesIcon className="w-5 h-5 text-gray-400" />}
+                                                    icon={<BanknotesIcon className="w-5 h-5 text-gray-600" />}
                                                 />
                                             </div>
                                         </div>
@@ -759,7 +771,7 @@ export default function NewContractModal({
                                             <p className="text-xs text-gray-500">¿La inmobiliaria administra este contrato mensualmente?</p>
                                         </div>
                                         <div className="flex items-center">
-                                            <span className={`mr-3 text-xs font-bold ${!formData.administrado ? 'text-indigo-600' : 'text-gray-400'}`}>NO</span>
+                                            <span className={`mr-3 text-xs font-bold ${!formData.administrado ? 'text-indigo-600' : 'text-gray-600'}`}>NO</span>
                                             <button
                                                 type="button"
                                                 onClick={() => setFormData(prev => ({ ...prev, administrado: !prev.administrado }))}
@@ -769,7 +781,7 @@ export default function NewContractModal({
                                                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.administrado ? 'translate-x-6' : 'translate-x-1'}`}
                                                 />
                                             </button>
-                                            <span className={`ml-3 text-xs font-bold ${formData.administrado ? 'text-indigo-600' : 'text-gray-400'}`}>SÍ</span>
+                                            <span className={`ml-3 text-xs font-bold ${formData.administrado ? 'text-indigo-600' : 'text-gray-600'}`}>SÍ</span>
                                         </div>
                                     </div>
 
@@ -812,7 +824,7 @@ export default function NewContractModal({
                                                     <p className="text-xs text-gray-500">Define si este contrato tendrá una actualización programada.</p>
                                                 </div>
                                                 <div className="flex items-center">
-                                                    <span className={`mr-3 text-xs font-bold ${!formData.requiereActualizacion ? 'text-indigo-600' : 'text-gray-400'}`}>NO</span>
+                                                    <span className={`mr-3 text-xs font-bold ${!formData.requiereActualizacion ? 'text-indigo-600' : 'text-gray-600'}`}>NO</span>
                                                     <button
                                                         type="button"
                                                         onClick={() => setFormData(prev => ({
@@ -828,7 +840,7 @@ export default function NewContractModal({
                                                             className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.requiereActualizacion ? 'translate-x-6' : 'translate-x-1'}`}
                                                         />
                                                     </button>
-                                                    <span className={`ml-3 text-xs font-bold ${formData.requiereActualizacion ? 'text-indigo-600' : 'text-gray-400'}`}>SÍ</span>
+                                                    <span className={`ml-3 text-xs font-bold ${formData.requiereActualizacion ? 'text-indigo-600' : 'text-gray-600'}`}>SÍ</span>
                                                 </div>
                                             </div>
                                             {formData.requiereActualizacion && (
@@ -943,7 +955,7 @@ export default function NewContractModal({
                                                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                                 />
                                                 <div className="flex flex-col items-center justify-center gap-2">
-                                                    <DocumentArrowUpIcon className="w-8 h-8 text-gray-400" />
+                                                    <DocumentArrowUpIcon className="w-8 h-8 text-gray-600" />
                                                     <div className="text-sm text-gray-600">
                                                         <span className="font-semibold text-indigo-600">
                                                             Agregar archivos
@@ -987,15 +999,17 @@ export default function NewContractModal({
                                         <button
                                             type="button"
                                             onClick={onClose}
+                                            disabled={isSubmitting}
                                             className="min-h-11 flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:flex-none"
                                         >
                                             Cancelar
                                         </button>
                                         <button
                                             type="submit"
+                                            disabled={isSubmitting}
                                             className="min-h-11 flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm sm:flex-none"
                                         >
-                                            {editingContract ? 'Guardar Cambios' : 'Guardar Contrato'}
+                                            {isSubmitting ? 'Guardando...' : editingContract ? 'Guardar Cambios' : 'Guardar Contrato'}
                                         </button>
                                     </div>
                                 </form>

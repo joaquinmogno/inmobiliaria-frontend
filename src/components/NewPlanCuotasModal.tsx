@@ -5,6 +5,7 @@ import NumericInput from "./NumericInput";
 import { planesCuotasService } from "../services/planes-cuotas.service";
 import { toast } from "react-hot-toast";
 import type { Moneda } from "../utils/currency";
+import FormError, { useFormError } from "./FormError";
 
 interface NewPlanCuotasModalProps {
     isOpen: boolean;
@@ -21,10 +22,12 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
     const [tipoMovimiento, setTipoMovimiento] = useState<'INGRESO' | 'DESCUENTO'>('DESCUENTO');
     const [esParaInmobiliaria, setEsParaInmobiliaria] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { error: formError, setError: setFormError, reportError, formRef } = useFormError();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!concepto || !montoTotal || !cantidadCuotas) return;
+        setFormError("");
 
         setIsSubmitting(true);
         try {
@@ -46,7 +49,7 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
             setEsParaInmobiliaria(false);
         } catch (error) {
             console.error(error);
-            toast.error("Error al crear el plan de cuotas");
+            reportError(error, "No se pudo crear el plan de cuotas");
         } finally {
             setIsSubmitting(false);
         }
@@ -85,13 +88,14 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                     </Dialog.Title>
                                     <button
                                         onClick={onClose}
-                                        className="text-gray-400 hover:text-gray-500 transition-colors focus:outline-none"
+                                        className="text-gray-600 hover:text-gray-500 transition-colors focus:outline-none"
                                     >
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
                                 </div>
 
-                                <form onSubmit={handleSubmit} className="space-y-4">
+                                <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
+                                    <FormError message={formError} />
                                     <div>
                                         <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-1.5">
                                             Concepto / Motivo
@@ -167,7 +171,7 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                         </div>
 
                                         <div className="mt-4 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                            <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+                                            <label className="block text-xs font-bold text-gray-600 uppercase tracking-widest mb-2">
                                                 {tipoMovimiento === 'INGRESO' ? 'Destinatario del Cobro' : '¿A favor de quién es el descuento?'}
                                             </label>
                                             <div className="flex gap-4">
@@ -196,7 +200,7 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                             </div>
                                         </div>
 
-                                        <p className="mt-2 text-[10px] text-gray-400 italic leading-relaxed">
+                                        <p className="mt-2 text-xs text-gray-600 italic leading-relaxed">
                                             {tipoMovimiento === 'DESCUENTO' 
                                                 ? (esParaInmobiliaria 
                                                     ? "* Retención que se le hace al dueño y se la queda la Inmobiliaria (El inquilino paga completo)." 

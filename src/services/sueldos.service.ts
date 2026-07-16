@@ -20,9 +20,14 @@ export interface PagoSueldo {
     };
 }
 
+export interface PaginatedSalaries {
+    data: PagoSueldo[];
+    meta: { total: number; page: number; limit: number; totalPages: number };
+}
+
 export const sueldosService = {
-    getAll: async () => {
-        return api.get<PagoSueldo[]>('/sueldos');
+    getAll: async (page = 1, limit = 25, search = '', periodo = '') => {
+        return api.get<PaginatedSalaries>('/sueldos', { params: { page: String(page), limit: String(limit), ...(search ? { search } : {}), ...(periodo ? { periodo } : {}) } });
     },
     create: async (data: {
         usuarioId: number;

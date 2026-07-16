@@ -58,14 +58,14 @@ export default function PaginatedList<T>({
                             <button
                                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
-                                className="p-1 rounded-md hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
+                                className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
                             >
                                 <ChevronLeftIcon className="w-4 h-4 text-gray-600" />
                             </button>
                             <button
                                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                                 disabled={currentPage === totalPages}
-                                className="p-1 rounded-md hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
+                                className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
                             >
                                 <ChevronRightIcon className="w-4 h-4 text-gray-600" />
                             </button>

@@ -26,7 +26,7 @@ export default function MiAcceso() {
           <p className="text-gray-500 mt-1">Permisos actuales para {user?.fullName || "tu usuario"}.</p>
         </div>
         <div className="bg-white border border-gray-100 rounded-xl px-4 py-3 shadow-sm text-right">
-          <p className="text-xs font-black uppercase tracking-wide text-gray-400">Rol</p>
+          <p className="text-xs font-black uppercase tracking-wide text-gray-600">Rol</p>
           <p className="text-sm font-bold text-gray-900">{ROLE_LABELS[user?.role || ""] || user?.role || "-"}</p>
         </div>
       </div>
@@ -62,12 +62,12 @@ export default function MiAcceso() {
                   <div key={permission} className="px-5 py-3 flex items-center justify-between gap-4">
                     <div>
                       <p className="text-sm font-bold text-gray-900">{PERMISSION_LABELS[permission as PermissionKey]}</p>
-                      <p className="text-xs text-gray-400">{permission}</p>
+                      <p className="text-xs text-gray-600">{permission}</p>
                     </div>
                     <div className="flex flex-wrap justify-end gap-2">
-                      {inherited && <span className="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-[11px] font-bold">Incluido por rol</span>}
-                      {direct && <span className="px-2 py-1 rounded-lg bg-blue-50 text-blue-700 text-[11px] font-bold">Directo</span>}
-                      <span className={`px-2 py-1 rounded-lg text-[11px] font-bold ${active ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
+                      {inherited && <span className="px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-bold">Incluido por rol</span>}
+                      {direct && <span className="px-2 py-1 rounded-lg bg-blue-50 text-blue-700 text-xs font-bold">Directo</span>}
+                      <span className={`px-2 py-1 rounded-lg text-xs font-bold ${active ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
                         {active ? "Permitido" : "No permitido"}
                       </span>
                     </div>

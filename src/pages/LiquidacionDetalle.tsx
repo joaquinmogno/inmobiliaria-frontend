@@ -41,6 +41,7 @@ export default function LiquidacionDetalle() {
     const [isLoading, setIsLoading] = useState(true);
     const [isMovimientoModalOpen, setIsMovimientoModalOpen] = useState(false);
     const [isLiquidarModalOpen, setIsLiquidarModalOpen] = useState(false);
+    const [movimientoAEliminar, setMovimientoAEliminar] = useState<number | null>(null);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isOwnerPaymentModalOpen, setIsOwnerPaymentModalOpen] = useState(false);
     const [isHonorariosModalOpen, setIsHonorariosModalOpen] = useState(false);
@@ -96,18 +97,6 @@ export default function LiquidacionDetalle() {
             toast.success("Liquidación confirmada y pasada a pendiente de pago");
         } catch (error) {
             toast.error("Error al confirmar liquidación");
-        }
-    };
-
-    const handleLiquidar = async () => {
-        try {
-            // Este método ahora se llama internamente desde pagarPropietario en el backend, 
-            // pero si existiera una acción manual sería esta.
-            // Para ser coherente con el nuevo flujo, la acción de "Pagar a Propietario" 
-            // es la que lleva a LIQUIDADA.
-            loadLiquidation();
-        } catch (error) {
-            toast.error("Error al refrescar liquidación");
         }
     };
 
@@ -207,7 +196,7 @@ export default function LiquidacionDetalle() {
     const steps = [
         { id: 'BORRADOR', label: 'Borrador', description: 'Edición de conceptos' },
         { id: 'PENDIENTE_PAGO', label: 'Pendiente', description: 'Esperando pago inquilino' },
-        { id: 'PAGADA_POR_INQUILINO', label: 'Cobrada', description: 'Dinero en custodia' },
+        { id: 'PAGADA_POR_INQUILINO', label: 'Cobrada', description: 'Fondos pendientes de entregar' },
         { id: 'LIQUIDADA', label: 'Finalizada', description: 'Pago a dueño realizado' }
     ];
 
@@ -229,7 +218,7 @@ export default function LiquidacionDetalle() {
                 <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2 sm:flex sm:items-center sm:gap-3">
                     {canEditLiquidations && liquidacion.estado === 'BORRADOR' && (
                         <button
-                            onClick={handleConfirmar}
+                            onClick={() => setIsLiquidarModalOpen(true)}
                             className="flex min-h-11 items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 font-bold text-sm cursor-pointer"
                         >
                             <CheckIcon className="w-5 h-5" />
@@ -276,7 +265,7 @@ export default function LiquidacionDetalle() {
             {/* Stepper Progress */}
             <div className="bg-white rounded-3xl p-5 sm:p-8 shadow-sm border border-gray-100 overflow-hidden relative">
                 <div className="sm:hidden">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Estado actual</p>
+                    <p className="text-xs font-black uppercase tracking-widest text-gray-600">Estado actual</p>
                     <div className="mt-2 flex items-center justify-between gap-3">
                         <div>
                             <p className="text-lg font-black text-indigo-700">{steps[currentStepIndex]?.label || getStatusLabel(liquidacion.estado)}</p>
@@ -299,8 +288,8 @@ export default function LiquidacionDetalle() {
                                     {isCompleted ? <CheckIcon className="w-6 h-6 font-bold" /> : <span className="font-black">{idx + 1}</span>}
                                 </div>
                                 <div className="text-center">
-                                    <p className={`text-xs font-black uppercase tracking-widest ${isCurrent ? 'text-indigo-600' : isCompleted ? 'text-gray-900' : 'text-gray-400'}`}>{step.label}</p>
-                                    <p className="text-[10px] text-gray-400 font-medium mt-1 md:block hidden">{step.description}</p>
+                                    <p className={`text-xs font-black uppercase tracking-widest ${isCurrent ? 'text-indigo-600' : isCompleted ? 'text-gray-900' : 'text-gray-600'}`}>{step.label}</p>
+                                    <p className="text-xs text-gray-600 font-medium mt-1 md:block hidden">{step.description}</p>
                                 </div>
                             </div>
                         );
@@ -345,10 +334,10 @@ export default function LiquidacionDetalle() {
                             <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
                                 <UserIcon className="w-16 h-16 text-gray-900" />
                             </div>
-                            <p className="text-gray-500 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Total Inquilino</p>
+                            <p className="text-gray-500 text-xs font-black uppercase tracking-[0.2em] mb-1">Total Inquilino</p>
                             <h2 className="text-3xl font-black tracking-tight text-gray-900">{formatCurrency(Number(liquidacion.netoACobrar))}</h2>
                             <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Lo que paga el inquilino</span>
+                                <span className="text-xs font-black text-gray-600 uppercase tracking-widest">Lo que paga el inquilino</span>
                                 <div className="bg-gray-100 p-1 rounded-lg">
                                     <BanknotesIcon className="w-4 h-4 text-gray-500" />
                                 </div>
@@ -360,12 +349,12 @@ export default function LiquidacionDetalle() {
                             <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
                                 <BriefcaseIcon className="w-16 h-16 text-indigo-600" />
                             </div>
-                            <p className="text-indigo-500 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Honorarios Inmob.</p>
+                            <p className="text-indigo-500 text-xs font-black uppercase tracking-[0.2em] mb-1">Honorarios Inmob.</p>
                             <h2 className="text-3xl font-black tracking-tight text-indigo-600">
                                 {formatCurrency(Number(liquidacion.montoHonorarios || 0))}
                             </h2>
                             <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
-                                <span className="text-[10px] font-black text-indigo-300 uppercase tracking-widest">
+                                <span className="text-xs font-black text-indigo-300 uppercase tracking-widest">
                                     {liquidacion.porcentajeHonorarios ? `${liquidacion.porcentajeHonorarios}% del alquiler` : 'Monto fijo'}
                                 </span>
                                 <div className="bg-indigo-50 p-1 rounded-lg">
@@ -379,7 +368,7 @@ export default function LiquidacionDetalle() {
                             <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity text-white">
                                 <HomeModernIcon className="w-16 h-16" />
                             </div>
-                            <p className="text-indigo-100 text-[10px] font-black uppercase tracking-[0.2em] mb-1">Neto Propietario</p>
+                            <p className="text-indigo-100 text-xs font-black uppercase tracking-[0.2em] mb-1">Neto Propietario</p>
                             <h2 className="text-3xl font-black tracking-tight text-white">
                                 {(() => {
                                     const movsInmo = liquidacion.movimientos?.filter(m => m.esParaInmobiliaria)
@@ -388,7 +377,7 @@ export default function LiquidacionDetalle() {
                                 })()}
                             </h2>
                             <div className="mt-4 pt-4 border-t border-white/10 flex justify-between items-center">
-                                <span className="text-[10px] font-black text-indigo-200 uppercase tracking-widest">Lo que recibe el dueño</span>
+                                <span className="text-xs font-black text-indigo-200 uppercase tracking-widest">Lo que recibe el dueño</span>
                                 <div className="bg-white/10 p-1 rounded-lg">
                                     <ArrowRightCircleIcon className="w-4 h-4 text-white" />
                                 </div>
@@ -479,13 +468,13 @@ export default function LiquidacionDetalle() {
                         {esEditable && canEditLiquidations && (
                             <div className="flex items-center gap-2">
                                 {tienePagos && (
-                                    <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
+                                    <span className="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
                                         Edición parcial
                                     </span>
                                 )}
                                 <button
                                     onClick={() => setIsMovimientoModalOpen(true)}
-                                    className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all cursor-pointer"
+                                    className="flex h-11 w-11 items-center justify-center bg-indigo-50 text-indigo-700 rounded-xl hover:bg-indigo-100 transition-all cursor-pointer"
                                     title="Agregar Movimiento"
                                 >
                                     <PlusIcon className="w-5 h-5" />
@@ -497,8 +486,8 @@ export default function LiquidacionDetalle() {
                         <table className="w-full">
                             <thead>
                                 <tr className="bg-gray-50/50 border-b border-gray-100">
-                                    <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Concepto</th>
-                                    <th className="text-right py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Monto</th>
+                                    <th className="text-left py-4 px-6 text-xs font-black text-gray-600 uppercase tracking-widest">Concepto</th>
+                                    <th className="text-right py-4 px-6 text-xs font-black text-gray-600 uppercase tracking-widest">Monto</th>
                                     {liquidacion.estado === 'BORRADOR' && <th className="w-10"></th>}
                                 </tr>
                             </thead>
@@ -507,7 +496,7 @@ export default function LiquidacionDetalle() {
                                     <tr key={m.id} className="group transition-colors hover:bg-green-50/30">
                                         <td className="py-4 px-6">
                                             <p className="text-sm font-bold text-gray-900">{m.concepto}</p>
-                                            {m.observaciones && <p className="text-xs text-gray-400 mt-0.5">{m.observaciones}</p>}
+                                            {m.observaciones && <p className="text-xs text-gray-600 mt-0.5">{m.observaciones}</p>}
                                         </td>
                                         <td className="py-4 px-6 text-right font-mono font-black text-gray-900 text-sm">
                                             {formatCurrency(m.monto)}
@@ -515,8 +504,9 @@ export default function LiquidacionDetalle() {
                                         {esEditable && canEditLiquidations && (
                                             <td className="pr-6">
                                                 <button
-                                                    onClick={() => handleDeleteMovimiento(m.id)}
-                                                    className="p-1.5 text-red-300 hover:text-red-500 hover:bg-white rounded-lg transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                                                    onClick={() => setMovimientoAEliminar(m.id)}
+                                                    className="flex h-11 w-11 items-center justify-center rounded-lg text-red-600 hover:bg-white hover:text-red-700 sm:opacity-70 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                                                    aria-label="Eliminar movimiento"
                                                 >
                                                     <TrashIcon className="w-4 h-4" />
                                                 </button>
@@ -526,7 +516,7 @@ export default function LiquidacionDetalle() {
                                 ))}
                                 {ingresos.length === 0 && (
                                     <tr>
-                                        <td colSpan={3} className="py-12 text-center text-sm text-gray-400 italic">No hay ingresos registrados</td>
+                                        <td colSpan={3} className="py-12 text-center text-sm text-gray-600 italic">No hay ingresos registrados</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -553,8 +543,8 @@ export default function LiquidacionDetalle() {
                         <table className="w-full">
                             <thead>
                                 <tr className="bg-gray-50/50 border-b border-gray-100">
-                                    <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Concepto</th>
-                                    <th className="text-right py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Monto</th>
+                                    <th className="text-left py-4 px-6 text-xs font-black text-gray-600 uppercase tracking-widest">Concepto</th>
+                                    <th className="text-right py-4 px-6 text-xs font-black text-gray-600 uppercase tracking-widest">Monto</th>
                                     {esEditable && <th className="w-10"></th>}
                                 </tr>
                             </thead>
@@ -563,7 +553,7 @@ export default function LiquidacionDetalle() {
                                     <tr key={m.id} className="group transition-colors hover:bg-red-50/30">
                                         <td className="py-4 px-6">
                                             <p className="text-sm font-bold text-gray-900">{m.concepto}</p>
-                                            {m.observaciones && <p className="text-xs text-gray-400 mt-0.5">{m.observaciones}</p>}
+                                            {m.observaciones && <p className="text-xs text-gray-600 mt-0.5">{m.observaciones}</p>}
                                         </td>
                                         <td className="py-4 px-6 text-right font-mono font-black text-red-600 text-sm">
                                             ({formatCurrency(m.monto)})
@@ -571,8 +561,9 @@ export default function LiquidacionDetalle() {
                                         {esEditable && canEditLiquidations && (
                                             <td className="pr-6">
                                                 <button
-                                                    onClick={() => handleDeleteMovimiento(m.id)}
-                                                    className="p-1.5 text-red-300 hover:text-red-500 hover:bg-white rounded-lg transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                                                    onClick={() => setMovimientoAEliminar(m.id)}
+                                                    className="flex h-11 w-11 items-center justify-center rounded-lg text-red-600 hover:bg-white hover:text-red-700 sm:opacity-70 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                                                    aria-label="Eliminar movimiento"
                                                 >
                                                     <TrashIcon className="w-4 h-4" />
                                                 </button>
@@ -582,7 +573,7 @@ export default function LiquidacionDetalle() {
                                 ))}
                                 {descuentos.length === 0 && (
                                     <tr>
-                                        <td colSpan={3} className="py-12 text-center text-sm text-gray-400 italic">No hay descuentos registrados</td>
+                                        <td colSpan={3} className="py-12 text-center text-sm text-gray-600 italic">No hay descuentos registrados</td>
                                     </tr>
                                 )}
                             </tbody>
@@ -609,11 +600,11 @@ export default function LiquidacionDetalle() {
                         <table className="w-full">
                             <thead>
                                 <tr className="bg-gray-50/50 border-b border-gray-100">
-                                    <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Fecha</th>
-                                    <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Método</th>
-                                    <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Detalle</th>
-                                    <th className="text-left py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Registró</th>
-                                    <th className="text-right py-4 px-6 text-[10px] font-black text-gray-400 uppercase tracking-widest">Monto</th>
+                                    <th className="text-left py-4 px-6 text-xs font-black text-gray-600 uppercase tracking-widest">Fecha</th>
+                                    <th className="text-left py-4 px-6 text-xs font-black text-gray-600 uppercase tracking-widest">Método</th>
+                                    <th className="text-left py-4 px-6 text-xs font-black text-gray-600 uppercase tracking-widest">Detalle</th>
+                                    <th className="text-left py-4 px-6 text-xs font-black text-gray-600 uppercase tracking-widest">Registró</th>
+                                    <th className="text-right py-4 px-6 text-xs font-black text-gray-600 uppercase tracking-widest">Monto</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
@@ -623,7 +614,7 @@ export default function LiquidacionDetalle() {
                                             {new Date(p.fechaPago).toLocaleDateString("es-AR", { timeZone: 'UTC' })}
                                         </td>
                                         <td className="py-4 px-6">
-                                            <span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded text-[10px] font-black tracking-widest uppercase">
+                                            <span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded text-xs font-black tracking-widest uppercase">
                                                 {p.metodoPago}
                                             </span>
                                         </td>
@@ -654,7 +645,7 @@ export default function LiquidacionDetalle() {
                     {liquidacion.estado === 'PENDIENTE_PAGO' && (
                         <div className="flex justify-end pr-6">
                             <div className="text-right">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Saldo Remanente Inquilino</p>
+                                <p className="text-xs font-black text-gray-600 uppercase tracking-widest mb-1">Saldo Remanente Inquilino</p>
                                 <p className="text-xl font-black text-red-600">
                                     {formatCurrency(Number(liquidacion.netoACobrar) - (liquidacion.pagos?.reduce((acc, p) => acc + Number(p.monto), 0) || 0))}
                                 </p>
@@ -672,11 +663,11 @@ export default function LiquidacionDetalle() {
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Creada por</p>
+                        <p className="text-xs font-black uppercase tracking-wider text-gray-600">Creada por</p>
                         <p className="text-sm font-semibold text-gray-800">{liquidacion.creadoPor?.nombreCompleto || "Sin dato"}</p>
                     </div>
                     <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                        <p className="text-[10px] font-black uppercase tracking-wider text-gray-400">Cerrada por</p>
+                        <p className="text-xs font-black uppercase tracking-wider text-gray-600">Cerrada por</p>
                         <p className="text-sm font-semibold text-gray-800">{liquidacion.cerradoPor?.nombreCompleto || "Todavía no cerrada"}</p>
                     </div>
                 </div>
@@ -687,16 +678,16 @@ export default function LiquidacionDetalle() {
             <div className="hidden print:block bg-gray-50 p-8 rounded-3xl border-2 border-dashed border-gray-200 mt-12">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h4 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-1">Resumen Final</h4>
+                        <h4 className="text-sm font-black text-gray-600 uppercase tracking-widest mb-1">Resumen Final</h4>
                         <p className="text-gray-600 text-sm font-medium">Esta liquidación contempla todos los conceptos del período {formatPeriod(liquidacion.periodo)}</p>
                     </div>
                     <div className="text-right flex items-center gap-8 border-t sm:border-t-0 sm:border-l border-gray-200 sm:pl-8 pt-4 sm:pt-0 w-full sm:w-auto">
                         <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">A cobrar al inquilino</p>
+                            <p className="text-xs font-black text-gray-600 uppercase tracking-widest mb-1">A cobrar al inquilino</p>
                             <p className="text-2xl font-black text-gray-900">{formatCurrency(Number(liquidacion.netoACobrar))}</p>
                         </div>
                         <div>
-                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Neto Dueño (con Hon. Inmob.)</p>
+                            <p className="text-xs font-black text-gray-600 uppercase tracking-widest mb-1">Neto Dueño (con Hon. Inmob.)</p>
                             <p className="text-2xl font-black text-indigo-600">{formatCurrency(Number(liquidacion.netoACobrar) - Number(liquidacion.montoHonorarios || 0))}</p>
                         </div>
                     </div>
@@ -713,11 +704,21 @@ export default function LiquidacionDetalle() {
             <ConfirmationModal
                 isOpen={isLiquidarModalOpen}
                 onClose={() => setIsLiquidarModalOpen(false)}
-                onConfirm={handleLiquidar}
-                title="Cerrar Liquidación"
-                message="¿Estás seguro de que deseas cerrar esta liquidación? Una vez liquidada, los valores se congelarán para el histórico y no podrán ser editados."
-                confirmText="Sellar y Guardar"
+                onConfirm={handleConfirmar}
+                title="Confirmar liquidación"
+                message="¿Confirmás esta liquidación? Pasará a pendiente de pago y sus importes ya no podrán editarse."
+                confirmText="Confirmar"
                 type="info"
+            />
+
+            <ConfirmationModal
+                isOpen={movimientoAEliminar !== null}
+                onClose={() => setMovimientoAEliminar(null)}
+                onConfirm={() => movimientoAEliminar !== null && void handleDeleteMovimiento(movimientoAEliminar)}
+                title="Eliminar movimiento"
+                message="¿Confirmás la eliminación de este movimiento? Los totales de la liquidación se recalcularán."
+                confirmText="Eliminar"
+                type="danger"
             />
 
             <PaymentModal

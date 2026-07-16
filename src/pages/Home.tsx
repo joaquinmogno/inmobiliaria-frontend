@@ -16,6 +16,8 @@ import { reportesService } from "../services/reportes.service";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
 import { formatCurrency, type Moneda } from "../utils/currency";
+import toast from "react-hot-toast";
+import { requestConfirmation } from "../services/confirmation";
 
 export interface ExpiringContract {
   id: number;
@@ -77,16 +79,14 @@ export default function Home() {
   const refreshData = async () => {
     try {
       setLoadingKpis(true);
-      const [contractsData, reportData, alertsData] = await Promise.all([
-        canViewContracts ? contractsService.getAll() as Promise<Contract[]> : Promise.resolve([]),
+      const [reportData, alertsData] = await Promise.all([
         canViewDashboard ? reportesService.getDashboardReport() : Promise.resolve(null),
         canViewContracts ? contractsService.getAlertas() : Promise.resolve([]),
       ]);
 
-      setAllContracts(contractsData);
-
       // --- Listas de alertas (desde el backend) ---
       const alerts = (alertsData || []) as Contract[];
+      setAllContracts(alerts);
 
       const expiring = alerts
         .filter(c => c.fechaFin && getDaysLeft(c.fechaFin) <= 60 && getDaysLeft(c.fechaFin) >= 0)
@@ -152,14 +152,14 @@ export default function Home() {
 
   const handleDeleteContract = async (contractId: number) => {
     if (!canDeleteContracts) return;
-    if (window.confirm("¿Seguro que desea eliminar contrato?")) {
+    if (await requestConfirmation({ title: "Enviar contrato a la papelera", message: "El contrato dejará de aparecer entre los activos. Podrás restaurarlo desde la papelera.", confirmText: "Enviar a papelera" })) {
       try {
         await contractsService.delete(contractId);
         refreshData();
         setIsDetailsModalOpen(false);
         setSelectedContract(null);
       } catch (error) {
-        alert("Error al eliminar el contrato");
+        toast.error(error instanceof Error ? error.message : "No se pudo eliminar el contrato");
       }
     }
   };
@@ -178,21 +178,21 @@ export default function Home() {
       iconBg: "bg-indigo-100",
     },
     {
-      label: "Ingresos Brutos",
+      label: "Cobrado a inquilinos",
       value: kpis ? formatCurrency(kpis.recaudadoTotal) : "-",
       icon: BanknotesIcon,
       color: "bg-emerald-50 text-emerald-600",
       iconBg: "bg-emerald-100",
     },
     {
-      label: "Ganancia Agencia",
+      label: "Honorarios de la inmobiliaria",
       value: kpis ? formatCurrency(kpis.gananciaBruta) : "-",
       icon: BanknotesIcon,
       color: "bg-violet-50 text-violet-600",
       iconBg: "bg-violet-100",
     },
     {
-        label: "Plata Ajena",
+        label: "Fondos pendientes de entregar",
         value: kpis ? formatCurrency(kpis.fondoCustodia) : "-",
         icon: BanknotesIcon,
         color: "bg-amber-50 text-amber-600",
@@ -212,7 +212,7 @@ export default function Home() {
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
+          <h1 className="line-clamp-2 text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight" title={`Panel de ${user?.inmobiliaria?.nombre || "Gestión"}`}>
             Panel de {user?.inmobiliaria?.nombre || "Gestión"}
           </h1>
           <p className="text-gray-500 text-sm">Resumen financiero y alertas del mes actual.</p>
@@ -256,23 +256,23 @@ export default function Home() {
 	              <section key={moneda} className="rounded-xl bg-white border border-gray-100 p-4 shadow-sm">
 	                <div className="flex items-center justify-between mb-3">
 	                  <h2 className="text-xs font-black text-gray-500 uppercase tracking-widest">Finanzas {moneda}</h2>
-	                  <span className="text-[10px] font-bold text-gray-400">Sin convertir</span>
+	                  <span className="text-xs font-bold text-gray-600">Sin convertir monedas</span>
 	                </div>
 	                <div className="grid grid-cols-2 gap-3 text-sm">
 	                  <div>
-	                    <p className="text-[10px] font-bold uppercase text-gray-400">Recaudado</p>
+	                    <p className="text-xs font-bold text-gray-600">Cobrado a inquilinos</p>
 	                    <p className="font-black text-gray-900">{formatCurrency(metrics.recaudadoTotal, moneda)}</p>
 	                  </div>
 	                  <div>
-	                    <p className="text-[10px] font-bold uppercase text-gray-400">Utilidad</p>
+	                    <p className="text-xs font-bold text-gray-600">Resultado neto de la inmobiliaria</p>
 	                    <p className="font-black text-gray-900">{formatCurrency(metrics.utilidadNeta, moneda)}</p>
 	                  </div>
 	                  <div>
-	                    <p className="text-[10px] font-bold uppercase text-gray-400">Gastos</p>
+	                    <p className="text-xs font-bold text-gray-600">Gastos de la inmobiliaria</p>
 	                    <p className="font-black text-red-600">{formatCurrency(metrics.gastosAgencia, moneda)}</p>
 	                  </div>
 	                  <div>
-	                    <p className="text-[10px] font-bold uppercase text-gray-400">Custodia</p>
+	                    <p className="text-xs font-bold text-gray-600">Fondos pendientes de entregar</p>
 	                    <p className="font-black text-amber-600">{formatCurrency(metrics.fondoCustodia, moneda)}</p>
 	                  </div>
 	                </div>
@@ -282,29 +282,20 @@ export default function Home() {
 	        </div>
 	      )}
 
-	      {/* Resultado Neto Highlight */}
-      <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 rounded-3xl p-8 text-white shadow-xl shadow-indigo-100 flex flex-col md:flex-row justify-between items-center gap-6 overflow-hidden relative">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
-        <div className="relative">
-          <h3 className="text-sm font-black uppercase tracking-widest mb-2 opacity-80">Resultado Neto del Mes</h3>
-          <p className="text-6xl font-black tracking-tighter">
-            {kpis ? formatCurrency(kpis.utilidadNeta) : "-"}
-          </p>
-          <div className="flex gap-4 mt-4">
-            <div className="bg-white/10 px-3 py-1 rounded-lg">
-                <p className="text-[10px] font-bold opacity-70 uppercase">Ganancia Bruta</p>
-                <p className="text-lg font-bold">{kpis ? formatCurrency(kpis.gananciaBruta) : "-"}</p>
-            </div>
-            <div className="bg-white/10 px-3 py-1 rounded-lg">
-                <p className="text-[10px] font-bold opacity-70 uppercase">Gastos y Sueldos</p>
-                <p className="text-lg font-bold text-red-200">{kpis ? formatCurrency(kpis.gastosAgencia) : "-"}</p>
-            </div>
-          </div>
-        </div>
-        <div className="hidden md:block">
-            <ChartBarIcon className="w-32 h-32 opacity-10" />
-        </div>
-      </div>
+	      {/* No se combinan monedas sin un tipo de cambio explícito. */}
+      {kpis?.porMoneda && <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        {(["ARS", "USD"] as Moneda[]).map(moneda => {
+          const metrics = kpis.porMoneda?.[moneda];
+          if (!metrics) return null;
+          const hasActivity = metrics.recaudadoTotal || metrics.gananciaBruta || metrics.gastosAgencia || metrics.utilidadNeta || metrics.fondoCustodia;
+          if (moneda === "USD" && !hasActivity) return null;
+          return <section key={moneda} className="rounded-xl bg-indigo-700 p-6 text-white shadow-lg" title="Este resultado no se suma con otras monedas">
+            <h3 className="text-sm font-bold">Resultado neto de la inmobiliaria ({moneda})</h3>
+            <p className="mt-2 text-3xl font-black">{formatCurrency(metrics.utilidadNeta, moneda)}</p>
+            <p className="mt-2 text-xs text-indigo-100">Honorarios menos gastos de la inmobiliaria. Moneda sin convertir.</p>
+          </section>;
+        })}
+      </div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Contratos por vencer */}
@@ -327,7 +318,7 @@ export default function Home() {
             badgeColor="red"
             emptyState={
               <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <CheckCircleIcon className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                <CheckCircleIcon className="w-10 h-10 text-gray-600 mx-auto mb-2" />
                 <p className="text-gray-600 text-sm">
                   No hay contratos próximos a vencer
                 </p>
@@ -353,7 +344,7 @@ export default function Home() {
                 action={canEditContracts ? (
                     <button
                         onClick={(e) => handleOpenUpdateModal(e, (contract as any).id)}
-                        className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-[10px] font-bold hover:bg-orange-700 transition-colors"
+                        className="px-3 py-1.5 bg-orange-600 text-white rounded-lg text-xs font-bold hover:bg-orange-700 transition-colors"
                     >
                         Actualizar
                     </button>
@@ -363,7 +354,7 @@ export default function Home() {
             badgeColor="orange"
             emptyState={
               <div className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <CheckCircleIcon className="w-10 h-10 text-gray-400 mx-auto mb-2" />
+                <CheckCircleIcon className="w-10 h-10 text-gray-600 mx-auto mb-2" />
                 <p className="text-gray-600 text-sm">
                   No hay contratos próximos a actualizar
                 </p>

@@ -1,4 +1,5 @@
 import { getFilenameFromPath, isWordDocument } from "../utils/documentFiles";
+import { requestReauthentication } from "./reauthentication";
 
 const envUrl = import.meta.env.VITE_API_URL;
 const BASE_URL = envUrl 
@@ -32,6 +33,22 @@ interface RequestOptions extends RequestInit {
     params?: Record<string, string>;
 }
 
+export class ApiError extends Error {
+    readonly status: number;
+    readonly code?: string;
+    constructor(message: string, status: number, code?: string) {
+        super(message);
+        this.name = "ApiError";
+        this.status = status;
+        this.code = code;
+    }
+}
+
+export interface PaginatedResponse<T> {
+    data: T[];
+    meta: { total: number; page: number; limit: number; totalPages: number; retentionDays?: number };
+}
+
 const getCookie = (name: string) => {
     const value = `; ${document.cookie}`;
     const parts = value.split(`; ${name}=`);
@@ -39,7 +56,7 @@ const getCookie = (name: string) => {
     return '';
 };
 
-async function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+async function request<T>(endpoint: string, options: RequestOptions = {}, retriedAfterReauth = false): Promise<T> {
     const { params, ...init } = options;
 
     let url = `${BASE_URL}${endpoint}`;
@@ -78,6 +95,18 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
 
     if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        if (response.status === 403 && errorData.code === 'REAUTHENTICATION_REQUIRED' && !retriedAfterReauth) {
+            const password = await requestReauthentication();
+            if (!password) throw new Error('Operación cancelada');
+            const csrfToken = getCookie('pc_csrf');
+            const reauthResponse = await fetch(`${BASE_URL}/auth/reauthenticate`, {
+                method: 'POST', credentials: 'include', cache: 'no-store',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                body: JSON.stringify({ password })
+            });
+            if (!reauthResponse.ok) throw new Error('No se pudo confirmar la identidad');
+            return request<T>(endpoint, options, true);
+        }
         const details = formatErrorDetails(errorData);
         const requestIdSuffix = errorData.requestId ? ` [ref: ${errorData.requestId}]` : "";
         const message = (details || errorData.message || `HTTP error! status: ${response.status}`) + requestIdSuffix;
@@ -88,7 +117,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}): Promi
             }));
         }
 
-        throw new Error(message);
+        throw new ApiError(message, response.status, errorData.code);
     }
 
     // Some endpoints might return empty response
