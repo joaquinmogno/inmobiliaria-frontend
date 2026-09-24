@@ -81,7 +81,7 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
             onClick={onClose}
             className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
           >
-            <XMarkIcon className="w-5 h-5 text-gray-500" />
+            <XMarkIcon className="w-5 h-5 text-content-muted" />
           </button>
         </div>
 
@@ -94,28 +94,29 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {error && (
-              <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm font-medium border border-red-100">
+              <div className="p-3 bg-red-50 text-status-danger rounded-lg text-sm font-medium border border-red-100">
                 {error}
               </div>
             )}
             
             {success && (
-              <div className="p-3 bg-green-50 text-green-600 rounded-lg text-sm font-medium border border-green-100 flex justify-between items-center">
+              <div className="p-3 bg-green-50 text-status-success rounded-lg text-sm font-medium border border-green-100 flex justify-between items-center">
                 <span>{success}</span>
                 <span className="text-xs">Cerrando...</span>
               </div>
             )}
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña Actual</label>
+              <label htmlFor="profile-current-password" className="block text-sm font-medium text-gray-700 mb-1">Contraseña Actual</label>
               <div className="relative">
                 <input
+                  id="profile-current-password"
                   type={showCurrentPassword ? "text" : "password"}
                   required
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
                   className="w-full px-4 py-2 pr-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                  placeholder="Ingresa tu contraseña actual"
+                  placeholder="Ingresá tu contraseña actual"
                 />
                 <button
                   type="button"
@@ -129,9 +130,10 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nueva Contraseña</label>
+              <label htmlFor="profile-new-password" className="block text-sm font-medium text-gray-700 mb-1">Nueva contraseña</label>
               <div className="relative">
                 <input
+                  id="profile-new-password"
                   type={showNewPassword ? "text" : "password"}
                   required
                   value={newPassword}
@@ -152,9 +154,10 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Nueva Contraseña</label>
+              <label htmlFor="profile-confirm-password" className="block text-sm font-medium text-gray-700 mb-1">Confirmar nueva contraseña</label>
               <div className="relative">
                 <input
+                  id="profile-confirm-password"
                   type={showConfirmPassword ? "text" : "password"}
                   required
                   value={confirmPassword}

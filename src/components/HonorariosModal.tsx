@@ -61,17 +61,18 @@ export default function HonorariosModal({ isOpen, onClose, onSave, currentMonto,
                             <Dialog.Panel className="w-full max-w-sm transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                                 <div className="flex justify-between items-center mb-6">
                                     <Dialog.Title as="h3" className="text-lg font-bold text-gray-900">
-                                        Editar Honorarios
+                                        Editar honorarios
                                     </Dialog.Title>
-                                    <button onClick={onClose} className="text-gray-600 hover:text-gray-500">
+                                    <button onClick={onClose} className="text-gray-600 hover:text-content-muted">
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
                                 </div>
 
                                 <form onSubmit={handleSubmit} className="space-y-4">
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Porcentaje (%)</label>
+                                        <label htmlFor="fee-percentage" className="block text-xs font-bold text-gray-700 uppercase mb-1">Porcentaje (%)</label>
                                         <NumericInput
+                                            id="fee-percentage"
                                             className="w-full rounded-lg border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                                             value={porcentaje}
                                             onChange={(val) => setPorcentaje(val.toString())}
@@ -79,8 +80,9 @@ export default function HonorariosModal({ isOpen, onClose, onSave, currentMonto,
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Monto Fijo ({moneda})</label>
+                                        <label htmlFor="fee-fixed-amount" className="block text-xs font-bold text-gray-700 uppercase mb-1">Monto Fijo ({moneda})</label>
                                         <NumericInput
+                                            id="fee-fixed-amount"
                                             className="w-full rounded-lg border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm font-bold"
                                             value={monto}
                                             onChange={(val) => setMonto(val.toString())}

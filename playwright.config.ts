@@ -12,7 +12,7 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "VITE_GOOGLE_CLIENT_ID=test-google-client.apps.googleusercontent.com npm run dev -- --host 127.0.0.1 --port 5173",
+    command: "npm run dev -- --host 127.0.0.1 --port 5173",
     url: "http://127.0.0.1:5173",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

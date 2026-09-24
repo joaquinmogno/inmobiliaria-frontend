@@ -83,7 +83,7 @@ export default function Papelera() {
       <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-red-600 mb-6">
         <div className="flex items-center gap-2">
           <div className="bg-red-100 p-2 rounded-lg">
-            <TrashIcon className="w-5 h-5 text-red-600" />
+            <TrashIcon className="w-5 h-5 text-status-danger" />
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">Papelera de Contratos</h1>
@@ -93,7 +93,7 @@ export default function Papelera() {
       </div>
 
       {isLoading ? (
-        <div className="text-center p-10 text-gray-500">Cargando...</div>
+        <div className="text-center p-10 text-content-muted">Cargando...</div>
       ) : trashedContracts.length === 0 ? (
         /* Empty State */
         <div className="bg-white rounded-lg shadow-sm p-10 text-center">
@@ -129,13 +129,13 @@ export default function Papelera() {
             <div key={contract.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
               <div>
                 <h3 className="font-semibold text-gray-900">{contract.propiedad.direccion}</h3>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-content-muted">
                   Inquilino: {contract.inquilinos.find((i: any) => i.esPrincipal)?.persona.nombreCompleto || '-'} | Propietario: {contract.propietarios.find((p: any) => p.esPrincipal)?.persona.nombreCompleto || '-'}
                 </p>
               </div>
 
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1.5 text-orange-600 bg-orange-50 px-3 py-1 rounded-full text-xs font-medium">
+                <div className="flex items-center gap-1.5 text-status-warning bg-orange-50 px-3 py-1 rounded-full text-xs font-semibold">
                   <ClockIcon className="w-4 h-4" />
                   <span>Se elimina en {contract.daysUntilDeletion} días</span>
                 </div>
@@ -152,7 +152,8 @@ export default function Papelera() {
                   {canDeleteContracts && (
                     <button
                       onClick={() => handlePermanentDelete(contract.id)}
-                      className="px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-red-200"
+                      data-danger-trigger="true"
+                      className="destructive-action rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
                     >
                       ELIMINAR
                     </button>

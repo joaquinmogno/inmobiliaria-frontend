@@ -14,15 +14,20 @@ export const MODULE_PERMISSIONS = [
   "contratos.eliminar",
   "caja_chica.ver",
   "caja_chica.crear",
-  "caja_chica.editar",
   "caja_chica.eliminar",
+  "caja_chica.cerrar",
+  "caja_chica.reabrir",
   "liquidaciones.ver",
   "liquidaciones.crear",
   "liquidaciones.editar",
+  "liquidaciones.confirmar",
+  "liquidaciones.pagar_propietario",
+  "liquidaciones.adelantar_propietario",
+  "liquidaciones.ajustar",
+  "liquidaciones.anular_pago_propietario",
   "liquidaciones.eliminar",
   "pagos.ver",
   "pagos.crear",
-  "pagos.editar",
   "pagos.eliminar",
   "propiedades.ver",
   "propiedades.crear",
@@ -56,33 +61,28 @@ export const MODULE_PERMISSIONS = [
 
 export type PermissionKey = typeof MODULE_PERMISSIONS[number];
 
-export const ADMIN_ROLES = ["SUPERADMIN", "OWNER", "JEFE", "ADMIN"] as const;
-
-export const ROLE_LABELS: Record<string, string> = {
-  SUPERADMIN: "Super Admin",
-  OWNER: "Owner",
-  JEFE: "Jefe",
-  ADMIN: "Administrador",
-  AGENTE: "Agente",
-};
-
 export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   "contratos.ver": "Ver contratos",
   "contratos.crear": "Crear contratos",
   "contratos.editar": "Editar contratos",
   "contratos.eliminar": "Eliminar contratos",
-  "caja_chica.ver": "Ver caja chica",
-  "caja_chica.crear": "Crear caja chica",
-  "caja_chica.editar": "Editar caja chica",
-  "caja_chica.eliminar": "Eliminar caja chica",
+  "caja_chica.ver": "Ver gestión financiera",
+  "caja_chica.crear": "Registrar movimientos financieros",
+  "caja_chica.eliminar": "Anular movimientos manuales de caja",
+  "caja_chica.cerrar": "Cerrar períodos de caja",
+  "caja_chica.reabrir": "Reabrir períodos de caja",
   "liquidaciones.ver": "Ver liquidaciones",
   "liquidaciones.crear": "Crear liquidaciones",
   "liquidaciones.editar": "Editar liquidaciones",
+  "liquidaciones.confirmar": "Confirmar liquidaciones",
+  "liquidaciones.pagar_propietario": "Pagar a propietarios",
+  "liquidaciones.adelantar_propietario": "Adelantar fondos a propietarios",
+  "liquidaciones.ajustar": "Emitir ajustes de liquidación",
+  "liquidaciones.anular_pago_propietario": "Anular pagos a propietarios",
   "liquidaciones.eliminar": "Eliminar liquidaciones",
   "pagos.ver": "Ver pagos",
   "pagos.crear": "Crear pagos",
-  "pagos.editar": "Editar pagos",
-  "pagos.eliminar": "Eliminar pagos",
+  "pagos.eliminar": "Anular pagos",
   "propiedades.ver": "Ver propiedades",
   "propiedades.crear": "Crear propiedades",
   "propiedades.editar": "Editar propiedades",
@@ -118,9 +118,9 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
 
 export const PERMISSION_GROUPS: Array<{ title: string; permissions: PermissionKey[] }> = [
   { title: "Contratos", permissions: ["contratos.ver", "contratos.crear", "contratos.editar", "contratos.eliminar", "contratos.archivos.ver", "contratos.restaurar"] },
-  { title: "Caja chica", permissions: ["caja_chica.ver", "caja_chica.crear", "caja_chica.editar", "caja_chica.eliminar"] },
-  { title: "Liquidaciones", permissions: ["liquidaciones.ver", "liquidaciones.crear", "liquidaciones.editar", "liquidaciones.eliminar"] },
-  { title: "Pagos", permissions: ["pagos.ver", "pagos.crear", "pagos.editar", "pagos.eliminar"] },
+  { title: "Gestión financiera", permissions: ["caja_chica.ver", "caja_chica.crear", "caja_chica.eliminar", "caja_chica.cerrar", "caja_chica.reabrir"] },
+  { title: "Liquidaciones", permissions: ["liquidaciones.ver", "liquidaciones.crear", "liquidaciones.editar", "liquidaciones.confirmar", "liquidaciones.pagar_propietario", "liquidaciones.adelantar_propietario", "liquidaciones.ajustar", "liquidaciones.anular_pago_propietario", "liquidaciones.eliminar"] },
+  { title: "Pagos", permissions: ["pagos.ver", "pagos.crear", "pagos.eliminar"] },
   { title: "Propiedades", permissions: ["propiedades.ver", "propiedades.crear", "propiedades.editar", "propiedades.eliminar"] },
   { title: "Personas", permissions: ["personas.ver", "personas.crear", "personas.editar", "personas.eliminar"] },
   { title: "Usuarios", permissions: ["usuarios.ver", "usuarios.crear", "usuarios.editar", "usuarios.eliminar", "usuarios.permisos", "usuarios.asignar_rol"] },
@@ -129,41 +129,12 @@ export const PERMISSION_GROUPS: Array<{ title: string; permissions: PermissionKe
   { title: "Sueldos", permissions: [...SUELDOS_PERMISSIONS] },
 ];
 
-export const ROLE_PRESETS: Array<{ name: string; permissions: PermissionKey[]; deniedPermissions?: PermissionKey[] }> = [
-  { name: "Jefe", permissions: MODULE_PERMISSIONS.filter(permission => permission !== "configuracion.backups.eliminar") },
-  { name: "Administrador", permissions: MODULE_PERMISSIONS.filter(permission => !permission.startsWith("sueldos.") && permission !== "configuracion.backups.eliminar") },
-  {
-    name: "Administrativo",
-    permissions: [
-      "contratos.ver", "contratos.crear", "contratos.editar",
-      "contratos.archivos.ver",
-      "propiedades.ver", "propiedades.crear", "propiedades.editar",
-      "personas.ver", "personas.crear", "personas.editar",
-      "liquidaciones.ver", "liquidaciones.crear", "liquidaciones.editar",
-      "pagos.ver", "pagos.crear",
-      "caja_chica.ver", "caja_chica.crear",
-      "reportes.dashboard.ver",
-    ],
-  },
-  {
-    name: "Cobranzas",
-    permissions: [
-      "contratos.ver", "personas.ver", "propiedades.ver",
-      "contratos.archivos.ver",
-      "liquidaciones.ver", "liquidaciones.editar",
-      "pagos.ver", "pagos.crear",
-      "caja_chica.ver", "caja_chica.crear",
-      "reportes.dashboard.ver",
-    ],
-  },
-  { name: "Solo lectura", permissions: MODULE_PERMISSIONS.filter(permission => permission.endsWith(".ver")) },
-];
-
 export function isAdminRole(role?: string): boolean {
-  return !!role && ADMIN_ROLES.includes(role as typeof ADMIN_ROLES[number]);
+  return role === "ADMIN";
 }
 
 export function hasPermission(user: User | null | undefined, permission: PermissionKey): boolean {
   if (!user) return false;
+  if (user.tipo === "ADMIN") return true;
   return !!user.permissions?.includes(permission);
 }

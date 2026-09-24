@@ -1,10 +1,13 @@
 import api from './api';
 import type { PaginatedResponse } from './api';
+import type { PaginationMeta } from './api';
 import type { AuditLogItem } from '../components/AuditTrail';
 import type { Moneda } from '../utils/currency';
+import { getDaysFromToday } from '../utils/date';
 
-export type EstadoContrato = 'ACTIVO' | 'PAPELERA' | 'FINALIZADO' | 'RESCINDIDO';
+export type EstadoContrato = 'PROGRAMADO' | 'ACTIVO' | 'PAPELERA' | 'FINALIZADO' | 'RESCINDIDO';
 export type PagadorHonorarios = 'INQUILINO' | 'PROPIETARIO';
+export type TipoDocumentoContrato = 'CONTRATO_PRINCIPAL' | 'ADENDA' | 'ADJUNTO';
 
 export interface ContractUpdateHistory {
     id: number;
@@ -20,13 +23,35 @@ export interface ContractUpdateHistory {
     };
 }
 
+export interface ContractRenewalTimelineEntry {
+    id: number;
+    contratoAnteriorId: number | null;
+    fechaInicio: string;
+    fechaFin: string;
+    fechaRescision: string | null;
+    estado: EstadoContrato;
+    montoAlquiler: number;
+    moneda: Moneda;
+    propiedad: {
+        direccion: string;
+        piso: string | null;
+        departamento: string | null;
+    };
+    inquilinoPrincipal: string | null;
+}
+
 export interface Contract {
     id: number;
+    version: number;
+    contratoAnteriorId: number | null;
     fechaInicio: string;
     fechaFin: string;
     fechaProximaActualizacion: string | null;
     estado: EstadoContrato;
     eliminadoEn?: string | null;
+    fechaRescision?: string | null;
+    motivoRescision?: string | null;
+    rescindidoPor?: { id: number; nombreCompleto: string; email: string } | null;
     daysUntilDeletion?: number;
     administrado: boolean;
     requiereActualizacion: boolean;
@@ -52,6 +77,10 @@ export interface Contract {
             id: number;
             nombreCompleto: string;
             telefono: string | null;
+            cbu: string | null;
+            aliasBancario: string | null;
+            titularCuentaBancaria: string | null;
+            titularidadBancariaVerificada: boolean;
         };
         esPrincipal: boolean;
     }[];
@@ -61,6 +90,10 @@ export interface Contract {
             id: number;
             nombreCompleto: string;
             telefono: string | null;
+            cbu: string | null;
+            aliasBancario: string | null;
+            titularCuentaBancaria: string | null;
+            titularidadBancariaVerificada: boolean;
         };
         esPrincipal: boolean;
     }[];
@@ -68,37 +101,39 @@ export interface Contract {
         id: number;
         rutaArchivo: string;
         nombreArchivo: string | null;
+        tipo: TipoDocumentoContrato;
+        fechaDocumento: string;
+        observacion: string | null;
+        versionDocumento: number | null;
+        esVigente: boolean;
+        creadoPor?: { id: number; nombreCompleto: string } | null;
     }[];
     actualizaciones?: ContractUpdateHistory[];
+    historialRenovaciones?: ContractRenewalTimelineEntry[];
     auditLogs?: AuditLogItem[];
+    auditMeta?: PaginationMeta;
     creadoPor?: { id: number; nombreCompleto: string; email: string };
     actualizadoPor?: { id: number; nombreCompleto: string; email: string };
 }
 
 export const getDaysLeft = (dateString: string) => {
-    const today = new Date();
-    const targetDate = new Date(dateString);
-    const diffTime = targetDate.getTime() - today.getTime();
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return getDaysFromToday(dateString);
 };
 
 
 export const contractsService = {
-    getAll: async (options: { search?: string; page?: number; limit?: number; expired?: boolean; status?: EstadoContrato; signal?: AbortSignal } = {}) => {
+    getAll: async (options: { search?: string; page?: number; limit?: number; status?: EstadoContrato; alert?: 'POR_VENCER'; signal?: AbortSignal } = {}) => {
         const params: Record<string, string> = {
             page: String(options.page ?? 1),
             limit: String(options.limit ?? 10)
         };
         if (options.search) params.search = options.search;
-        if (options.expired !== undefined) params.expired = String(options.expired);
         if (options.status) params.status = options.status;
+        if (options.alert) params.alerta = options.alert;
         return api.get<PaginatedResponse<Contract>>('/contratos', { params, signal: options.signal });
     },
 
-    search: async (search?: string) => {
-        const response = await contractsService.getAll({ search, limit: 100, status: 'ACTIVO' });
-        return response.data;
-    },
+    search: async (search = '', page = 1) => contractsService.getAll({ search, page, limit: 25, status: 'ACTIVO' }),
 
     create: async (data: FormData) => {
         return api.post<Contract>('/contratos', data);
@@ -108,20 +143,28 @@ export const contractsService = {
         return api.put<Contract>(`/contratos/${id}`, data);
     },
 
-    getById: async (id: number) => {
-        return api.get<Contract>(`/contratos/${id}`);
+    getById: async (id: number, auditPage = 1, auditLimit = 10) => {
+        return api.get<Contract>(`/contratos/${id}`, {
+            params: { auditPage: String(auditPage), auditLimit: String(auditLimit) }
+        });
     },
 
     delete: async (id: number) => {
         return api.delete(`/contratos/${id}`);
     },
 
-    addAttachment: async (contractId: number, file: File, fileName?: string) => {
+    addAttachment: async (
+        contractId: number,
+        file: File,
+        fileName?: string,
+        tipo: Exclude<TipoDocumentoContrato, 'CONTRATO_PRINCIPAL'> = 'ADJUNTO'
+    ) => {
         const formData = new FormData();
         formData.append('archivo', file);
         if (fileName) {
             formData.append('nombreArchivo', fileName);
         }
+        formData.append('tipo', tipo);
         return api.post(`/contratos/${contractId}/adjuntos`, formData);
     },
 
@@ -133,10 +176,10 @@ export const contractsService = {
         return api.delete(`/contratos/${id}/permanente`);
     },
 
-    updateStatus: async (id: number, estado: EstadoContrato) => {
-        return api.patch(`/contratos/${id}/estado`, { estado });
+    rescindir: async (id: number, data: { motivo: string; fechaRescision: string; version: number }) => {
+        return api.post(`/contratos/${id}/rescindir`, data);
     },
-    actualizarMonto: async (id: number, data: { montoNuevo: number; fechaProximaNueva: string; observaciones?: string }) => {
+    actualizarMonto: async (id: number, data: { montoNuevo: number; fechaProximaNueva: string; observaciones?: string; version: number }) => {
         return api.post<Contract>(`/contratos/${id}/actualizar`, data);
     },
     getAlertas: async () => {

@@ -65,24 +65,25 @@ export default function MovimientoModal({ isOpen, onClose, onSave, moneda = "ARS
                                     </Dialog.Title>
                                     <button
                                         onClick={onClose}
-                                        className="text-gray-600 hover:text-gray-500 transition-colors focus:outline-none"
+                                        className="text-gray-600 hover:text-content-muted transition-colors focus:outline-none"
                                     >
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
                                 </div>
 
                                 <form onSubmit={handleSubmit} className="space-y-6">
-                                    <div>
-                                        <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">
+                                    <fieldset>
+                                        <legend className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">
                                             Tipo de Movimiento
-                                        </label>
+                                        </legend>
                                         <div className="flex gap-4">
                                             <button
                                                 type="button"
+                                                aria-pressed={tipo === "INGRESO"}
                                                 onClick={() => setTipo("INGRESO")}
                                                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all ${tipo === "INGRESO"
                                                     ? "border-green-500 bg-green-50 text-green-700 shadow-sm"
-                                                    : "border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200"
+                                                    : "border-gray-100 bg-gray-50 text-content-muted hover:border-gray-200"
                                                     }`}
                                             >
                                                 <div className={`w-3 h-3 rounded-full ${tipo === "INGRESO" ? "bg-green-500" : "bg-gray-300"}`} />
@@ -90,23 +91,25 @@ export default function MovimientoModal({ isOpen, onClose, onSave, moneda = "ARS
                                             </button>
                                             <button
                                                 type="button"
+                                                aria-pressed={tipo === "DESCUENTO"}
                                                 onClick={() => setTipo("DESCUENTO")}
                                                 className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all ${tipo === "DESCUENTO"
                                                     ? "border-red-500 bg-red-50 text-red-700 shadow-sm"
-                                                    : "border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200"
+                                                    : "border-gray-100 bg-gray-50 text-content-muted hover:border-gray-200"
                                                     }`}
                                             >
                                                 <div className={`w-3 h-3 rounded-full ${tipo === "DESCUENTO" ? "bg-red-500" : "bg-gray-300"}`} />
                                                 <span className="font-bold">Descuento</span>
                                             </button>
                                         </div>
-                                    </div>
+                                    </fieldset>
 
                                     <div>
-                                        <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">
+                                        <label htmlFor="account-movement-concept" className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">
                                             Concepto
                                         </label>
                                         <input
+                                            id="account-movement-concept"
                                             type="text"
                                             required
                                             placeholder="Ej: Alquiler, Arreglo Cocina, Expensas..."
@@ -117,10 +120,11 @@ export default function MovimientoModal({ isOpen, onClose, onSave, moneda = "ARS
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">
+                                        <label htmlFor="account-movement-amount" className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">
                                             Monto ({moneda})
                                         </label>
                                         <NumericInput
+                                            id="account-movement-amount"
                                             required
                                             min="0.01"
                                             placeholder="0.00"
@@ -132,10 +136,11 @@ export default function MovimientoModal({ isOpen, onClose, onSave, moneda = "ARS
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">
-                                            Observaciones (Opcional)
+                                        <label htmlFor="account-movement-observations" className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">
+                                            Observaciones (opcional)
                                         </label>
                                         <textarea
+                                            id="account-movement-observations"
                                             rows={2}
                                             placeholder="Detalles adicionales..."
                                             className="block w-full px-4 py-2 text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white"
@@ -156,7 +161,7 @@ export default function MovimientoModal({ isOpen, onClose, onSave, moneda = "ARS
                                             type="submit"
                                             className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 cursor-pointer"
                                         >
-                                            Guardar Movimiento
+                                            Guardar movimiento
                                         </button>
                                     </div>
                                 </form>

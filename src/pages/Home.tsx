@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { contractsService, getDaysLeft, type Contract } from "../services/contracts.service";
 import ContractCard from "../components/ContractCard";
 import PaginatedList from "../components/PaginatedList";
@@ -7,17 +8,18 @@ import UpdateContractModal from "../components/UpdateContractModal";
 import {
   CheckCircleIcon,
   DocumentTextIcon,
-  BanknotesIcon,
   ClockIcon,
   ArrowPathIcon,
   ChartBarIcon,
+  HomeModernIcon,
 } from "@heroicons/react/24/outline";
-import { reportesService } from "../services/reportes.service";
+import { reportesService, type AccruedFinancialReport, type CashFinancialReport } from "../services/reportes.service";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
 import { formatCurrency, type Moneda } from "../utils/currency";
 import toast from "react-hot-toast";
 import { requestConfirmation } from "../services/confirmation";
+import OperationalAlertsPanel from "../components/OperationalAlertsPanel";
 
 export interface ExpiringContract {
   id: number;
@@ -38,13 +40,9 @@ export interface UpdatingContract {
 }
 
 interface KpiData {
+  propiedadesTotal: number;
   contratosActivos: number;
-  recaudadoTotal: number;
-  gananciaBruta: number;
-  gastosAgencia: number;
-  utilidadNeta: number;
   morosidad: number;
-  fondoCustodia: number;
   porMoneda?: Record<Moneda, {
     recaudadoTotal: number;
     gananciaBruta: number;
@@ -53,14 +51,21 @@ interface KpiData {
     fondoCustodia: number;
     morosidad: number;
   }>;
+  devengado?: AccruedFinancialReport | null;
+  caja?: CashFinancialReport | null;
+  operacion?: { alquileresVencidos: number; cobrosPendientes: number; pagosPropietarioPendientes: number; contratosPorVencer: number };
 }
 
 export default function Home() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const canViewContracts = hasPermission(user, "contratos.ver");
   const canEditContracts = hasPermission(user, "contratos.editar");
   const canDeleteContracts = hasPermission(user, "contratos.eliminar");
   const canViewDashboard = hasPermission(user, "reportes.dashboard.ver");
+  const canViewContractReports = hasPermission(user, "reportes.contratos.ver");
+  const canViewDelinquencyReports = hasPermission(user, "reportes.morosidad.ver");
+  const canViewFinancialReports = hasPermission(user, "reportes.financieros.ver");
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [selectedContract, setSelectedContract] = useState<Contract | null>(null);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
@@ -116,14 +121,13 @@ export default function Home() {
       setUpdatingList(updating);
 
       setKpis(reportData ? {
+        propiedadesTotal: reportData.propiedades.total,
         contratosActivos: reportData.contratos.activos,
-        recaudadoTotal: reportData.finanzas.recaudadoTotal,
-        gananciaBruta: reportData.finanzas.gananciaBruta,
-        gastosAgencia: reportData.finanzas.gastosAgencia,
-        utilidadNeta: reportData.finanzas.utilidadNeta,
 	        morosidad: reportData.finanzas.morosidad,
-	        fondoCustodia: reportData.finanzas.fondoCustodia,
-	        porMoneda: reportData.finanzas.porMoneda
+	        porMoneda: reportData.finanzas.porMoneda,
+            devengado: reportData.finanzas.devengado,
+            caja: reportData.finanzas.caja
+        , operacion: reportData.operacion
       } : null);
     } catch (error) {
       console.error("Error loading home data:", error);
@@ -171,39 +175,26 @@ export default function Home() {
 
   const kpiCards = [
     {
+      label: "Propiedades administradas",
+      visible: canViewDashboard,
+      value: kpis?.propiedadesTotal ?? "-",
+      icon: HomeModernIcon,
+      iconStyle: "bg-indigo-50 text-indigo-700",
+    },
+    {
       label: "Contratos Activos",
+      visible: canViewContractReports,
       value: kpis?.contratosActivos ?? "-",
       icon: DocumentTextIcon,
-      color: "bg-indigo-50 text-indigo-600",
-      iconBg: "bg-indigo-100",
+      iconStyle: "bg-indigo-50 text-indigo-700",
     },
-    {
-      label: "Cobrado a inquilinos",
-      value: kpis ? formatCurrency(kpis.recaudadoTotal) : "-",
-      icon: BanknotesIcon,
-      color: "bg-emerald-50 text-emerald-600",
-      iconBg: "bg-emerald-100",
-    },
-    {
-      label: "Honorarios de la inmobiliaria",
-      value: kpis ? formatCurrency(kpis.gananciaBruta) : "-",
-      icon: BanknotesIcon,
-      color: "bg-violet-50 text-violet-600",
-      iconBg: "bg-violet-100",
-    },
-    {
-        label: "Fondos pendientes de entregar",
-        value: kpis ? formatCurrency(kpis.fondoCustodia) : "-",
-        icon: BanknotesIcon,
-        color: "bg-amber-50 text-amber-600",
-        iconBg: "bg-amber-100",
-      },
     {
       label: "Morosidad",
+      visible: canViewDelinquencyReports,
       value: kpis ? `${kpis.morosidad.toFixed(1)}%` : "-",
       icon: ChartBarIcon,
-      color: kpis && kpis.morosidad > 10 ? "bg-red-50 text-red-600" : "bg-gray-50 text-gray-600",
-      iconBg: kpis && kpis.morosidad > 10 ? "bg-red-100" : "bg-gray-100",
+      iconStyle: kpis && kpis.morosidad > 10 ? "bg-red-50 text-status-danger" : "bg-indigo-50 text-indigo-700",
+      valueStyle: kpis && kpis.morosidad > 10 ? "text-status-danger" : "text-gray-950",
     },
   ];
 
@@ -215,87 +206,100 @@ export default function Home() {
           <h1 className="line-clamp-2 text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight" title={`Panel de ${user?.inmobiliaria?.nombre || "Gestión"}`}>
             Panel de {user?.inmobiliaria?.nombre || "Gestión"}
           </h1>
-          <p className="text-gray-500 text-sm">Resumen financiero y alertas del mes actual.</p>
+          <p className="text-gray-600 text-sm">Resumen financiero y alertas del mes actual.</p>
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 min-[380px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {kpiCards.map((card) => {
+      {/* Indicadores operativos: las cifras financieras se muestran una sola vez y separadas por moneda. */}
+      <section aria-labelledby="operational-summary-title">
+        <h2 id="operational-summary-title" className="sr-only">Resumen operativo</h2>
+      <div data-testid="dashboard-operational-kpis" className="grid grid-cols-1 min-[380px]:grid-cols-2 sm:grid-cols-3 gap-4">
+        {kpiCards.filter(card => card.visible).map((card) => {
           const Icon = card.icon;
           return (
             <div
               key={card.label}
-              className={`rounded-xl p-4 flex flex-col gap-3 shadow-sm border border-gray-100 ${card.color}`}
+              className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
             >
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${card.iconBg}`}>
+              <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${card.iconStyle}`}>
                 <Icon className="w-5 h-5" />
               </div>
               <div>
                 {loadingKpis ? (
-                  <div className="h-7 w-16 bg-current opacity-10 rounded animate-pulse mb-1" />
+                  <div className="mb-1 h-7 w-16 animate-pulse rounded bg-gray-200" />
                 ) : (
-                  <p className="text-2xl font-bold leading-tight">{card.value}</p>
+                  <p className={`text-2xl font-bold leading-tight ${card.valueStyle || "text-gray-950"}`}>{card.value}</p>
                 )}
-                <p className="text-xs font-medium opacity-70 leading-tight">{card.label}</p>
+                <p className="text-xs font-medium leading-tight text-content-muted">{card.label}</p>
               </div>
             </div>
           );
         })}
 	      </div>
+      </section>
 
-	      {kpis?.porMoneda && (
-	        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {canViewDashboard && kpis?.operacion && <section aria-labelledby="priority-actions-title" className="rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm sm:p-5">
+        <div><h2 id="priority-actions-title" className="text-lg font-bold text-gray-950">Prioridades operativas</h2><p className="mt-1 text-sm text-content-muted">Acciones que requieren seguimiento hoy.</p></div>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {[
+            { label: 'Alquileres vencidos', value: kpis.operacion.alquileresVencidos, tone: 'border-red-200 bg-red-50 text-red-900', action: () => navigate('/liquidaciones?view=HISTORIAL&vencidas=true') },
+            { label: 'Cobros pendientes', value: kpis.operacion.cobrosPendientes, tone: 'border-amber-200 bg-amber-50 text-amber-900', action: () => navigate('/liquidaciones?view=HISTORIAL&soloDeuda=true') },
+            { label: 'Listas para pagar al propietario', value: kpis.operacion.pagosPropietarioPendientes, tone: 'border-blue-200 bg-blue-50 text-blue-900', action: () => navigate('/liquidaciones?view=HISTORIAL&pendientePropietario=true') },
+            { label: 'Contratos próximos a vencer', value: kpis.operacion.contratosPorVencer, tone: 'border-gray-200 bg-gray-50 text-gray-900', action: () => navigate('/contratos?alerta=POR_VENCER') }
+          ].map(item => <button type="button" key={item.label} onClick={item.action} className={`rounded-xl border p-4 text-left transition hover:-translate-y-0.5 ${item.tone}`}><p className="text-2xl font-black">{item.value}</p><p className="mt-1 text-sm font-bold">{item.label}</p><p className="mt-2 text-xs font-semibold underline">Ver y resolver</p></button>)}
+        </div>
+      </section>}
+
+      {canViewDashboard && <OperationalAlertsPanel />}
+
+	      {canViewFinancialReports && kpis?.porMoneda && (
+	        <section data-testid="dashboard-financial-summary" aria-labelledby="financial-summary-title" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+	          <div className="mb-4">
+	            <h2 id="financial-summary-title" className="text-lg font-bold text-gray-950">Resumen financiero por moneda</h2>
+	            <p className="mt-1 text-sm text-content-muted">Devengado usa el período de la liquidación; caja usa la fecha real de cada movimiento. Los importes no se combinan entre ARS y USD.</p>
+	          </div>
+	        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 	          {(["ARS", "USD"] as Moneda[]).map(moneda => {
 	            const metrics = kpis.porMoneda?.[moneda];
+	            const accrued = kpis.devengado?.porMoneda?.[moneda];
+	            const cashPeriod = kpis.caja?.movimientosDelPeriodo?.[moneda];
+	            const cashBalance = kpis.caja?.saldoAlCierre?.[moneda];
 	            if (!metrics) return null;
-	            const hasAmount = metrics.recaudadoTotal || metrics.gananciaBruta || metrics.gastosAgencia || metrics.utilidadNeta || metrics.fondoCustodia;
+	            const hasAmount = metrics.recaudadoTotal || metrics.gananciaBruta || metrics.gastosAgencia || metrics.utilidadNeta || metrics.fondoCustodia || accrued?.facturado || cashBalance?.saldo;
 	            if (moneda === "USD" && !hasAmount) return null;
 
 	            return (
-	              <section key={moneda} className="rounded-xl bg-white border border-gray-100 p-4 shadow-sm">
-	                <div className="flex items-center justify-between mb-3">
-	                  <h2 className="text-xs font-black text-gray-500 uppercase tracking-widest">Finanzas {moneda}</h2>
-	                  <span className="text-xs font-bold text-gray-600">Sin convertir monedas</span>
+	              <article key={moneda} data-testid="dashboard-currency-summary" className="rounded-xl border border-gray-200 bg-gray-50/70 p-4">
+	                <div className="mb-4 flex items-center justify-between border-b border-gray-200 pb-3">
+	                  <h3 className="text-sm font-bold text-gray-950">Finanzas en {moneda}</h3>
+	                  <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-bold text-indigo-800">{moneda}</span>
 	                </div>
-	                <div className="grid grid-cols-2 gap-3 text-sm">
-	                  <div>
-	                    <p className="text-xs font-bold text-gray-600">Cobrado a inquilinos</p>
-	                    <p className="font-black text-gray-900">{formatCurrency(metrics.recaudadoTotal, moneda)}</p>
+	                <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+	                  <div className="col-span-2 rounded-lg border border-indigo-100 bg-indigo-50/60 p-3">
+	                    <p className="text-xs font-black uppercase tracking-wide text-indigo-800">Devengado · liquidaciones del período</p>
+	                    <div className="mt-2 grid grid-cols-2 gap-3">
+	                      <div><p className="text-xs font-medium text-content-muted">Facturado</p><p className="font-bold text-gray-950">{formatCurrency(accrued?.facturado ?? 0, moneda)}</p></div>
+	                      <div><p className="text-xs font-medium text-content-muted">Pendiente de inquilinos</p><p className="font-bold text-gray-950">{formatCurrency(accrued?.saldoPendienteInquilinos ?? 0, moneda)}</p></div>
+	                    </div>
 	                  </div>
-	                  <div>
-	                    <p className="text-xs font-bold text-gray-600">Resultado neto de la inmobiliaria</p>
-	                    <p className="font-black text-gray-900">{formatCurrency(metrics.utilidadNeta, moneda)}</p>
+	                  <div className="col-span-2 rounded-lg border border-emerald-100 bg-emerald-50/60 p-3">
+	                    <p className="text-xs font-black uppercase tracking-wide text-emerald-800">Caja · movimientos reales</p>
+	                    <div className="mt-2 grid grid-cols-2 gap-3">
+	                      <div><p className="text-xs font-medium text-content-muted">Cobrado a inquilinos</p><p className="font-bold text-gray-950">{formatCurrency(cashPeriod?.cobrosInquilinos ?? metrics.recaudadoTotal, moneda)}</p></div>
+	                      <div><p className="text-xs font-medium text-content-muted">Saldo al cierre</p><p className="font-bold text-gray-950">{formatCurrency(cashBalance?.saldo ?? 0, moneda)}</p></div>
+	                    </div>
 	                  </div>
-	                  <div>
-	                    <p className="text-xs font-bold text-gray-600">Gastos de la inmobiliaria</p>
-	                    <p className="font-black text-red-600">{formatCurrency(metrics.gastosAgencia, moneda)}</p>
-	                  </div>
-	                  <div>
-	                    <p className="text-xs font-bold text-gray-600">Fondos pendientes de entregar</p>
-	                    <p className="font-black text-amber-600">{formatCurrency(metrics.fondoCustodia, moneda)}</p>
+	                  <div data-testid="dashboard-net-result" className="col-span-2 mt-1 border-t border-gray-200 pt-3">
+	                    <p className="text-xs font-medium text-content-muted">Honorarios devengados / gastos por caja</p>
+	                    <p className={`text-xl font-black ${metrics.utilidadNeta < 0 ? "text-status-danger" : "text-status-success"}`}>{formatCurrency(metrics.utilidadNeta, moneda)}</p>
 	                  </div>
 	                </div>
-	              </section>
+	              </article>
 	            );
 	          })}
 	        </div>
+	        </section>
 	      )}
-
-	      {/* No se combinan monedas sin un tipo de cambio explícito. */}
-      {kpis?.porMoneda && <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        {(["ARS", "USD"] as Moneda[]).map(moneda => {
-          const metrics = kpis.porMoneda?.[moneda];
-          if (!metrics) return null;
-          const hasActivity = metrics.recaudadoTotal || metrics.gananciaBruta || metrics.gastosAgencia || metrics.utilidadNeta || metrics.fondoCustodia;
-          if (moneda === "USD" && !hasActivity) return null;
-          return <section key={moneda} className="rounded-xl bg-indigo-700 p-6 text-white shadow-lg" title="Este resultado no se suma con otras monedas">
-            <h3 className="text-sm font-bold">Resultado neto de la inmobiliaria ({moneda})</h3>
-            <p className="mt-2 text-3xl font-black">{formatCurrency(metrics.utilidadNeta, moneda)}</p>
-            <p className="mt-2 text-xs text-indigo-100">Honorarios menos gastos de la inmobiliaria. Moneda sin convertir.</p>
-          </section>;
-        })}
-      </div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Contratos por vencer */}

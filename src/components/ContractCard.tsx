@@ -54,7 +54,7 @@ export default function ContractCard({
                 </div>
 
                 <div className="text-right flex-shrink-0">
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500 mb-1.5">
+                    <div className="flex items-center gap-1.5 text-xs text-content-muted mb-1.5">
                         <CalendarIcon className="w-4 h-4" />
                         <span>{formatDate(date)}</span>
                     </div>

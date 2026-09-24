@@ -6,13 +6,16 @@ import { hasPermission, type PermissionKey } from "../utils/permissions";
 interface PermissionGuardProps {
   permission?: PermissionKey;
   permissions?: PermissionKey[];
+  adminOnly?: boolean;
   children: ReactNode;
 }
 
-export default function PermissionGuard({ permission, permissions, children }: PermissionGuardProps) {
+export default function PermissionGuard({ permission, permissions, adminOnly, children }: PermissionGuardProps) {
   const { user } = useAuth();
 
-  const allowed = permission ? hasPermission(user, permission) : Boolean(permissions?.some(item => hasPermission(user, item)));
+  const allowed = adminOnly
+    ? user?.tipo === "ADMIN"
+    : permission ? hasPermission(user, permission) : Boolean(permissions?.some(item => hasPermission(user, item)));
   if (!allowed) {
     return <AccessDenied permission={permission || permissions?.join(" o ")} />;
   }
