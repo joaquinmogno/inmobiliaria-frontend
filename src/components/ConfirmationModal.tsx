@@ -34,7 +34,7 @@ export default function ConfirmationModal({ isOpen, onClose, onConfirm, title, m
         <p className="mb-8 leading-relaxed text-gray-700">{message}</p>
         <div className="flex justify-end gap-3">
           <button disabled={loading} onClick={onClose} className="min-h-11 rounded-lg px-4 font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50">{cancelText}</button>
-          <button disabled={loading} onClick={() => void confirm()} className={`min-h-11 rounded-lg px-6 font-semibold text-white disabled:opacity-50 ${type === "danger" ? "bg-red-600 hover:bg-red-700" : "bg-indigo-600 hover:bg-indigo-700"}`}>
+          <button data-danger-confirm={type === "danger" ? "true" : undefined} disabled={loading} onClick={() => void confirm()} className={`min-h-11 rounded-lg px-6 font-semibold text-white disabled:opacity-50 ${type === "danger" ? "bg-status-danger hover:bg-status-danger-strong" : "bg-indigo-600 hover:bg-indigo-700"}`}>
             {loading ? "Procesando..." : confirmText}
           </button>
         </div>

@@ -1,6 +1,26 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
+/*
+ * Tokens semánticos WCAG AA. Están pensados para texto normal sobre blanco y
+ * sobre las superficies claras (50/100) usadas por tablas, tarjetas y badges.
+ * Evitar colores Tailwind 300/500/600 para comunicar estados mediante texto:
+ * varios no alcanzan 4.5:1 cuando se combinan con esas superficies.
+ */
+@theme {
+  --color-content-muted: #4b5563;
+  --color-status-success: #166534;
+  --color-status-success-strong: #14532d;
+  --color-status-danger: #b91c1c;
+  --color-status-danger-strong: #991b1b;
+  --color-status-warning: #92400e;
+  --color-status-warning-strong: #78350f;
+  --color-status-accent: #4338ca;
+  --color-status-teal: #115e59;
+  --color-on-accent-muted: #eef2ff;
+  --color-content-on-dark-muted: #d1d5db;
+}
+
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
@@ -31,10 +51,100 @@ button,
   min-height: 44px;
 }
 
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 2px;
+}
+
 html,
 body,
 #root {
   width: 100%;
   min-width: 0;
   overflow-x: hidden;
+}
+
+/*
+ * El menú conserva su desplazamiento cuando la altura disponible es reducida,
+ * pero evita la pista gris nativa sobre el fondo de marca. El indicador aparece
+ * al interactuar con el menú, también cuando el foco llega por teclado.
+ */
+.sidebar-scrollbar {
+  overscroll-behavior-y: contain;
+  scrollbar-color: transparent transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.sidebar-scrollbar:hover,
+.sidebar-scrollbar:focus-within {
+  scrollbar-color: rgb(199 210 254 / 0.72) transparent;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 9999px;
+}
+
+.sidebar-scrollbar:hover::-webkit-scrollbar-thumb,
+.sidebar-scrollbar:focus-within::-webkit-scrollbar-thumb {
+  background-color: rgb(199 210 254 / 0.72);
+}
+
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(238 242 255 / 0.9);
+}
+
+/*
+ * Las acciones destructivas no compiten visualmente con la acción principal.
+ * El rojo aparece al interactuar y en la confirmación final, donde sí ayuda a
+ * comunicar que el usuario está por ejecutar una operación de riesgo.
+ */
+.destructive-action {
+  border: 1px solid #d1d5db;
+  background-color: #fff;
+  color: #4b5563;
+  box-shadow: none;
+}
+
+.destructive-action:hover,
+.destructive-action:focus-visible {
+  border-color: #fecaca;
+  background-color: #fef2f2;
+  color: #b91c1c;
+}
+
+.destructive-action:disabled {
+  cursor: not-allowed;
+  border-color: #e5e7eb;
+  background-color: #f9fafb;
+  color: #9ca3af;
+}
+
+.destructive-icon-action {
+  background-color: transparent;
+  color: #4b5563;
+  box-shadow: none;
+}
+
+.destructive-icon-action:hover,
+.destructive-icon-action:focus-visible {
+  background-color: #fef2f2;
+  color: #b91c1c;
+}
+
+@media (forced-colors: active) {
+  .sidebar-scrollbar,
+  .sidebar-scrollbar:hover,
+  .sidebar-scrollbar:focus-within {
+    scrollbar-color: auto;
+  }
 }

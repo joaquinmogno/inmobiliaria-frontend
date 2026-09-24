@@ -1,5 +1,6 @@
 import api from './api';
 import type { Moneda } from '../utils/currency';
+import type { CashFinancialMetrics } from './reportes.service';
 
 export type CuentaCaja = 'CAJA' | 'BANCO';
 
@@ -14,7 +15,18 @@ export interface MovimientoCaja {
     cuenta: CuentaCaja;
     observaciones?: string;
     fechaCreacion: string;
-    creadoPor?: { nombreCompleto: string };
+    anuladoEn?: string | null;
+    motivoAnulacion?: string | null;
+    anuladoPorId?: number | null;
+    pagoId?: number | null;
+    pagoSueldoId?: number | null;
+    liquidacionId?: number | null;
+    contratoId?: number | null;
+    reversionDeId?: number | null;
+    reversion?: { id: number; fechaCreacion: string } | null;
+    ajustePagoSueldoDe?: { id: number } | null;
+    creadoPor?: { id: number; nombreCompleto: string };
+    anuladoPor?: { id: number; nombreCompleto: string } | null;
     contrato?: {
         propiedad?: {
             direccion: string;
@@ -35,6 +47,12 @@ export interface CajaChicaResponse {
 }
 
 export interface CajaChicaSummary {
+        criterio?: 'CAJA';
+        periodo?: string;
+        desde?: string;
+        hasta?: string;
+        saldoAlCierre?: Record<Moneda, CashFinancialMetrics>;
+        movimientosDelPeriodo?: Record<Moneda, CashFinancialMetrics>;
         balanceGeneral: number;
         totalIngresos: number;
         totalEgresos: number;
@@ -58,6 +76,9 @@ export interface CajaChicaSummary {
 	            gananciaBruta: number;
 	            resultadoNeto: number;
 	            fondosEnCustodia: number;
+	            pagosSueldos?: number;
+	            otrosIngresos?: number;
+	            otrosEgresos?: number;
 	        }>;
         totalCobrado: number;
         totalPagadoPropietarios: number;
@@ -65,6 +86,37 @@ export interface CajaChicaSummary {
         gananciaBruta: number;
         resultadoNeto: number;
         fondosEnCustodia: number;
+}
+
+export interface EventoCierreCaja {
+    id: number;
+    tipo: 'CIERRE' | 'REAPERTURA';
+    version: number;
+    saldoSistema: number | string;
+    saldoDeclarado: number | string;
+    diferencia: number | string;
+    motivo?: string | null;
+    fechaCreacion: string;
+    usuario: { nombreCompleto: string };
+}
+
+export interface CierreCaja {
+    id: number;
+    version: number;
+    periodo: string;
+    cuenta: CuentaCaja;
+    moneda: Moneda;
+    saldoSistema: number | string;
+    saldoDeclarado: number | string;
+    diferencia: number | string;
+    estado: 'CERRADO' | 'REABIERTO';
+    motivoDiferencia?: string | null;
+    cerradoEn: string;
+    reabiertoEn?: string | null;
+    motivoReapertura?: string | null;
+    cerradoPor: { nombreCompleto: string };
+    reabiertoPor?: { nombreCompleto: string } | null;
+    eventos: EventoCierreCaja[];
 }
 
 export const cajachicaService = {
@@ -93,5 +145,17 @@ export const cajachicaService = {
         observaciones?: string;
     }) => {
         return api.post<MovimientoCaja>('/cajachica', data);
-    }
+    },
+
+    anular: async (movimientoId: number, motivo: string) => {
+        return api.post<{
+            movimientoId: number;
+            anuladoEn: string;
+            motivoAnulacion: string;
+            reversion: MovimientoCaja;
+        }>(`/cajachica/${movimientoId}/anular`, { motivo });
+    },
+    getCierres: () => api.get<CierreCaja[]>('/cajachica/cierres'),
+    cerrarPeriodo: (data: { periodo: string; cuenta: CuentaCaja; moneda: Moneda; saldoDeclarado: number; motivoDiferencia?: string }) => api.post('/cajachica/cierres', data),
+    reabrirPeriodo: (id: number, motivo: string) => api.post<CierreCaja>(`/cajachica/cierres/${id}/reabrir`, { motivo })
 };

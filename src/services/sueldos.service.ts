@@ -1,8 +1,19 @@
 import api from './api';
 import type { Moneda } from '../utils/currency';
 
+export interface AjustePagoSueldo {
+    id: number;
+    tipo: 'PAGO_ADICIONAL' | 'RECUPERO';
+    monto: number;
+    moneda: Moneda;
+    fecha: string;
+    metodoPago: string;
+    motivo: string;
+}
+
 export interface PagoSueldo {
     id: number;
+    version: number;
 	    monto: number;
 	    moneda: Moneda;
     fecha: string;
@@ -18,6 +29,7 @@ export interface PagoSueldo {
     creadoPor: {
         nombreCompleto: string;
     };
+    ajustes: AjustePagoSueldo[];
 }
 
 export interface PaginatedSalaries {
@@ -48,8 +60,16 @@ export const sueldosService = {
         periodo: string;
         metodoPago: string;
         observaciones: string;
-    }>) => {
+    }> & { version: number }) => {
         return api.put<PagoSueldo>(`/sueldos/${id}`, data);
+    },
+    createAjuste: async (id: number, data: {
+        tipo: AjustePagoSueldo['tipo'];
+        monto: number;
+        metodoPago?: string;
+        motivo: string;
+    }) => {
+        return api.post<AjustePagoSueldo>(`/sueldos/${id}/ajustes`, data);
     },
     delete: async (id: number) => {
         return api.delete<{ message: string }>(`/sueldos/${id}`);

@@ -1,505 +1,367 @@
-import { useState, useEffect } from "react";
-import {
-    UserIcon,
-    PlusIcon,
-    PencilSquareIcon,
-    TrashIcon,
-    KeyIcon,
-    ShieldCheckIcon,
-} from "@heroicons/react/24/outline";
-import { usersService, type CreateUserData, type Permission, type UserRole } from "../services/users.service";
-import { type User } from "../services/auth.service";
-import toast from "react-hot-toast";
-import ConfirmationModal from "../components/ConfirmationModal";
-import RecoveryLinkDialog from "../components/RecoveryLinkDialog";
-import { useAuth } from "../context/AuthContext";
-import {
-    PERMISSION_LABELS,
-    PERMISSION_GROUPS,
-    ROLE_PRESETS,
-    ROLE_LABELS,
-    type PermissionKey,
-    hasPermission,
-} from "../utils/permissions";
-import ServerPagination from "../components/ServerPagination";
+import { useEffect, useMemo, useState } from 'react';
+import { Dialog, DialogBackdrop, DialogPanel, DialogTitle, Menu, MenuButton, MenuItem, MenuItems } from '@headlessui/react';
+import { EllipsisVerticalIcon, KeyIcon, PencilSquareIcon, PlusIcon, ShieldCheckIcon, UserIcon } from '@heroicons/react/24/outline';
+import toast from 'react-hot-toast';
+import { useAuth } from '../context/AuthContext';
+import { usersService, type CreateUserData, type UserType } from '../services/users.service';
+import { rolesService, type AccessRole, type Permission, type RoleInput } from '../services/roles.service';
+import { type User } from '../services/auth.service';
+import { type PermissionKey } from '../utils/permissions';
+import ServerPagination from '../components/ServerPagination';
+import { requestConfirmation } from '../services/confirmation';
+import AppSelect from '../components/AppSelect';
+import { formatDateTime } from '../utils/date';
+import RoleEditorDialog from '../components/RoleEditorDialog';
 
-const emptyForm = (): CreateUserData => ({
-    email: "",
-    nombreCompleto: "",
-    rol: "AGENTE",
-    password: "",
-});
+const emptyUser = (): CreateUserData => ({ email: '', password: '', nombreCompleto: '', tipo: 'USUARIO', rolId: null });
+const emptyRole = (): RoleInput => ({ nombre: '', descripcion: '', permisos: [] });
 
 export default function Usuarios() {
-    const { user: currentUser } = useAuth();
-    const [users, setUsers] = useState<User[]>([]);
-    const [permissionsCatalog, setPermissionsCatalog] = useState<Permission[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [page, setPage] = useState(1);
-    const [total, setTotal] = useState(0);
-    const [totalPages, setTotalPages] = useState(1);
-    const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingUser, setEditingUser] = useState<User | null>(null);
-    const [formData, setFormData] = useState<CreateUserData>(emptyForm());
-    const [selectedPermissions, setSelectedPermissions] = useState<PermissionKey[]>([]);
-    const [selectedDeniedPermissions, setSelectedDeniedPermissions] = useState<PermissionKey[]>([]);
-    const [formError, setFormError] = useState("");
-    const [submitting, setSubmitting] = useState(false);
-    const [userToDelete, setUserToDelete] = useState<number | null>(null);
-    const [recovery, setRecovery] = useState<{ recipient: string; link: string } | null>(null);
-    const canViewUsers = hasPermission(currentUser, "usuarios.ver");
-    const canCreateUsers = hasPermission(currentUser, "usuarios.crear");
-    const canEditUsers = hasPermission(currentUser, "usuarios.editar");
-    const canDeleteUsers = hasPermission(currentUser, "usuarios.eliminar");
-    const canManagePermissions = hasPermission(currentUser, "usuarios.permisos");
-    const canAssignRoles = hasPermission(currentUser, "usuarios.asignar_rol");
-    const roleRank: Record<string, number> = { AGENTE: 1, ADMIN: 2, JEFE: 3, OWNER: 4, SUPERADMIN: 5 };
-    const currentRole = currentUser?.rol || currentUser?.role || "AGENTE";
-    const assignableRoles = (["AGENTE", "ADMIN", "JEFE", "OWNER"] as UserRole[]).filter(role =>
-        roleRank[role] < roleRank[currentRole] || (currentRole === "OWNER" && role === "OWNER")
-    );
-    const canManageUser = (target: User) => target.id !== currentUser?.id && roleRank[target.rol || target.role] < roleRank[currentRole];
+  const { user: currentUser } = useAuth();
+  const [tab, setTab] = useState<'usuarios' | 'roles'>('usuarios');
+  const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<AccessRole[]>([]);
+  const [catalog, setCatalog] = useState<Permission[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [search, setSearch] = useState('');
+  const [userModal, setUserModal] = useState(false);
+  const [roleModal, setRoleModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingRole, setEditingRole] = useState<AccessRole | null>(null);
+  const [userForm, setUserForm] = useState<CreateUserData>(emptyUser());
+  const [roleForm, setRoleForm] = useState<RoleInput>(emptyRole());
+  const [resetTarget, setResetTarget] = useState<User | null>(null);
+  const [temporaryPassword, setTemporaryPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
-    useEffect(() => {
-        loadUsers();
-    }, [page]);
-
-    const loadUsers = async () => {
-        try {
-            setLoading(true);
-            const [usersData, permissionsData] = await Promise.all([
-                usersService.getAll(page, 25),
-                canManagePermissions ? usersService.getPermissionsCatalog() : Promise.resolve([]),
-            ]);
-            setUsers(usersData.data);
-            setTotal(usersData.meta.total);
-            setTotalPages(usersData.meta.totalPages);
-            setPermissionsCatalog(permissionsData);
-        } catch (error) {
-            console.error("Error loading users:", error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const openCreateModal = () => {
-        if (!canCreateUsers) return;
-        setEditingUser(null);
-        setFormData(emptyForm());
-        setSelectedPermissions([]);
-        setSelectedDeniedPermissions([]);
-        setFormError("");
-        setIsModalOpen(true);
-    };
-
-    const openEditModal = (user: User) => {
-        if (!canEditUsers && !canManagePermissions) return;
-        setEditingUser(user);
-        setFormData({
-            email: user.email,
-            nombreCompleto: user.nombreCompleto || user.fullName,
-            rol: (user.rol || user.role) as UserRole,
-            password: "",
-        });
-        setSelectedPermissions((user.directPermissions || []) as PermissionKey[]);
-        setSelectedDeniedPermissions((user.deniedPermissions || []) as PermissionKey[]);
-        setFormError("");
-        setIsModalOpen(true);
-    };
-
-    const setPermissionDecision = (permission: PermissionKey, allowed: boolean) => {
-        const inherited = editingUser?.inheritedPermissions?.includes(permission) || false;
-
-        if (allowed) {
-            setSelectedDeniedPermissions(prev => prev.filter(item => item !== permission));
-            setSelectedPermissions(prev => {
-                if (inherited) return prev.filter(item => item !== permission);
-                return prev.includes(permission) ? prev : [...prev, permission];
-            });
-            return;
-        }
-
-        setSelectedPermissions(prev => prev.filter(item => item !== permission));
-        setSelectedDeniedPermissions(prev => prev.includes(permission) ? prev : [...prev, permission]);
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setSubmitting(true);
-        setFormError("");
-        try {
-            const savedUser = editingUser
-                ? canEditUsers
-                    ? await usersService.update(editingUser.id, {
-                        email: formData.email,
-                        nombreCompleto: formData.nombreCompleto,
-                        rol: formData.rol,
-                    })
-                    : editingUser
-                : await usersService.create({ ...formData, permissions: selectedPermissions, deniedPermissions: selectedDeniedPermissions });
-
-            if (editingUser && canManagePermissions) {
-                await usersService.updatePermissions(savedUser.id, selectedPermissions, selectedDeniedPermissions);
-            }
-            setIsModalOpen(false);
-            setEditingUser(null);
-            setFormData(emptyForm());
-            setSelectedPermissions([]);
-            setSelectedDeniedPermissions([]);
-            loadUsers();
-            toast.success(editingUser ? "Usuario actualizado" : "Usuario creado");
-        } catch (error) {
-            setFormError(error instanceof Error ? error.message : "No se pudo guardar el usuario");
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    const handleDelete = async (id: number) => {
-        if (!canDeleteUsers) return;
-        if (id === currentUser?.id) {
-            toast.error("No podés eliminar tu propio usuario");
-            return;
-        }
-        try {
-            await usersService.delete(id);
-            await loadUsers();
-            toast.success("Usuario eliminado");
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : "No se pudo eliminar el usuario");
-        }
-    };
-
-    const handleResetPassword = async (id: number) => {
-        if (!canEditUsers) return;
-        try {
-            const result = await usersService.resetPassword(id);
-            const link = `${window.location.origin}/recuperar-contrasena?token=${encodeURIComponent(result.resetToken)}`;
-            const target = users.find(item => item.id === id);
-            setRecovery({ recipient: target?.email || "Usuario", link });
-        } catch (error) {
-            toast.error(error instanceof Error ? error.message : "No se pudo generar la recuperación");
-        }
-    };
-
-    const applyPreset = (permissions: PermissionKey[], deniedPermissions: PermissionKey[] = []) => {
-        setSelectedPermissions(permissions);
-        setSelectedDeniedPermissions(deniedPermissions);
-    };
-
-    if (!canViewUsers) {
-        return (
-            <div className="max-w-3xl mx-auto bg-white border border-red-100 rounded-2xl p-8 shadow-sm">
-                <h1 className="text-2xl font-bold text-gray-900">Acceso denegado</h1>
-                <p className="text-gray-500 mt-2">No tenés permisos para administrar usuarios.</p>
-            </div>
-        );
+  const isAdmin = currentUser?.tipo === 'ADMIN';
+  const activeRoles = useMemo(() => roles.filter(role => role.activo), [roles]);
+  const permissionGroups = useMemo(() => {
+    const groups = new Map<string, Permission[]>();
+    for (const permission of catalog) {
+      const existing = groups.get(permission.grupo) || [];
+      existing.push(permission);
+      groups.set(permission.grupo, existing);
     }
+    return [...groups.entries()].map(([title, permissions]) => ({ title, permissions }));
+  }, [catalog]);
 
-    if (loading) return <div className="p-8 text-center">Cargando usuarios...</div>;
+  const load = async (targetPage = page, targetSearch = search) => {
+    if (!isAdmin) return;
+    setLoading(true);
+    try {
+      const [usersResult, rolesResult, catalogResult] = await Promise.all([
+        usersService.getAll(targetPage, 25, targetSearch),
+        rolesService.getAll(),
+        rolesService.getPermissionCatalog()
+      ]);
+      setUsers(usersResult.data);
+      setTotal(usersResult.meta.total);
+      setTotalPages(usersResult.meta.totalPages);
+      setRoles(rolesResult);
+      setCatalog(catalogResult);
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : 'No se pudo cargar la gestión de usuarios');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return (
-        <div className="p-0 md:p-8 max-w-7xl mx-auto">
-            <div className="flex flex-col gap-4 mb-6 sm:flex-row sm:items-center sm:justify-between md:mb-8">
-                <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Gestión de Equipo</h1>
-                    <p className="text-gray-500 mt-1">Administra usuarios, roles y permisos de la inmobiliaria</p>
+  useEffect(() => { void load(); }, [page, isAdmin]);
+
+  if (!isAdmin) return <div className="rounded-2xl border border-red-100 bg-white p-8"><h1 className="text-2xl font-bold">Acceso denegado</h1><p className="mt-2 text-content-muted">Solo un Administrador puede gestionar usuarios y roles.</p></div>;
+
+  const openNewUser = () => {
+    setEditingUser(null);
+    setUserForm(emptyUser());
+    setError('');
+    setUserModal(true);
+  };
+
+  const openEditUser = (user: User) => {
+    setEditingUser(user);
+    setUserForm({
+      email: user.email,
+      password: '',
+      nombreCompleto: user.nombreCompleto || user.fullName,
+      tipo: user.tipo,
+      rolId: user.rol?.id || null
+    });
+    setError('');
+    setUserModal(true);
+  };
+
+  const openPasswordReset = (user: User) => {
+    setResetTarget(user);
+    setTemporaryPassword('');
+    setError('');
+  };
+
+  const saveUser = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setError('');
+    try {
+      if (userForm.tipo === 'USUARIO' && !userForm.rolId) throw new Error('Seleccioná un rol para el usuario');
+      if (editingUser) {
+        await usersService.update(editingUser.id, {
+          email: userForm.email,
+          nombreCompleto: userForm.nombreCompleto,
+          tipo: userForm.tipo,
+          rolId: userForm.tipo === 'USUARIO' ? userForm.rolId : null
+        });
+      } else {
+        await usersService.create(userForm);
+      }
+      setUserModal(false);
+      await load();
+      toast.success(editingUser ? 'Usuario actualizado' : 'Usuario creado con contraseña temporal');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo guardar el usuario');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const toggleUser = async (target: User) => {
+    if (target.id === currentUser?.id) return toast.error('No podés deshabilitar tu propia cuenta');
+    const nextActive = !target.activo;
+    if (!await requestConfirmation({
+      title: nextActive ? 'Habilitar usuario' : 'Deshabilitar usuario',
+      message: nextActive ? `¿Habilitar a ${target.fullName}?` : `${target.fullName} perderá acceso y se cerrarán sus sesiones.`,
+      confirmText: nextActive ? 'Habilitar' : 'Deshabilitar',
+      type: nextActive ? 'info' : 'danger'
+    })) return;
+    try {
+      if (nextActive) await usersService.update(target.id, { activo: true });
+      else await usersService.disable(target.id);
+      await load();
+      toast.success(nextActive ? 'Usuario habilitado' : 'Usuario deshabilitado');
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : 'No se pudo cambiar el estado');
+    }
+  };
+
+  const resetPassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!resetTarget) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await usersService.resetPassword(resetTarget.id, temporaryPassword);
+      setResetTarget(null);
+      setTemporaryPassword('');
+      toast.success('Contraseña temporal actualizada y sesiones revocadas');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo restablecer la contraseña');
+    } finally { setSubmitting(false); }
+  };
+
+  const openNewRole = () => {
+    setEditingRole(null);
+    setRoleForm(emptyRole());
+    setError('');
+    setRoleModal(true);
+  };
+
+  const openEditRole = (role: AccessRole) => {
+    setEditingRole(role);
+    setRoleForm({ nombre: role.nombre, descripcion: role.descripcion || '', permisos: role.permisos.map(item => item.clave) });
+    setError('');
+    setRoleModal(true);
+  };
+
+  const togglePermission = (permission: PermissionKey) => {
+    setRoleForm(current => {
+      const selected = new Set(current.permisos);
+      if (selected.has(permission)) {
+        selected.delete(permission);
+        let removedDependency = true;
+        while (removedDependency) {
+          removedDependency = false;
+          for (const candidate of catalog) {
+            if (selected.has(candidate.clave) && candidate.requiere.some(required => !selected.has(required))) {
+              selected.delete(candidate.clave);
+              removedDependency = true;
+            }
+          }
+        }
+      } else {
+        const addWithDependencies = (key: PermissionKey) => {
+          if (selected.has(key)) return;
+          const capability = catalog.find(item => item.clave === key);
+          capability?.requiere.forEach(required => addWithDependencies(required));
+          selected.add(key);
+        };
+        addWithDependencies(permission);
+      }
+      return { ...current, permisos: [...selected] };
+    });
+  };
+
+  const setGroupPermissions = (permissions: PermissionKey[], enabled: boolean) => {
+    setRoleForm(current => {
+      const selected = new Set(current.permisos);
+
+      if (enabled) {
+        const addWithDependencies = (key: PermissionKey) => {
+          if (selected.has(key)) return;
+          const capability = catalog.find(item => item.clave === key);
+          capability?.requiere.forEach(required => addWithDependencies(required));
+          selected.add(key);
+        };
+        permissions.forEach(addWithDependencies);
+      } else {
+        permissions.forEach(permission => selected.delete(permission));
+        let removedDependency = true;
+        while (removedDependency) {
+          removedDependency = false;
+          for (const candidate of catalog) {
+            if (selected.has(candidate.clave) && candidate.requiere.some(required => !selected.has(required))) {
+              selected.delete(candidate.clave);
+              removedDependency = true;
+            }
+          }
+        }
+      }
+
+      return { ...current, permisos: [...selected] };
+    });
+  };
+
+  const saveRole = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSubmitting(true);
+    setError('');
+    try {
+      if (editingRole) await rolesService.update(editingRole.id, { ...roleForm, version: editingRole.version });
+      else await rolesService.create(roleForm);
+      setRoleModal(false);
+      await load();
+      toast.success(editingRole ? 'Rol actualizado; se cerraron las sesiones afectadas' : 'Rol creado');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'No se pudo guardar el rol');
+    } finally { setSubmitting(false); }
+  };
+
+  const duplicateRole = async (role: AccessRole) => {
+    try { await rolesService.duplicate(role.id); await load(); toast.success('Rol duplicado'); }
+    catch (cause) { toast.error(cause instanceof Error ? cause.message : 'No se pudo duplicar el rol'); }
+  };
+
+  const removeRole = async (role: AccessRole) => {
+    if (!await requestConfirmation({ title: 'Eliminar rol', message: `¿Eliminar el rol “${role.nombre}”?`, confirmText: 'Eliminar' })) return;
+    try { await rolesService.delete(role.id); await load(); toast.success('Rol eliminado'); }
+    catch (cause) { toast.error(cause instanceof Error ? cause.message : 'No se pudo eliminar el rol'); }
+  };
+
+  return (
+    <div className="mx-auto max-w-7xl space-y-6 p-0 md:p-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div><h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Usuarios y roles</h1><p className="mt-1 text-content-muted">Administrá quién ingresa y qué puede hacer cada rol.</p></div>
+        <button onClick={tab === 'usuarios' ? openNewUser : openNewRole} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 font-semibold text-white hover:bg-indigo-700"><PlusIcon className="h-5 w-5" />{tab === 'usuarios' ? 'Nuevo usuario' : 'Nuevo rol'}</button>
+      </div>
+
+      <div className="flex gap-2 border-b border-gray-200" role="tablist">
+        {(['usuarios', 'roles'] as const).map(item => <button key={item} role="tab" aria-selected={tab === item} onClick={() => setTab(item)} className={`min-h-11 border-b-2 px-5 font-bold capitalize ${tab === item ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-content-muted'}`}>{item}</button>)}
+      </div>
+
+      {tab === 'usuarios' && <>
+        <form onSubmit={event => { event.preventDefault(); setPage(1); void load(1, search); }} className="flex gap-2"><label className="sr-only" htmlFor="user-search">Buscar usuarios</label><input id="user-search" type="search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar por nombre o email" className="min-h-11 flex-1 rounded-xl border border-gray-300 px-4" /><button className="rounded-xl border border-gray-300 bg-white px-5 font-semibold">Buscar</button></form>
+        {!loading && users.length > 0 && <div className="space-y-3 2xl:hidden" data-testid="mobile-user-list">
+          {users.map(item => {
+            const accessLabel = item.tipo === 'ADMIN' ? 'Administrador' : item.rol?.nombre || 'Sin rol';
+            const titleId = `mobile-user-${item.id}`;
+
+            return <article key={item.id} aria-labelledby={titleId} className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-indigo-50">
+                    <UserIcon className="h-5 w-5 text-indigo-600" />
+                  </span>
+                  <div className="min-w-0">
+                    <h2 id={titleId} className="break-words font-bold leading-snug text-gray-900">{item.fullName}</h2>
+                    <p className="mt-0.5 break-all text-sm text-content-muted">{item.email}</p>
+                  </div>
                 </div>
-                {canCreateUsers && (
-                    <button
-                        onClick={openCreateModal}
-                        className="flex min-h-11 items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 font-semibold"
-                    >
-                        <PlusIcon className="w-5 h-5" />
-                        Nuevo Usuario
+                <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${item.activo ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                  {item.activo ? 'Activo' : 'Deshabilitado'}
+                </span>
+              </div>
+
+              <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-gray-50 p-3">
+                <div className="min-w-0">
+                  <dt className="text-xs font-bold uppercase tracking-wide text-gray-600">Acceso</dt>
+                  <dd className="mt-1 break-words text-sm font-semibold text-gray-900">{accessLabel}</dd>
+                </div>
+                <div className="min-w-0">
+                  <dt className="text-xs font-bold uppercase tracking-wide text-gray-600">Último acceso</dt>
+                  <dd className="mt-1 break-words text-sm text-gray-700">{item.ultimoAcceso ? formatDateTime(item.ultimoAcceso) : 'Nunca'}</dd>
+                </div>
+              </dl>
+
+              <Menu as="div" className="relative mt-3">
+                <MenuButton className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-4 text-sm font-bold text-gray-700 hover:border-indigo-300 hover:bg-indigo-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500">
+                  <EllipsisVerticalIcon className="h-5 w-5" />
+                  Acciones
+                </MenuButton>
+                <MenuItems anchor="bottom end" className="z-[200] mt-1 w-64 origin-top-right rounded-xl border border-gray-200 bg-white p-1.5 shadow-2xl outline-none [--anchor-gap:6px]">
+                  <MenuItem>
+                    <button type="button" onClick={() => openEditUser(item)} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-semibold text-gray-700 data-focus:bg-indigo-50 data-focus:text-indigo-800">
+                      <PencilSquareIcon className="h-5 w-5 text-indigo-600" />
+                      Editar usuario
                     </button>
-                )}
-            </div>
+                  </MenuItem>
+                  {item.id !== currentUser?.id && <MenuItem>
+                    <button type="button" onClick={() => openPasswordReset(item)} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm font-semibold text-gray-700 data-focus:bg-amber-50 data-focus:text-amber-800">
+                      <KeyIcon className="h-5 w-5 text-amber-700" />
+                      Cambiar contraseña
+                    </button>
+                  </MenuItem>}
+                  {item.id !== currentUser?.id && <MenuItem>
+                    <button type="button" onClick={() => void toggleUser(item)} className={`flex min-h-11 w-full items-center rounded-lg px-3 py-2 text-left text-sm font-bold ${item.activo ? 'text-red-700 data-focus:bg-red-50' : 'text-emerald-700 data-focus:bg-emerald-50'}`}>
+                      {item.activo ? 'Deshabilitar usuario' : 'Habilitar usuario'}
+                    </button>
+                  </MenuItem>}
+                </MenuItems>
+              </Menu>
+            </article>;
+          })}
+        </div>}
+        {!loading && users.length > 0 && <div className="hidden overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm 2xl:block">
+          <div className="overflow-x-auto"><table className="w-full text-left"><thead className="bg-gray-50 text-xs uppercase text-content-muted"><tr><th className="px-5 py-4">Usuario</th><th className="px-5 py-4">Acceso</th><th className="px-5 py-4">Estado</th><th className="px-5 py-4">Último acceso</th><th className="sticky right-0 z-20 bg-gray-50 px-5 py-4 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">Acciones</th></tr></thead><tbody className="divide-y divide-gray-100">
+            {users.map(item => <tr key={item.id}><td className="px-5 py-4"><div className="flex items-center gap-3"><span className="rounded-lg bg-indigo-50 p-2"><UserIcon className="h-5 w-5 text-indigo-600" /></span><div><p className="font-bold text-gray-900">{item.fullName}</p><p className="text-sm text-content-muted">{item.email}</p></div></div></td><td className="px-5 py-4"><span className="font-semibold">{item.tipo === 'ADMIN' ? 'Administrador' : item.rol?.nombre || 'Sin rol'}</span></td><td className="px-5 py-4"><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${item.activo ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>{item.activo ? 'Activo' : 'Deshabilitado'}</span></td><td className="px-5 py-4 text-sm text-gray-600">{item.ultimoAcceso ? formatDateTime(item.ultimoAcceso) : 'Nunca'}</td><td className="sticky right-0 z-10 bg-white px-5 py-4 shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]"><div className="flex justify-end gap-2"><button aria-label={`Editar ${item.fullName}`} onClick={() => openEditUser(item)} className="rounded-lg p-2 text-indigo-600 hover:bg-indigo-50"><PencilSquareIcon className="h-5 w-5" /></button>{item.id !== currentUser?.id && <button aria-label={`Cambiar contraseña de ${item.fullName}`} onClick={() => openPasswordReset(item)} className="rounded-lg p-2 text-status-warning hover:bg-amber-50"><KeyIcon className="h-5 w-5" /></button>}{item.id !== currentUser?.id && <button onClick={() => void toggleUser(item)} data-danger-trigger={item.activo ? 'true' : undefined} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${item.activo ? 'destructive-action' : 'bg-emerald-50 text-emerald-700'}`}>{item.activo ? 'Deshabilitar' : 'Habilitar'}</button>}</div></td></tr>)}
+          </tbody></table></div>
+        </div>}
+        {!loading && users.length === 0 && <p className="rounded-2xl border border-gray-100 bg-white p-10 text-center text-content-muted shadow-sm">No se encontraron usuarios.</p>}
+        {loading && <p className="rounded-2xl border border-gray-100 bg-white p-10 text-center text-content-muted shadow-sm">Cargando...</p>}
+        <ServerPagination page={page} totalPages={totalPages} total={total} pageSize={25} currentCount={users.length} onPageChange={setPage} />
+      </>}
 
-            <div className="space-y-3 lg:hidden">
-                {users.map((teamUser) => (
-                    <article key={teamUser.id} className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-                        <div className="flex items-start justify-between gap-3">
-                            <div className="flex min-w-0 items-start gap-3">
-                                <div className="bg-indigo-100 p-2 rounded-lg shrink-0">
-                                    <UserIcon className="w-5 h-5 text-indigo-600" />
-                                </div>
-                                <div className="min-w-0">
-                                    <h3 className="font-black leading-tight text-gray-900">{teamUser.nombreCompleto || teamUser.fullName}</h3>
-                                    <p className="mt-1 break-all text-sm text-gray-500">{teamUser.email}</p>
-                                </div>
-                            </div>
-                            <span className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-black uppercase ${["SUPERADMIN", "OWNER", "JEFE", "ADMIN"].includes(teamUser.role) ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}>
-                                {ROLE_LABELS[teamUser.role] || teamUser.role}
-                            </span>
-                        </div>
-                        <div className="mt-4 flex flex-wrap gap-1.5">
-                            {(teamUser.permissions || []).slice(0, 4).map(permission => (
-                                <span key={permission} className="px-2 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                                    {PERMISSION_LABELS[permission as PermissionKey]}
-                                </span>
-                            ))}
-                            {(teamUser.permissions || []).length > 4 && (
-                                <span className="px-2 py-1 rounded-lg text-xs font-bold bg-gray-50 text-gray-500 border border-gray-100">
-                                    +{(teamUser.permissions || []).length - 4}
-                                </span>
-                            )}
-                        </div>
-                        <div className="mt-4 grid grid-cols-1 min-[380px]:grid-cols-3 gap-2 border-t border-gray-100 pt-3">
-                            {canEditUsers && <button onClick={() => handleResetPassword(teamUser.id)} className="min-h-11 rounded-xl bg-gray-50 px-3 text-xs font-bold text-gray-600">Clave</button>}
-                            {(canEditUsers || canManagePermissions) && <button onClick={() => openEditModal(teamUser)} className="min-h-11 rounded-xl bg-blue-50 px-3 text-xs font-bold text-blue-700">Editar</button>}
-                            {canDeleteUsers && <button onClick={() => setUserToDelete(teamUser.id)} className="min-h-11 rounded-xl bg-red-50 px-3 text-xs font-bold text-red-700">Eliminar</button>}
-                        </div>
-                    </article>
-                ))}
-            </div>
+      {tab === 'roles' && <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{roles.map(role => <article key={role.id} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm"><div className="flex items-start justify-between gap-3"><div className="flex gap-3"><span className="rounded-xl bg-indigo-50 p-2"><ShieldCheckIcon className="h-6 w-6 text-indigo-600" /></span><div><h2 className="font-bold text-gray-900">{role.nombre}</h2><p className="mt-1 text-sm text-content-muted">{role.descripcion || 'Sin descripción'}</p></div></div><span className={`rounded-full px-2 py-1 text-xs font-bold ${role.activo ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>{role.activo ? 'Activo' : 'Inactivo'}</span></div><div className="mt-4 flex gap-2 text-sm text-gray-600"><span>{role.permisos.length} permisos</span><span>·</span><span>{role.cantidadUsuarios} usuarios</span></div><div className="mt-5 flex flex-wrap gap-2"><button onClick={() => openEditRole(role)} className="rounded-lg bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-700">Editar</button><button onClick={() => void duplicateRole(role)} className="rounded-lg bg-gray-50 px-3 py-2 text-sm font-bold text-gray-700">Duplicar</button><button disabled={role.cantidadUsuarios > 0} onClick={() => void removeRole(role)} data-danger-trigger="true" className="destructive-action rounded-lg px-3 py-2 text-sm font-bold transition-colors disabled:opacity-100">Eliminar</button></div></article>)}</div>}
 
-            <div className="hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden lg:block">
-                <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
-                    <thead className="sticky top-0 z-10 bg-gray-50">
-                        <tr className="bg-gray-50/50 border-b border-gray-100">
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Usuario</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Rol</th>
-                            <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Permisos efectivos</th>
-                            <th className="sticky right-0 z-20 bg-gray-50 px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {users.map((teamUser) => (
-                            <tr key={teamUser.id} className="hover:bg-gray-50/50 transition-colors">
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="bg-indigo-100 p-2 rounded-lg">
-                                            <UserIcon className="w-5 h-5 text-indigo-600" />
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold text-gray-900">{teamUser.nombreCompleto || teamUser.fullName}</p>
-                                            <p className="text-sm text-gray-500">{teamUser.email}</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${["SUPERADMIN", "OWNER", "JEFE", "ADMIN"].includes(teamUser.role) ? "bg-purple-100 text-purple-700" : "bg-blue-100 text-blue-700"}`}>
-                                        {ROLE_LABELS[teamUser.role] || teamUser.role}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex flex-wrap gap-2 max-w-md">
-                                        {(teamUser.permissions || []).length === 0 ? (
-                                            <span className="text-xs text-gray-600">Sin permisos</span>
-                                        ) : (
-                                            (teamUser.permissions || [])
-                                                .slice(0, 6)
-                                                .map(permission => (
-                                                    <span key={permission} className="px-2 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                                                        {PERMISSION_LABELS[permission as PermissionKey]}
-                                                    </span>
-                                                )).concat((teamUser.permissions || []).length > 6 ? [
-                                                    <span key="more" className="px-2 py-1 rounded-lg text-xs font-semibold bg-gray-50 text-gray-500 border border-gray-100">
-                                                        +{(teamUser.permissions || []).length - 6}
-                                                    </span>
-                                                ] : [])
-                                        )}
-                                    </div>
-                                </td>
-                                <td className="sticky right-0 z-10 bg-white px-6 py-4 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">
-                                    <div className="flex justify-end gap-2">
-                                        {canEditUsers && canManageUser(teamUser) && <button
-                                            onClick={() => handleResetPassword(teamUser.id)}
-                                            className="inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-indigo-700 transition-colors"
-                                            title="Resetear contraseña"
-                                        >
-                                            <KeyIcon className="w-5 h-5" />
-                                        </button>}
-                                        {(canEditUsers || canManagePermissions) && (teamUser.id === currentUser?.id || canManageUser(teamUser)) && <button
-                                            onClick={() => openEditModal(teamUser)}
-                                            className="inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-blue-700 transition-colors"
-                                            title="Editar usuario y permisos"
-                                        >
-                                            <PencilSquareIcon className="w-5 h-5" />
-                                        </button>}
-                                        {canDeleteUsers && canManageUser(teamUser) && <button
-                                            onClick={() => setUserToDelete(teamUser.id)}
-                                            className="inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-red-700 transition-colors"
-                                            title="Eliminar usuario"
-                                        >
-                                            <TrashIcon className="w-5 h-5" />
-                                        </button>}
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-                </div>
-            </div>
+      <Dialog open={userModal} onClose={() => !submitting && setUserModal(false)} className="relative z-50"><DialogBackdrop className="fixed inset-0 bg-black/50" /><div className="fixed inset-0 overflow-y-auto p-4"><div className="flex min-h-full items-center justify-center"><DialogPanel className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl"><DialogTitle className="text-xl font-bold">{editingUser ? 'Editar usuario' : 'Crear usuario'}</DialogTitle><form onSubmit={saveUser} className="mt-5 space-y-4">{error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}<label className="block text-sm font-bold">Nombre completo<input required maxLength={120} value={userForm.nombreCompleto} onChange={e => setUserForm({ ...userForm, nombreCompleto: e.target.value })} className="mt-1 min-h-11 w-full rounded-xl border border-gray-300 px-3" /></label><label className="block text-sm font-bold">Email<input required type="email" value={userForm.email} onChange={e => setUserForm({ ...userForm, email: e.target.value })} className="mt-1 min-h-11 w-full rounded-xl border border-gray-300 px-3" /></label>{!editingUser && <label className="block text-sm font-bold">Contraseña temporal<input required type="password" minLength={12} value={userForm.password} onChange={e => setUserForm({ ...userForm, password: e.target.value })} className="mt-1 min-h-11 w-full rounded-xl border border-gray-300 px-3" /><span className="mt-1 block text-xs font-normal text-content-muted">Debe tener al menos 12 caracteres. El usuario deberá cambiarla al ingresar.</span></label>}<label className="block text-sm font-bold">Tipo de cuenta<AppSelect className="mt-1" ariaLabel="Tipo de cuenta" value={userForm.tipo} disabled={editingUser?.id === currentUser?.id} onChange={value => setUserForm({ ...userForm, tipo: value as UserType, rolId: value === 'ADMIN' ? null : userForm.rolId })} options={[{ value: 'USUARIO', label: 'Usuario con rol' }, { value: 'ADMIN', label: 'Administrador — acceso total' }]} /></label>{userForm.tipo === 'USUARIO' && <label className="block text-sm font-bold">Rol<AppSelect className="mt-1" required ariaLabel="Rol del usuario" value={String(userForm.rolId || '')} onChange={value => setUserForm({ ...userForm, rolId: Number(value) || null })} options={[{ value: '', label: 'Seleccionar rol', disabled: true }, ...activeRoles.map(role => ({ value: String(role.id), label: role.nombre }))]} /></label>}<div className="flex justify-end gap-3 pt-2"><button type="button" onClick={() => setUserModal(false)} className="min-h-11 px-4 font-semibold">Cancelar</button><button disabled={submitting} className="min-h-11 rounded-xl bg-indigo-600 px-5 font-bold text-white disabled:opacity-50">Guardar</button></div></form></DialogPanel></div></div></Dialog>
 
-            <ServerPagination page={page} totalPages={totalPages} total={total} pageSize={25} currentCount={users.length} onPageChange={setPage} />
+      <RoleEditorDialog
+        key={`${editingRole?.id || 'new'}-${roleModal ? 'open' : 'closed'}`}
+        open={roleModal}
+        editingRole={editingRole}
+        form={roleForm}
+        groups={permissionGroups}
+        error={error}
+        submitting={submitting}
+        onClose={() => setRoleModal(false)}
+        onFormChange={setRoleForm}
+        onTogglePermission={togglePermission}
+        onSetGroupPermissions={setGroupPermissions}
+        onSubmit={saveRole}
+      />
 
-            {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center sm:p-4">
-                    <div className="flex max-h-[100dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-h-[90dvh] sm:rounded-2xl">
-                        <div className="shrink-0 border-b border-gray-100 p-4 sm:p-6">
-                            <h2 className="text-xl font-bold">
-                                {editingUser ? "Editar Usuario" : "Nuevo Usuario"}
-                            </h2>
-                        </div>
-                        <form onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
-                            {formError && <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{formError}</div>}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre Completo</label>
-                                    <input
-                                        type="text"
-                                        required
-                                        disabled={!canAssignRoles || editingUser?.id === currentUser?.id}
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                                        value={formData.nombreCompleto}
-                                        onChange={(e) => setFormData({ ...formData, nombreCompleto: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                                    <input
-                                        type="email"
-                                        required
-                                        disabled={!!editingUser && !canEditUsers}
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                                        value={formData.email}
-                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    />
-                                </div>
-                                {!editingUser && (
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
-                                        <input
-                                            type="password"
-                                            required
-                                            className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                                            value={formData.password}
-                                            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                                        />
-                                        <p className="mt-1 text-xs text-gray-500">
-                                            Mínimo 12 caracteres, con mayúscula, minúscula, número y símbolo.
-                                        </p>
-                                    </div>
-                                )}
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Rol</label>
-                                    <select
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                                        value={formData.rol}
-                                        disabled={!!editingUser && !canEditUsers}
-                                        onChange={(e) => setFormData({ ...formData, rol: e.target.value as UserRole })}
-                                    >
-                                        {assignableRoles.map(role => <option key={role} value={role}>{ROLE_LABELS[role]}</option>)}
-                                    </select>
-                                </div>
-                            </div>
-
-                            {canManagePermissions && (
-                            <div className="border border-gray-100 rounded-2xl p-4 bg-gray-50 max-h-[48vh] overflow-y-auto">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <ShieldCheckIcon className="w-5 h-5 text-indigo-600" />
-                                    <div>
-                                        <p className="text-sm font-bold text-gray-900">Permisos</p>
-                                        <p className="text-xs text-gray-500">Elegí Permitir o No permitir. No permitir tiene prioridad aunque el rol incluya ese permiso.</p>
-                                    </div>
-                                </div>
-                                <div className="mb-4">
-                                    <p className="text-xs font-black uppercase tracking-wide text-gray-500 mb-2">Plantillas de roles</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        {ROLE_PRESETS.map(preset => (
-                                            <button
-                                                key={preset.name}
-                                                type="button"
-                                                onClick={() => applyPreset(preset.permissions, preset.deniedPermissions || [])}
-                                                className="px-3 py-1.5 rounded-lg border border-indigo-100 bg-white text-xs font-bold text-indigo-700 hover:bg-indigo-50 transition-colors"
-                                            >
-                                                {preset.name}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                                <div className="space-y-5">
-                                    {PERMISSION_GROUPS.map(group => (
-                                        <div key={group.title} className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-                                            <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-                                                <p className="text-xs font-black uppercase tracking-wide text-gray-500">{group.title}</p>
-                                            </div>
-                                            <div className="divide-y divide-gray-50">
-                                                {group.permissions
-                                                    .filter(permission => permissionsCatalog.some(item => item.clave === permission))
-                                                    .map(permission => {
-                                                        const inherited = editingUser?.inheritedPermissions?.includes(permission) || false;
-                                                        const denied = selectedDeniedPermissions.includes(permission);
-                                                        const allowed = !denied && (inherited || selectedPermissions.includes(permission));
-
-                                                        return (
-                                                            <div key={permission} className="grid grid-cols-1 gap-3 px-4 py-3 md:grid-cols-[1fr_auto_auto] md:items-center">
-                                                                <div>
-                                                                    <p className="text-sm font-bold text-gray-800">{PERMISSION_LABELS[permission]}</p>
-                                                                    <p className="text-xs text-gray-500">
-                                                                        {permission}
-                                                                        {inherited && <span className="ml-2 text-indigo-600 font-semibold">Incluido por rol</span>}
-                                                                    </p>
-                                                                </div>
-                                                                <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-1">
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => setPermissionDecision(permission, true)}
-                                                                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${allowed ? "bg-emerald-600 text-white shadow-sm" : "text-gray-500 hover:text-emerald-700"}`}
-                                                                        aria-pressed={allowed}
-                                                                    >
-                                                                        Permitir
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => setPermissionDecision(permission, false)}
-                                                                        className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${!allowed ? "bg-red-600 text-white shadow-sm" : "text-gray-500 hover:text-red-700"}`}
-                                                                        aria-pressed={!allowed}
-                                                                    >
-                                                                        No permitir
-                                                                    </button>
-                                                                </div>
-                                                                <div className="md:text-right">
-                                                                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${allowed ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
-                                                                        {allowed ? "Permitido" : "No permitido"}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                            )}
-
-                            <div className="sticky bottom-0 -mx-4 -mb-4 mt-6 flex justify-end gap-3 border-t border-gray-100 bg-white p-4 sm:-mx-6 sm:-mb-6 sm:p-6">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsModalOpen(false)}
-                                    className="min-h-11 flex-1 rounded-xl px-4 py-2 text-gray-600 hover:bg-gray-100 transition-colors sm:flex-none"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={submitting}
-                                    className="min-h-11 flex-1 rounded-xl bg-indigo-600 px-6 py-2 text-white hover:bg-indigo-700 transition-all font-semibold shadow-lg shadow-indigo-100 sm:flex-none"
-                                >
-                                    {submitting ? "Guardando..." : "Guardar"}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
-            <ConfirmationModal isOpen={userToDelete !== null} onClose={() => setUserToDelete(null)} onConfirm={() => userToDelete !== null ? handleDelete(userToDelete) : undefined} title="Eliminar usuario" message="El usuario perderá el acceso inmediatamente. Esta acción no se puede deshacer." confirmText="Eliminar" />
-            <RecoveryLinkDialog open={Boolean(recovery)} onClose={() => setRecovery(null)} recipient={recovery?.recipient || ""} link={recovery?.link || ""} />
-        </div>
-    );
+      <Dialog open={Boolean(resetTarget)} onClose={() => !submitting && setResetTarget(null)} className="relative z-50"><DialogBackdrop className="fixed inset-0 bg-black/50" /><div className="fixed inset-0 flex items-center justify-center p-4"><DialogPanel className="w-full max-w-md rounded-2xl bg-white p-6"><DialogTitle className="text-xl font-bold">Restablecer contraseña</DialogTitle><p className="mt-2 text-sm text-content-muted">Definí una contraseña temporal para {resetTarget?.fullName}. Se cerrarán todas sus sesiones.</p><form onSubmit={resetPassword} className="mt-5 space-y-4">{error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}<label className="block text-sm font-bold">Nueva contraseña temporal<input autoFocus required minLength={12} type="password" value={temporaryPassword} onChange={e => setTemporaryPassword(e.target.value)} className="mt-1 min-h-11 w-full rounded-xl border border-gray-300 px-3" /></label><div className="flex justify-end gap-3"><button type="button" onClick={() => setResetTarget(null)} className="min-h-11 px-4">Cancelar</button><button disabled={submitting} className="min-h-11 rounded-xl bg-status-warning px-4 font-bold text-white">Restablecer</button></div></form></DialogPanel></div></Dialog>
+    </div>
+  );
 }

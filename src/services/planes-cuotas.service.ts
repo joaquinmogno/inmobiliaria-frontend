@@ -8,10 +8,16 @@ export interface PlanCuotas {
 	    montoTotal: number;
 	    moneda: Moneda;
     tipoMovimiento: TipoMovimiento;
-    estado: 'ACTIVO' | 'FINALIZADO' | 'CANCELADO';
+    estado: 'VIGENTE' | 'CUMPLIDO' | 'CANCELADO' | 'REPROGRAMADO' | 'CONDONADO';
     fechaCreacion: string;
+    fechaCierre?: string | null;
+    motivoCierre?: string | null;
     contratoId: number;
     esParaInmobiliaria: boolean;
+    planOrigenId?: number | null;
+    planOrigen?: { id: number; concepto: string } | null;
+    planesReprogramados?: Array<{ id: number; estado: PlanCuotas['estado'] }>;
+    cerradoPor?: { id: number; nombreCompleto: string } | null;
     cuotas?: CuotaPlan[];
 }
 
@@ -19,11 +25,14 @@ export interface CuotaPlan {
     id: number;
     planId: number;
     numeroCuota: number;
+	fechaVencimiento: string;
 	    monto: number;
 	    moneda: Moneda;
-    estado: 'PENDIENTE' | 'PAGADA';
+    estado: 'PENDIENTE' | 'PAGADA' | 'CANCELADA' | 'REPROGRAMADA' | 'CONDONADA';
     movimientoId?: number;
     liquidacionId?: number;
+    correspondeAlPeriodo?: boolean;
+    vencida?: boolean;
     plan?: PlanCuotas;
     liquidacion?: {
         id: number;
@@ -38,6 +47,7 @@ export const planesCuotasService = {
         concepto: string;
         montoTotal: number;
         cantidadCuotas: number;
+        fechaPrimeraCuota: string;
         tipoMovimiento: TipoMovimiento;
         esParaInmobiliaria?: boolean;
     }) {
@@ -48,11 +58,26 @@ export const planesCuotasService = {
         return api.get<PlanCuotas[]>(`/planes-cuotas/contrato/${contratoId}`);
     },
 
-    async getPendientes(contratoId: number) {
-        return api.get<CuotaPlan[]>(`/planes-cuotas/contrato/${contratoId}/pendientes`);
+    async getPendientes(contratoId: number, periodo: string) {
+        return api.get<CuotaPlan[]>(`/planes-cuotas/contrato/${contratoId}/pendientes`, {
+            params: { periodo }
+        });
     },
 
-    async delete(id: number) {
-        return api.delete(`/planes-cuotas/${id}`);
+    async cancelar(id: number, motivo: string) {
+        return api.post<PlanCuotas>(`/planes-cuotas/${id}/cancelar`, { motivo });
+    },
+
+    async condonar(id: number, motivo: string) {
+        return api.post<PlanCuotas>(`/planes-cuotas/${id}/condonar`, { motivo });
+    },
+
+    async reprogramar(id: number, data: {
+        motivo: string;
+        montoTotal: number;
+        cantidadCuotas: number;
+        fechaPrimeraCuota: string;
+    }) {
+        return api.post<{ original: PlanCuotas; successor: PlanCuotas }>(`/planes-cuotas/${id}/reprogramar`, data);
     }
 };

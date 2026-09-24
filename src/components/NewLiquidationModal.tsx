@@ -1,11 +1,13 @@
-import { useState, Fragment } from "react";
+import { useEffect, useState, Fragment } from "react";
 import { Dialog, Transition, Combobox } from "@headlessui/react";
-import { XMarkIcon, ChevronUpDownIcon, CheckIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, ChevronUpDownIcon, CheckIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import NumericInput from "./NumericInput";
 import type { Contract } from "../services/contracts.service";
 import { planesCuotasService, type CuotaPlan } from "../services/planes-cuotas.service";
 import { formatCurrency } from "../utils/currency";
 import FormError, { useFormError } from "./FormError";
+import { requestConfirmation } from "../services/confirmation";
+import { currentMonthInput, formatMonthYear } from "../utils/date";
 
 interface NewLiquidationModalProps {
     isOpen: boolean;
@@ -18,7 +20,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
     const { error: formError, setError: setFormError, formRef } = useFormError();
     const [selectedContractId, setSelectedContractId] = useState<string>("");
     const [query, setQuery] = useState("");
-    const [period, setPeriod] = useState<string>(new Date().toISOString().slice(0, 7)); // YYYY-MM
+    const [period, setPeriod] = useState<string>(() => currentMonthInput()); // YYYY-MM de Buenos Aires
     
     // Honorarios
     const [porcentajeHonorarios, setPorcentajeHonorarios] = useState<string>("");
@@ -69,18 +71,6 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                 setMontoHonorarios(contract.montoHonorarios?.toString() || "");
             }
 
-            // Fetch cuotas pendientes
-            setIsLoadingCuotas(true);
-            try {
-                const cuotas = await planesCuotasService.getPendientes(contract.id);
-                setPendingCuotas(cuotas);
-                // Pre-seleccionar todas por defecto (usualmente se quieren cobrar todas las vencidas)
-                setSelectedCuotasIds(cuotas.map(c => c.id));
-            } catch (error) {
-                console.error("Error fetching cuotas", error);
-            } finally {
-                setIsLoadingCuotas(false);
-            }
         } else {
             setPorcentajeHonorarios("");
             setMontoHonorarios("");
@@ -88,6 +78,36 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
             setSelectedCuotasIds([]);
         }
     };
+
+    useEffect(() => {
+        const contractId = Number(selectedContractId);
+        if (!contractId || !period) {
+            setPendingCuotas([]);
+            setSelectedCuotasIds([]);
+            return;
+        }
+
+        let active = true;
+        setIsLoadingCuotas(true);
+        setSelectedCuotasIds([]);
+        planesCuotasService.getPendientes(contractId, `${period}-01`)
+            .then(cuotas => {
+                if (active) setPendingCuotas(cuotas);
+            })
+            .catch(error => {
+                if (active) {
+                    console.error("Error fetching cuotas", error);
+                    setPendingCuotas([]);
+                }
+            })
+            .finally(() => {
+                if (active) setIsLoadingCuotas(false);
+            });
+
+        return () => {
+            active = false;
+        };
+    }, [selectedContractId, period]);
 
     const handlePorcentajeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value;
@@ -119,13 +139,23 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
     const alquiler = selectedContract ? Number(selectedContract.montoAlquiler) : 0;
     const honorarios = Number(montoHonorarios) || 0;
     
-    const totalInquilino = alquiler + totalIngresosInquilino - totalDescuentosInquilino;
+    const totalInquilino = alquiler + totalIngresosInquilino - totalDescuentosInquilino
+        + (selectedContract?.pagaHonorarios === 'INQUILINO' ? honorarios : 0);
     const totalPropietario = totalInquilino - honorarios - totalCuotasParaInmo;
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setFormError("");
         if (selectedContractId && period) {
+            if (totalPropietario <= 0) {
+                setFormError("Los honorarios y conceptos de la inmobiliaria deben dejar un importe mayor que cero para el propietario.");
+                return;
+            }
+            if (selectedCuotasIds.length > 1 && !await requestConfirmation({
+                title: `Agregar ${selectedCuotasIds.length} cuotas`,
+                message: `Seleccionaste ${selectedCuotasIds.length} cuotas para una sola liquidación. Revisá los vencimientos antes de continuar.`,
+                confirmText: 'Agregar cuotas'
+            })) return;
             onSave(
                 Number(selectedContractId), 
                 `${period}-01`, 
@@ -165,11 +195,11 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                             <Dialog.Panel className="flex max-h-[100dvh] w-full max-w-md transform flex-col overflow-hidden rounded-t-2xl bg-white text-left align-middle shadow-xl transition-all sm:max-h-[90dvh] sm:rounded-2xl">
                                 <div className="flex shrink-0 justify-between items-center border-b border-gray-100 p-4 sm:p-6">
                                     <Dialog.Title as="h3" className="text-xl font-bold leading-6 text-gray-900">
-                                        Nueva Liquidación
+                                        Nueva liquidación
                                     </Dialog.Title>
                                     <button
                                         onClick={onClose}
-                                        className="grid h-11 w-11 place-items-center rounded-xl text-gray-600 hover:bg-gray-100 hover:text-gray-500 transition-colors focus:outline-none"
+                                        className="grid h-11 w-11 place-items-center rounded-xl text-gray-600 hover:bg-gray-100 hover:text-content-muted transition-colors focus:outline-none"
                                     >
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
@@ -178,13 +208,14 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                 <form ref={formRef} onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
                                     <FormError message={formError} />
                                     <div>
-                                        <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">
+                                        <label htmlFor="liquidation-contract" className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">
                                             Contrato
                                         </label>
                                         <Combobox value={selectedContractId} onChange={handleContractChange}>
                                             <div className="relative mt-1">
                                                 <div className="relative w-full cursor-default overflow-hidden rounded-xl bg-white text-left border border-gray-300 focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 sm:text-sm transition-all">
                                                     <Combobox.Input
+                                                        id="liquidation-contract"
                                                         className="w-full border-none py-3 pl-4 pr-10 text-base leading-5 text-gray-900 focus:ring-0 outline-none sm:text-sm"
                                                         displayValue={(cId: string) => {
                                                             const c = contracts.find(contract => contract.id === Number(cId));
@@ -235,7 +266,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                                                 <span className="font-bold">{c.propiedad.direccion}</span>
                                                                                 {c.propiedad.piso && ` ${c.propiedad.piso}`}
                                                                                 {c.propiedad.departamento && ` ${c.propiedad.departamento}`}
-                                                                                <span className={active ? "text-indigo-100" : "text-gray-500"}>
+                                                                                <span className={active ? "text-indigo-100" : "text-content-muted"}>
                                                                                     {" "} - {c.inquilinos.find(i => i.esPrincipal)?.persona.nombreCompleto || '-'}
                                                                                 </span>
                                                                             </span>
@@ -258,17 +289,18 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                             </div>
                                         </Combobox>
                                         {contracts.length === 0 && (
-                                            <p className="mt-2 text-xs text-red-500 font-medium">
+                                            <p className="mt-2 text-xs font-semibold text-status-danger">
                                                 No se encontraron contratos activos. Crea o activa un contrato primero.
                                             </p>
                                         )}
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">
+                                        <label htmlFor="liquidation-period" className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">
                                             Periodo (Mes/Año)
                                         </label>
                                         <input
+                                            id="liquidation-period"
                                             type="month"
                                             required
                                             className="block min-h-11 w-full px-4 py-2 text-base text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white"
@@ -289,10 +321,11 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                             </p>
                                             <div className="grid grid-cols-1 gap-4 min-[380px]:grid-cols-[0.75fr_1.25fr]">
                                                 <div>
-                                                    <label className="block text-xs font-bold text-indigo-900 uppercase tracking-wide mb-1">
+                                                    <label htmlFor="liquidation-fee-percentage" className="block text-xs font-bold text-indigo-900 uppercase tracking-wide mb-1">
                                                         Porcentaje (%)
                                                     </label>
                                                     <NumericInput
+                                                        id="liquidation-fee-percentage"
                                                         className="block min-h-11 w-full px-3 py-2 text-base text-gray-900 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white"
                                                         value={porcentajeHonorarios}
                                                         onChange={(val) => handlePorcentajeChange({ target: { value: val.toString() } } as any)}
@@ -300,15 +333,16 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                     />
                                                </div>
                                                 <div className="flex-1">
-                                                    <label className="block text-xs font-bold text-indigo-900 uppercase tracking-wide mb-1">
+                                                    <label htmlFor="liquidation-fee-amount" className="block text-xs font-bold text-indigo-900 uppercase tracking-wide mb-1">
 	                                                        Monto ({selectedMoneda})
                                                     </label>
                                                     <NumericInput
+                                                        id="liquidation-fee-amount"
                                                         className="block min-h-11 w-full pr-4 py-2 text-base text-gray-900 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white font-bold"
                                                         value={montoHonorarios}
                                                         onChange={(val) => setMontoHonorarios(val.toString())}
                                                         placeholder="0.00"
-	                                                        icon={<span className="text-gray-500 sm:text-sm">{selectedMoneda === "USD" ? "US$" : "$"}</span>}
+	                                                        icon={<span className="text-content-muted sm:text-sm">{selectedMoneda === "USD" ? "US$" : "$"}</span>}
                                                     />
                                                </div>
                                             </div>
@@ -316,17 +350,21 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                     )}
 
                                     {/* Cuotas Selection */}
-                                    {selectedContractId && (pendingCuotas.length > 0 || isLoadingCuotas) && (
+                                    {selectedContractId && (
                                         <div className="space-y-3">
-                                            <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide">
+                                            <h4 className="block text-sm font-bold text-gray-700 uppercase tracking-wide">
                                                 Planes de Cuotas / Préstamos
-                                            </label>
+                                            </h4>
+                                            <div className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-800">
+                                                <ExclamationTriangleIcon className="h-5 w-5 shrink-0" aria-hidden="true" />
+                                                <p>Las cuotas no se agregan automáticamente. Marcá únicamente las que quieras incluir en esta liquidación y revisá su vencimiento.</p>
+                                            </div>
                                             {isLoadingCuotas ? (
-                                                <div className="flex items-center gap-2 text-xs text-gray-500 italic">
+                                                <div className="flex items-center gap-2 text-xs text-content-muted italic">
                                                     <div className="w-3 h-3 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                                                     Buscando cuotas pendientes...
                                                 </div>
-                                            ) : (
+                                            ) : pendingCuotas.length > 0 ? (
                                                 <div className="bg-gray-50 rounded-xl border border-gray-100 divide-y divide-gray-100 overflow-hidden">
                                                     {pendingCuotas.map(cuota => (
                                                         <label key={cuota.id} className="flex min-h-14 items-center justify-between gap-3 p-3 hover:bg-gray-100 transition-colors cursor-pointer group">
@@ -345,8 +383,11 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                                 />
                                                                 <div>
                                                                     <p className="text-sm font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{cuota.plan?.concepto}</p>
-                                                                    <p className="text-xs text-gray-500 uppercase tracking-widest leading-none mt-1">
+                                                                    <p className="text-xs text-content-muted uppercase tracking-widest leading-none mt-1">
                                                                         Cuota {cuota.numeroCuota} • {cuota.plan?.tipoMovimiento === 'INGRESO' ? 'Paga Inquilino' : 'Descuento Dueño'}
+                                                                    </p>
+                                                                    <p className={`mt-1 text-xs font-semibold ${cuota.vencida ? 'text-red-700' : 'text-indigo-700'}`}>
+                                                                        {cuota.vencida ? 'Vencida' : 'Corresponde al período'}: {formatMonthYear(cuota.fechaVencimiento)}
                                                                     </p>
                                                                 </div>
                                                             </div>
@@ -356,6 +397,15 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                         </label>
                                                     ))}
                                                 </div>
+                                            ) : (
+                                                <p className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+                                                    No hay cuotas pendientes vencidas ni correspondientes a este período.
+                                                </p>
+                                            )}
+                                            {selectedCuotasIds.length > 1 && (
+                                                <p role="alert" className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-xs font-semibold text-orange-800">
+                                                    Vas a incorporar {selectedCuotasIds.length} cuotas en esta liquidación. Se solicitará una confirmación adicional.
+                                                </p>
                                             )}
                                         </div>
                                     )}
@@ -363,15 +413,18 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                     {/* Summary section */}
                                     {selectedContractId && (
                                         <div className="p-5 bg-indigo-50/50 rounded-2xl border border-indigo-100 shadow-sm">
-                                            <h4 className="text-xs font-black text-indigo-400 mb-4 uppercase tracking-[0.2em] flex items-center gap-2">
+                                            <h4 className="text-xs font-black text-status-accent mb-4 uppercase tracking-[0.2em] flex items-center gap-2">
                                                 <div className="w-1 h-3 bg-indigo-500 rounded-full" />
                                                 Resumen de Liquidación
                                             </h4>
                                             <div className="space-y-4">
                                                 <div className="flex flex-col gap-1 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
                                                     <div className="flex flex-col">
-                                                        <span className="text-xs font-black text-gray-500 uppercase tracking-widest">Inquilino paga</span>
-                                                        <span className="text-xs text-gray-600 font-medium">Alquiler + Ingresos (+)</span>
+                                                        <span className="text-xs font-black text-content-muted uppercase tracking-widest">Inquilino paga</span>
+                                                        <span className="text-xs text-gray-600 font-medium">
+                                                            Alquiler + conceptos
+                                                            {selectedContract?.pagaHonorarios === 'INQUILINO' ? ' + honorarios' : ''}
+                                                        </span>
                                                     </div>
                                                     <span className="text-xl font-black text-gray-900">
 	                                                        {formatCurrency(totalInquilino, selectedMoneda)}
@@ -381,7 +434,9 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                 <div className="flex flex-col gap-1 pt-3 border-t border-indigo-100/50 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
                                                     <div className="flex flex-col">
                                                         <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">Honorarios Inmob.</span>
-                                                        <span className="text-xs text-indigo-400 font-medium">Comisión de la agencia</span>
+                                                        <span className="text-xs text-status-accent font-medium">
+                                                            Los abona {selectedContract?.pagaHonorarios === 'PROPIETARIO' ? 'el propietario' : 'el inquilino'}
+                                                        </span>
                                                     </div>
                                                     <span className="text-lg font-black text-indigo-600">
 	                                                        {formatCurrency(honorarios, selectedMoneda)}
@@ -391,12 +446,17 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                 <div className="flex flex-col gap-1 pt-3 border-t border-indigo-100/50 p-3 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-200 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
                                                     <div className="flex flex-col">
                                                         <span className="text-xs font-black text-indigo-100 uppercase tracking-widest">Dueño recibe</span>
-                                                        <span className="text-xs text-indigo-200 font-medium">Liquidez neta (-)</span>
+                                                        <span className="text-xs text-on-accent-muted font-medium">Liquidez neta (-)</span>
                                                     </div>
                                                     <span className="text-xl font-black text-white">
 	                                                        {formatCurrency(totalPropietario, selectedMoneda)}
                                                     </span>
                                                 </div>
+                                                {totalPropietario <= 0 && (
+                                                    <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-xs font-semibold text-red-800">
+                                                        Revisá honorarios y conceptos: el dueño debe recibir un importe mayor que cero.
+                                                    </p>
+                                                )}
                                             </div>
                                         </div>
                                     )}
@@ -411,7 +471,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                         </button>
                                         <button
                                             type="submit"
-                                            disabled={!selectedContractId || contracts.length === 0}
+                                            disabled={!selectedContractId || contracts.length === 0 || totalPropietario <= 0}
                                             className="min-h-11 flex-1 rounded-xl bg-indigo-600 px-6 py-2 text-sm font-bold text-white hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer sm:flex-none"
                                         >
                                             Crear Borrador

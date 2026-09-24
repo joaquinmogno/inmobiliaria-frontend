@@ -1,22 +1,22 @@
 import api from './api';
 import { type User } from './auth.service';
-import { type PermissionKey } from '../utils/permissions';
 
-export type UserRole = 'OWNER' | 'JEFE' | 'ADMIN' | 'AGENTE';
-
-export interface Permission {
-    id: number;
-    clave: PermissionKey;
-    descripcion: string;
-}
+export type UserType = 'ADMIN' | 'USUARIO';
 
 export interface CreateUserData {
     email: string;
-    password?: string;
+    password: string;
     nombreCompleto: string;
-    rol: UserRole;
-    permissions?: PermissionKey[];
-    deniedPermissions?: PermissionKey[];
+    tipo: UserType;
+    rolId?: number | null;
+}
+
+export interface UpdateUserData {
+    email?: string;
+    nombreCompleto?: string;
+    tipo?: UserType;
+    rolId?: number | null;
+    activo?: boolean;
 }
 
 export interface PaginatedUsers {
@@ -25,42 +25,12 @@ export interface PaginatedUsers {
 }
 
 export const usersService = {
-    getAll: async (page = 1, limit = 25, search = ''): Promise<PaginatedUsers> => {
-        return api.get<PaginatedUsers>('/usuarios', { params: { page: String(page), limit: String(limit), ...(search ? { search } : {}) } });
-    },
-
-    getOptions: async (): Promise<User[]> => api.get<User[]>('/usuarios/opciones'),
-
-    create: async (data: CreateUserData): Promise<User> => {
-        return api.post<User>('/usuarios', data);
-    },
-
-    update: async (id: number, data: Partial<CreateUserData>): Promise<User> => {
-        return api.put<User>(`/usuarios/${id}`, data);
-    },
-
-    delete: async (id: number): Promise<void> => {
-        return api.delete<void>(`/usuarios/${id}`);
-    },
-
-    resetPassword: async (userId: number): Promise<{ message: string; resetToken: string }> => {
-        return api.post<{ message: string; resetToken: string }>(`/auth/reset-password/${userId}`);
-    },
-
-    getPermissionsCatalog: async (): Promise<Permission[]> => {
-        return api.get<Permission[]>('/usuarios/permisos/catalogo');
-    },
-
-    updatePermissions: async (userId: number, permissions: PermissionKey[], deniedPermissions: PermissionKey[] = []) => {
-        return api.put<{
-            id: number;
-            permissions: string[];
-            inheritedPermissions: string[];
-            directPermissions: string[];
-            deniedPermissions: string[];
-        }>(
-            `/usuarios/${userId}/permisos`,
-            { permissions, deniedPermissions }
-        );
-    }
+    getAll: (page = 1, limit = 25, search = ''): Promise<PaginatedUsers> =>
+        api.get('/usuarios', { params: { page: String(page), limit: String(limit), ...(search ? { search } : {}) } }),
+    getOptions: (): Promise<User[]> => api.get('/usuarios/opciones'),
+    create: (data: CreateUserData): Promise<User> => api.post('/usuarios', data),
+    update: (id: number, data: UpdateUserData): Promise<User> => api.put(`/usuarios/${id}`, data),
+    disable: (id: number): Promise<void> => api.delete(`/usuarios/${id}`),
+    resetPassword: (userId: number, newPassword: string): Promise<{ message: string }> =>
+        api.post(`/auth/reset-password/${userId}`, { newPassword })
 };

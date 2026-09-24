@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/auth.service';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
-import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
 import { ApiError } from '../services/api';
 
 const Login = () => {
@@ -11,108 +10,24 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [pendingGoogleCredential, setPendingGoogleCredential] = useState('');
-  const [googleLinkPassword, setGoogleLinkPassword] = useState('');
-  const googleButtonRef = useRef<HTMLDivElement>(null);
-  const googleClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined)?.trim();
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [passwordChanged] = useState(() => Boolean(
+    (location.state as { passwordChanged?: boolean } | null)?.passwordChanged
+    || sessionStorage.getItem('passwordChanged')
+  ));
 
   useEffect(() => {
+    sessionStorage.removeItem('passwordChanged');
     const savedEmail = localStorage.getItem('rememberedEmail');
     if (savedEmail) {
       setEmail(savedEmail);
       setRememberMe(true);
     }
   }, []);
-
-  const handleGoogleCredential = useCallback(async (response: GoogleCredentialResponse) => {
-    if (!response.credential) {
-      setError('No se pudo obtener la credencial de Google. Intentá nuevamente.');
-      return;
-    }
-
-    setIsGoogleLoading(true);
-    setError('');
-    try {
-      const loginResponse = await authService.loginWithGoogle(response.credential);
-      login(loginResponse.user);
-      navigate(loginResponse.user.mustChangePassword ? '/mi-acceso' : '/home');
-    } catch (error) {
-      if (error instanceof ApiError && error.code === 'GOOGLE_LINK_REQUIRES_PASSWORD') {
-        setPendingGoogleCredential(response.credential);
-        setGoogleLinkPassword('');
-      } else setError(error instanceof Error ? error.message : 'No se pudo iniciar sesión con Google.');
-    } finally {
-      setIsGoogleLoading(false);
-    }
-  }, [login, navigate]);
-
-  const confirmGoogleLink = async (event: React.FormEvent) => {
-    event.preventDefault(); setIsGoogleLoading(true); setError('');
-    try {
-      const loginResponse = await authService.loginWithGoogle(pendingGoogleCredential, googleLinkPassword);
-      setPendingGoogleCredential(''); login(loginResponse.user);
-      navigate(loginResponse.user.mustChangePassword ? '/mi-acceso' : '/home');
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'No se pudo vincular la cuenta.'); }
-    finally { setIsGoogleLoading(false); }
-  };
-
-  useEffect(() => {
-    if (!googleClientId || !googleButtonRef.current) return;
-
-    let cancelled = false;
-    let script: HTMLScriptElement | null = null;
-
-    const renderGoogleButton = () => {
-      if (cancelled || !googleButtonRef.current || !window.google?.accounts?.id) return;
-
-      window.google.accounts.id.initialize({
-        client_id: googleClientId,
-        callback: handleGoogleCredential,
-      });
-
-      const buttonWidth = Math.min(googleButtonRef.current.clientWidth || 360, 360);
-      googleButtonRef.current.innerHTML = '';
-      window.google.accounts.id.renderButton(googleButtonRef.current, {
-        theme: 'outline',
-        size: 'large',
-        type: 'standard',
-        shape: 'rectangular',
-        text: 'continue_with',
-        width: buttonWidth,
-      });
-    };
-
-    if (window.google?.accounts?.id) {
-      renderGoogleButton();
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const existingScript = document.querySelector<HTMLScriptElement>('script[src="https://accounts.google.com/gsi/client"]');
-    script = existingScript || document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.addEventListener('load', renderGoogleButton);
-    script.addEventListener('error', () => {
-      if (!cancelled) setError('No se pudo cargar el inicio de sesión con Google.');
-    });
-
-    if (!existingScript) {
-      document.head.appendChild(script);
-    }
-
-    return () => {
-      cancelled = true;
-      script?.removeEventListener('load', renderGoogleButton);
-    };
-  }, [googleClientId, handleGoogleCredential]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,23 +41,31 @@ const Login = () => {
         localStorage.removeItem('rememberedEmail');
       }
       login(response.user);
-      navigate(response.user.mustChangePassword ? '/mi-acceso' : '/home');
-    } catch {
-      setError('Credenciales inválidas. Por favor, intenta de nuevo.');
+      navigate(response.user.mustChangePassword ? '/cambiar-contrasena' : '/home', { replace: true });
+    } catch (cause) {
+      if (cause instanceof ApiError && cause.status === 401) {
+        setError('Credenciales inválidas. Por favor, intentá de nuevo.');
+      } else if (cause instanceof ApiError && cause.status === 429) {
+        setError(cause.message || 'Demasiados intentos. Esperá unos minutos antes de volver a intentar.');
+      } else if (cause instanceof ApiError) {
+        setError('No pudimos iniciar sesión por un problema interno del servidor. Intentá nuevamente.');
+      } else {
+        setError('No se pudo conectar con el servicio. Revisá tu conexión e intentá nuevamente.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex relative font-sans">
+    <main className="min-h-screen flex relative font-sans">
       {/* Background with overlay */}
       <div className="absolute inset-0 z-0">
         <picture className="block h-full w-full">
           <source media="(max-width: 767px)" srcSet="/pto_madero-768.webp" type="image/webp" />
           <source srcSet="/pto_madero-1280.avif" type="image/avif" />
           <source srcSet="/pto_madero-1280.webp" type="image/webp" />
-          <img src="/pto_madero.jpg" alt="" width="2040" height="918" fetchPriority="high" className="h-full w-full object-cover" />
+          <img src="/pto_madero-1280.webp" alt="" width="1280" height="576" fetchPriority="high" className="h-full w-full object-cover" />
         </picture>
         <div className="absolute inset-0 bg-gradient-to-br from-slate-950/95 via-slate-900/90 to-slate-950/80" />
       </div>
@@ -219,11 +142,18 @@ const Login = () => {
                  <LockClosedIcon className="w-8 h-8 text-white" />
               </div>
               <h1 className="text-3xl font-black tracking-tight text-white mb-2">Bienvenido</h1>
-              <p className="text-slate-400 text-sm font-medium">Ingresa tus credenciales para continuar</p>
+              <p className="text-slate-400 text-sm font-medium">Ingresá tus credenciales para continuar</p>
             </div>
 
+            {passwordChanged && (
+              <div role="status" aria-live="polite" className="mb-6 flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-950/40 px-4 py-3 text-sm font-medium text-emerald-300">
+                <CheckCircleIcon className="h-5 w-5 shrink-0" />
+                Contraseña actualizada. Ingresá nuevamente con tu nueva contraseña.
+              </div>
+            )}
+
             {error && (
-              <div className="flex items-center gap-3 bg-red-950/40 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl text-sm font-medium mb-6 animate-in fade-in">
+              <div role="alert" aria-live="polite" className="flex items-center gap-3 bg-red-950/40 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl text-sm font-medium mb-6 animate-in fade-in">
                 <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                 </svg>
@@ -234,12 +164,13 @@ const Login = () => {
             <form onSubmit={handleSubmit} className="flex flex-col gap-6">
               
               <div className="space-y-2 relative group">
-                <label className="text-[13px] font-bold text-slate-300 uppercase tracking-wider ml-1">Correo Electrónico</label>
+                <label htmlFor="login-email" className="text-[13px] font-bold text-slate-300 uppercase tracking-wider ml-1">Correo electrónico</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <EnvelopeIcon className="w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                    <EnvelopeIcon className="w-5 h-5 text-slate-500 group-focus-within:text-status-accent transition-colors" />
                   </div>
                   <input
+                    id="login-email"
                     type="email"
                     placeholder="ejemplo@correo.com"
                     value={email}
@@ -251,12 +182,13 @@ const Login = () => {
               </div>
 
               <div className="space-y-2 relative group">
-                <label className="text-[13px] font-bold text-slate-300 uppercase tracking-wider ml-1">Contraseña</label>
+                <label htmlFor="login-password" className="text-[13px] font-bold text-slate-300 uppercase tracking-wider ml-1">Contraseña</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                     <LockClosedIcon className="w-5 h-5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
+                     <LockClosedIcon className="w-5 h-5 text-slate-500 group-focus-within:text-status-accent transition-colors" />
                   </div>
                   <input
+                    id="login-password"
                     type={showPassword ? 'text' : 'password'}
                     placeholder="••••••••"
                     value={password}
@@ -316,34 +248,10 @@ const Login = () => {
               </button>
             </form>
 
-            {googleClientId && (
-              <div className="mt-6">
-                <div className="relative flex items-center justify-center mb-5">
-                  <div className="absolute inset-x-0 top-1/2 h-px bg-slate-700/70" />
-                  <span className="relative bg-slate-900/80 px-4 text-xs font-bold uppercase text-slate-500">o</span>
-                </div>
-                <div className="relative flex min-h-11 justify-center">
-                  <div ref={googleButtonRef} className={`w-full ${isGoogleLoading ? 'pointer-events-none opacity-70' : ''}`} />
-                  {isGoogleLoading && (
-                    <div className="absolute inset-0 flex items-center justify-center rounded bg-white/80 text-sm font-semibold text-slate-700">
-                      Validando Google...
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
-      <Dialog open={Boolean(pendingGoogleCredential)} onClose={() => !isGoogleLoading && setPendingGoogleCredential('')} className="relative z-50">
-        <DialogBackdrop className="fixed inset-0 bg-black/60" />
-        <div className="fixed inset-0 flex items-center justify-center p-4"><DialogPanel className="w-full max-w-sm rounded-lg bg-white p-6 shadow-2xl">
-          <DialogTitle className="text-xl font-bold text-gray-900">Vincular cuenta de Google</DialogTitle>
-          <p className="mt-2 text-sm text-gray-600">Confirmá tu contraseña actual de PropControl. Solo se solicitará en esta primera vinculación.</p>
-          <form onSubmit={confirmGoogleLink} className="mt-5 space-y-4"><label className="block text-sm font-semibold text-gray-700">Contraseña actual<input autoFocus required type="password" value={googleLinkPassword} onChange={event => setGoogleLinkPassword(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-3" /></label><div className="flex justify-end gap-3"><button type="button" disabled={isGoogleLoading} onClick={() => setPendingGoogleCredential('')} className="min-h-11 px-4 font-semibold text-gray-700">Cancelar</button><button disabled={isGoogleLoading} className="min-h-11 rounded-lg bg-indigo-600 px-4 font-semibold text-white disabled:opacity-50">{isGoogleLoading ? 'Vinculando...' : 'Vincular cuenta'}</button></div></form>
-        </DialogPanel></div>
-      </Dialog>
-    </div>
+    </main>
   );
 };
 

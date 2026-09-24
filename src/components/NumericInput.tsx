@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useId } from "react";
 import { formatNumber, parseNumber } from "../utils/number";
 
 interface NumericInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
@@ -21,6 +21,8 @@ export default function NumericInput({
   ...props
 }: NumericInputProps) {
   const [displayValue, setDisplayValue] = useState("");
+  const generatedId = useId();
+  const inputId = props.id || generatedId;
 
   useEffect(() => {
     setDisplayValue(formatNumber(value));
@@ -46,7 +48,7 @@ export default function NumericInput({
   return (
     <div className={containerClassName}>
       {label && (
-        <label className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">
+        <label htmlFor={inputId} className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">
           {label}
         </label>
       )}
@@ -58,6 +60,7 @@ export default function NumericInput({
         )}
         <input
           {...props}
+          id={inputId}
           type="text"
           inputMode={props.inputMode || "decimal"}
           className={`${className} ${icon ? 'pl-11' : 'px-4'}`}

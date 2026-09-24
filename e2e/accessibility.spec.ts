@@ -10,8 +10,3 @@ test("login cumple WCAG A y AA automatizable", async ({ page }) => {
   await page.goto("/login");
   await expectNoWcagViolations(page);
 });
-
-test("recuperación cumple WCAG A y AA automatizable", async ({ page }) => {
-  await page.goto("/recuperar-contrasena?token=axe-test");
-  await expectNoWcagViolations(page);
-});

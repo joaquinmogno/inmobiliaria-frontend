@@ -49,12 +49,10 @@ function buildUser(overrides: Partial<Record<string, unknown>> = {}) {
     email: "usuario@test.local",
     fullName: "Usuario Test",
     nombreCompleto: "Usuario Test",
-    role: "AGENTE",
-    rol: "AGENTE",
+    tipo: "USUARIO",
+    role: "USUARIO",
+    rol: { id: 1, nombre: "Comercial", activo: true },
     permissions: basePermissions,
-    inheritedPermissions: [],
-    directPermissions: basePermissions,
-    deniedPermissions: [],
     inmobiliaria: { id: 1, nombre: "Inmobiliaria Test" },
     ...overrides,
   };
@@ -155,20 +153,73 @@ test("botones internos desaparecen según permisos del usuario", async ({ page }
   await expect(page.getByRole("menuitem", { name: /Eliminar/i })).toHaveCount(0);
 });
 
-test("una denegación explícita pisa el permiso heredado por rol", async ({ page }) => {
+test("el rol asignado se muestra sin permisos individuales", async ({ page }) => {
   const user = buildUser({
-    role: "JEFE",
-    rol: "JEFE",
-    inheritedPermissions: [...basePermissions, ...salaryPermissions],
-    permissions: basePermissions,
-    deniedPermissions: ["sueldos.ver"],
+    permissions: [...basePermissions, ...salaryPermissions],
   });
 
   await mockApi(page, user);
   await login(page);
 
-  await expect(page.getByText("Sueldos", { exact: true })).toHaveCount(0);
+  await page.goto("/mi-acceso");
+  await expect(page.getByLabel("Contenido principal").getByText("Comercial", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Directo|denegado|heredado/i)).toHaveCount(0);
+});
 
-  await page.goto("/sueldos");
-  await expect(page.getByRole("heading", { name: "Acceso denegado" })).toBeVisible();
+test("nuevo contrato usa el selector visual de PropControl para la moneda", async ({ page }) => {
+  await mockApi(page, buildUser({ permissions: [...basePermissions, "contratos.crear"] }));
+  await login(page);
+
+  await page.goto("/contratos");
+  await page.getByRole("button", { name: "Nuevo contrato" }).click();
+
+  const currency = page.getByRole("button", { name: "Moneda del contrato" });
+  await expect(currency).toContainText("ARS");
+  await currency.click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  await page.getByRole("option", { name: /USD.*Dólares estadounidenses/i }).click();
+  await expect(currency).toContainText("USD");
+  await expect(page.locator("select")).toHaveCount(0);
+});
+
+test("elegir personas existentes reemplaza las fichas vacías de propietario e inquilino", async ({ page }) => {
+  const existingPerson = {
+    id: 55,
+    version: 1,
+    nombreCompleto: "Persona Existente",
+    dni: "30111222",
+    telefono: "+541112345678",
+    email: null,
+    direccion: null,
+    estado: "ACTIVO"
+  };
+  await mockApi(page, buildUser({ permissions: [...basePermissions, "contratos.crear"] }));
+  await page.route("**/api/personas?**", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ data: [existingPerson], meta: { total: 1, page: 1, limit: 100, totalPages: 1 } })
+  }));
+  await login(page);
+
+  await page.goto("/contratos");
+  await page.getByRole("button", { name: "Nuevo contrato" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByPlaceholder("Nombre Completo *")).toHaveCount(2);
+
+  await dialog.getByRole("button", { name: "¿Buscar propietario existente?" }).click();
+  await dialog.getByPlaceholder("Nombre o DNI...").fill("Persona");
+  await dialog.getByRole("option", { name: /Persona Existente/ }).click();
+
+  await expect(dialog.getByPlaceholder("Nombre Completo *")).toHaveCount(2);
+  await expect(dialog.getByPlaceholder("Nombre Completo *").nth(0)).toHaveValue("Persona Existente");
+  await expect(dialog.getByLabel(/Quitar propietario/)).toHaveCount(0);
+
+  await dialog.getByRole("button", { name: "¿Buscar inquilino existente?" }).click();
+  await dialog.getByPlaceholder("Nombre o DNI...").fill("Persona");
+  await dialog.getByRole("option", { name: /Persona Existente/ }).click();
+
+  await expect(dialog.getByPlaceholder("Nombre Completo *")).toHaveCount(2);
+  await expect(dialog.getByPlaceholder("Nombre Completo *").nth(1)).toHaveValue("Persona Existente");
+  await expect(dialog.getByText("(existente)")).toHaveCount(2);
+  await expect(dialog.getByLabel(/Quitar inquilino/)).toHaveCount(0);
 });

@@ -1,10 +1,10 @@
 import { Fragment, useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
-import { XMarkIcon, DocumentArrowUpIcon, BanknotesIcon, MagnifyingGlassIcon, PlusCircleIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, BanknotesIcon, MagnifyingGlassIcon, PlusCircleIcon } from "@heroicons/react/24/outline";
 import NumericInput from "./NumericInput";
 import AutocompleteSelector from "./AutocompleteSelector";
 import { propertiesService, type Property } from "../services/properties.service";
-import { personasService, type Persona } from "../services/personas.service";
+import type { Persona } from "../services/personas.service";
 import { type Contract } from "../services/contracts.service";
 import { toast } from "react-hot-toast";
 import { MONEDA_LABELS, type Moneda } from "../utils/currency";
@@ -17,21 +17,36 @@ import {
     validateMainContractFile,
 } from "../utils/documentFiles";
 import FormError, { useFormError } from "./FormError";
+import AppSelect from "./AppSelect";
+import LocalizedFilePicker from "./LocalizedFilePicker";
+import { PAYMENT_METHOD_OPTIONS } from "../services/pagos.service";
+import { addMonthsToDateInput } from "../utils/date";
+import {
+    buildContractPayload,
+    createContractFormFromContract,
+    createEmptyContractForm,
+    createRenewalContractForm,
+    emptyContractParty,
+    getContractFormError,
+    selectExistingParty,
+    type ContractParty
+} from "../features/contracts/contract-form.model";
+import ContractPartyFields from "../features/contracts/ContractPartyFields";
 
 interface NewContractModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSave: (data: any) => void | Promise<void>;
     editingContract?: Contract | null;
+    renewingContract?: Contract | null;
 }
-
-const emptyPerson = () => ({ nombreCompleto: "", telefono: "" });
 
 export default function NewContractModal({
     isOpen,
     onClose,
     onSave,
-    editingContract
+    editingContract,
+    renewingContract
 }: NewContractModalProps) {
     const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
     // false = manual entry (default); true = searching existing
@@ -41,33 +56,9 @@ export default function NewContractModal({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { error: formError, setError: setFormError, reportError, formRef } = useFormError();
 
-    const [owners, setOwners] = useState<{ id?: number; nombreCompleto: string; telefono: string }[]>([emptyPerson()]);
-    const [tenants, setTenants] = useState<{ id?: number; nombreCompleto: string; telefono: string }[]>([emptyPerson()]);
-
-    const [formData, setFormData] = useState({
-        address: "",
-        floor: "",
-        unit: "",
-        startDate: "",
-        endDate: "",
-        updateDate: "",
-        montoAlquiler: "",
-        moneda: "ARS" as Moneda,
-        montoHonorarios: "",
-        porcentajeHonorarios: "",
-        porcentajeActualizacion: "",
-        pagaHonorarios: "INQUILINO",
-        diaVencimiento: "10",
-        tipoAjuste: "",
-        file: null as File | null,
-        observations: "",
-        additionalFiles: [] as File[],
-        administrado: true,
-        requiereActualizacion: true,
-        frecuenciaActualizacion: "3",
-        honorarioInicial: "",
-        honorarioInicialMetodoPago: ""   // empty by default — user must choose
-    });
+    const [owners, setOwners] = useState<ContractParty[]>([emptyContractParty()]);
+    const [tenants, setTenants] = useState<ContractParty[]>([emptyContractParty()]);
+    const [formData, setFormData] = useState(createEmptyContractForm);
 
     // Effect to populate form when editing
     useEffect(() => {
@@ -84,73 +75,40 @@ export default function NewContractModal({
                 telefono: i.persona.telefono || ""
             })));
 
-            setFormData({
-                address: editingContract.propiedad.direccion,
-                floor: editingContract.propiedad.piso || "",
-                unit: editingContract.propiedad.departamento || "",
-                startDate: editingContract.fechaInicio ? new Date(editingContract.fechaInicio).toISOString().split('T')[0] : "",
-                endDate: editingContract.fechaFin ? new Date(editingContract.fechaFin).toISOString().split('T')[0] : "",
-                updateDate: editingContract.fechaProximaActualizacion ? new Date(editingContract.fechaProximaActualizacion).toISOString().split('T')[0] : "",
-                montoAlquiler: editingContract.montoAlquiler.toString(),
-                moneda: editingContract.moneda || "ARS",
-                montoHonorarios: editingContract.montoHonorarios.toString(),
-                porcentajeHonorarios: editingContract.porcentajeHonorarios?.toString() || "",
-                porcentajeActualizacion: editingContract.porcentajeActualizacion?.toString() || "",
-                pagaHonorarios: editingContract.pagaHonorarios as string,
-                diaVencimiento: editingContract.diaVencimiento.toString(),
-                tipoAjuste: editingContract.tipoAjuste || "",
-                file: null,
-                observations: editingContract.observaciones || "",
-                additionalFiles: [],
-                administrado: editingContract.administrado,
-                requiereActualizacion: editingContract.requiereActualizacion ?? true,
-                frecuenciaActualizacion: "3",
-                honorarioInicial: "",
-                honorarioInicialMetodoPago: ""
-            });
+            setFormData(createContractFormFromContract(editingContract));
+        } else if (isOpen && renewingContract) {
+            setSelectedProperty(renewingContract.propiedad as Property);
+            setOwners(renewingContract.propietarios.map(p => ({
+                id: p.persona.id,
+                nombreCompleto: p.persona.nombreCompleto,
+                telefono: p.persona.telefono || ""
+            })));
+            setTenants(renewingContract.inquilinos.map(i => ({
+                id: i.persona.id,
+                nombreCompleto: i.persona.nombreCompleto,
+                telefono: i.persona.telefono || ""
+            })));
+            setFormData(createRenewalContractForm(renewingContract));
+            setSearchingExistingProperty(false);
+            setSearchingExistingOwner(false);
+            setSearchingExistingTenant(false);
         } else if (isOpen && !editingContract) {
-            // Reset for new contract
-            setFormData({
-                address: "",
-                floor: "",
-                unit: "",
-                startDate: "",
-                endDate: "",
-                updateDate: "",
-                montoAlquiler: "",
-                moneda: "ARS",
-                montoHonorarios: "",
-                porcentajeHonorarios: "",
-                porcentajeActualizacion: "",
-                pagaHonorarios: "INQUILINO",
-                diaVencimiento: "10",
-                tipoAjuste: "",
-                file: null,
-                observations: "",
-                additionalFiles: [],
-                administrado: true,
-                requiereActualizacion: true,
-                frecuenciaActualizacion: "3",
-                honorarioInicial: "",
-                honorarioInicialMetodoPago: ""
-            });
+            setFormData(createEmptyContractForm());
             setSelectedProperty(null);
-            setOwners([emptyPerson()]);
-            setTenants([emptyPerson()]);
+            setOwners([emptyContractParty()]);
+            setTenants([emptyContractParty()]);
             setSearchingExistingProperty(false);
             setSearchingExistingOwner(false);
             setSearchingExistingTenant(false);
         }
-    }, [isOpen, editingContract]);
+    }, [isOpen, editingContract, renewingContract]);
 
     // Cálculo automático de fecha de actualización
     useEffect(() => {
         if (!editingContract && formData.requiereActualizacion && formData.startDate && formData.frecuenciaActualizacion) {
-            const date = new Date(formData.startDate + "T00:00:00");
             const months = parseInt(formData.frecuenciaActualizacion);
-            if (!isNaN(date.getTime()) && !isNaN(months)) {
-                date.setMonth(date.getMonth() + months);
-                const suggestedDate = date.toISOString().split('T')[0];
+            if (!isNaN(months)) {
+                const suggestedDate = addMonthsToDateInput(formData.startDate, months);
                 setFormData(prev => ({ ...prev, updateDate: suggestedDate }));
             }
         }
@@ -191,9 +149,9 @@ export default function NewContractModal({
 
     const addOwner = (owner: Persona | null) => {
         if (owner) {
-            setOwners(prev => [...prev, { id: owner.id, nombreCompleto: owner.nombreCompleto, telefono: owner.telefono || "" }]);
+            setOwners(prev => selectExistingParty(prev, owner));
         } else {
-            setOwners(prev => [...prev, emptyPerson()]);
+            setOwners(prev => [...prev, emptyContractParty()]);
         }
         setSearchingExistingOwner(false);
     };
@@ -212,9 +170,9 @@ export default function NewContractModal({
 
     const addTenant = (tenant: Persona | null) => {
         if (tenant) {
-            setTenants(prev => [...prev, { id: tenant.id, nombreCompleto: tenant.nombreCompleto, telefono: tenant.telefono || "" }]);
+            setTenants(prev => selectExistingParty(prev, tenant));
         } else {
-            setTenants(prev => [...prev, emptyPerson()]);
+            setTenants(prev => [...prev, emptyContractParty()]);
         }
         setSearchingExistingTenant(false);
     };
@@ -231,36 +189,15 @@ export default function NewContractModal({
         setTenants(prev => prev.filter((_, i) => i !== index));
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) {
-            const file = e.target.files[0];
-            const error = validateMainContractFile(file);
-            if (error) {
-                toast.error(error);
-                e.target.value = "";
-                setFormData((prev) => ({ ...prev, file: null }));
-                return;
-            }
-            setFormData((prev) => ({ ...prev, file }));
-        }
+    const handleFileSelection = (files: File[]) => {
+        setFormData(prev => ({ ...prev, file: files[0] || null }));
     };
 
-    const handleAdditionalFilesChange = (
-        e: React.ChangeEvent<HTMLInputElement>
-    ) => {
-        if (e.target.files) {
-            const filesArray = Array.from(e.target.files);
-            const invalid = filesArray.find(file => validateAttachmentFile(file));
-            if (invalid) {
-                toast.error(validateAttachmentFile(invalid) || "Formato no permitido");
-                e.target.value = "";
-                return;
-            }
-            setFormData((prev) => ({
-                ...prev,
-                additionalFiles: [...prev.additionalFiles, ...filesArray],
-            }));
-        }
+    const handleAdditionalFilesSelection = (files: File[]) => {
+        setFormData(prev => ({
+            ...prev,
+            additionalFiles: [...prev.additionalFiles, ...files],
+        }));
     };
 
     const removeAdditionalFile = (index: number) => {
@@ -275,82 +212,23 @@ export default function NewContractModal({
         if (isSubmitting) return;
         setFormError("");
 
-        // Validate required parties
-        if (owners.length === 0 || owners.some(o => !o.nombreCompleto.trim())) {
-            setFormError("Debe agregar al menos un propietario con nombre completo.");
-            return;
-        }
-        if (tenants.length === 0 || tenants.some(t => !t.nombreCompleto.trim())) {
-            setFormError("Debe agregar al menos un inquilino con nombre completo.");
-            return;
-        }
-
-        // Validate dates
-        if (!formData.startDate || !formData.endDate) {
-            setFormError("Las fechas de inicio y fin son obligatorias.");
-            return;
-        }
-
-        if (formData.requiereActualizacion && !formData.updateDate) {
-            setFormError("La próxima actualización es obligatoria si el contrato tiene actualización programada.");
-            return;
-        }
-
-        // Validate método de pago si hay honorario
-        if (formData.honorarioInicial && !formData.honorarioInicialMetodoPago) {
-            setFormError("Debe seleccionar un método de pago para el honorario inicial.");
-            return;
-        }
-
-        if (formData.file) {
-            const error = validateMainContractFile(formData.file);
-            if (error) {
-                setFormError(error);
-                return;
-            }
-        }
-
-        const invalidAdditionalFile = formData.additionalFiles.find(file => validateAttachmentFile(file));
-        if (invalidAdditionalFile) {
-            setFormError(validateAttachmentFile(invalidAdditionalFile) || "Formato no permitido");
+        const validationError = getContractFormError(formData, owners, tenants);
+        if (validationError) {
+            setFormError(validationError);
             return;
         }
 
         const dataToSave = {
-            ...formData,
-            propiedadId: selectedProperty?.id,
-            propiedad: selectedProperty ? undefined : {
-                direccion: formData.address,
-                piso: formData.floor || null,
-                departamento: formData.unit || null,
-                tipo: 'DEPARTAMENTO',
-                estado: 'DISPONIBLE',
-                observaciones: null
-            },
-            propietarios: owners.map(owner => ({
-                id: owner.id,
-                nombreCompleto: owner.nombreCompleto.trim(),
-                telefono: owner.telefono.trim() || null,
-                estado: 'ACTIVO'
-            })),
-            inquilinos: tenants.map(tenant => ({
-                id: tenant.id,
-                nombreCompleto: tenant.nombreCompleto.trim(),
-                telefono: tenant.telefono.trim() || null,
-                estado: 'ACTIVO'
-            })),
-            administrado: formData.administrado,
-            requiereActualizacion: formData.requiereActualizacion,
- 	            honorarioInicial: formData.honorarioInicial,
-            honorarioInicialMetodoPago: formData.honorarioInicialMetodoPago
+            ...buildContractPayload(formData, selectedProperty, owners, tenants),
+            ...(renewingContract ? { contratoAnteriorId: renewingContract.id } : {})
         };
 
         setIsSubmitting(true);
         try {
             await onSave(dataToSave);
             setSelectedProperty(null);
-            setOwners([emptyPerson()]);
-            setTenants([emptyPerson()]);
+            setOwners([emptyContractParty()]);
+            setTenants([emptyContractParty()]);
             onClose();
         } catch (error) {
             reportError(error, "No se pudo guardar el contrato");
@@ -392,12 +270,12 @@ export default function NewContractModal({
                                         as="h3"
                                         className="text-xl font-bold leading-6 text-gray-900"
                                     >
-                                        {editingContract ? 'Editar Contrato' : 'Nuevo Contrato'}
+                                        {editingContract ? 'Editar contrato' : renewingContract ? `Renovar contrato #${renewingContract.id}` : 'Nuevo contrato'}
                                     </Dialog.Title>
                                     <button
                                         onClick={() => !isSubmitting && onClose()}
                                         disabled={isSubmitting}
-                                        className="text-gray-600 hover:text-gray-500 transition-colors focus:outline-none"
+                                        className="text-gray-600 hover:text-content-muted transition-colors focus:outline-none"
                                     >
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
@@ -405,13 +283,19 @@ export default function NewContractModal({
 
                                 <form ref={formRef} onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
                                     <FormError message={formError} />
+                                    {renewingContract && (
+                                        <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-950">
+                                            <p className="font-semibold">Renovación guiada del contrato #{renewingContract.id}</p>
+                                            <p className="mt-1 text-indigo-800">Se copiaron el inmueble, las partes y las condiciones comerciales. Revisá las fechas e importes antes de guardar; no se trasladan liquidaciones, pagos, cuotas ni documentos.</p>
+                                        </div>
+                                    )}
                                     {/* ─── Sección Inmueble ─── */}
                                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                                         <div className="flex justify-between items-center mb-3">
                                             <h4 className="text-sm font-semibold text-indigo-900 uppercase tracking-wide">
                                                 Datos del Inmueble
                                             </h4>
-                                            {!editingContract && (
+                                            {!editingContract && !renewingContract && (
                                                 <button
                                                     type="button"
                                                     onClick={() => {
@@ -429,7 +313,7 @@ export default function NewContractModal({
                                             )}
                                         </div>
 
-                                        {searchingExistingProperty && !editingContract ? (
+                                        {searchingExistingProperty && !editingContract && !renewingContract ? (
                                             <AutocompleteSelector<Property>
                                                 label="Buscar Propiedad"
                                                 placeholder="Buscar por dirección..."
@@ -443,10 +327,11 @@ export default function NewContractModal({
                                         ) : (
                                             <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
                                                 <div className="sm:col-span-8">
-                                                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                    <label htmlFor="contract-property-address" className="block text-xs font-medium text-gray-700 mb-1">
                                                         Dirección *
                                                     </label>
                                                     <input
+                                                        id="contract-property-address"
                                                         type="text"
                                                         name="address"
                                                         required
@@ -454,35 +339,37 @@ export default function NewContractModal({
                                                         placeholder="Ej: Av. Corrientes 1234"
                                                         value={selectedProperty ? `${selectedProperty.direccion}` : formData.address}
                                                         onChange={handleChange}
-                                                        disabled={!!selectedProperty || !!editingContract}
+                                                        disabled={!!selectedProperty || !!editingContract || !!renewingContract}
                                                     />
                                                 </div>
                                                 <div className="sm:col-span-2">
-                                                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                    <label htmlFor="contract-property-floor" className="block text-xs font-medium text-gray-700 mb-1">
                                                         Piso
                                                     </label>
                                                     <input
+                                                        id="contract-property-floor"
                                                         type="text"
                                                         name="floor"
                                                         className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
                                                         placeholder="Ej: 3"
                                                         value={formData.floor}
                                                         onChange={handleChange}
-                                                        disabled={!!selectedProperty || !!editingContract}
+                                                        disabled={!!selectedProperty || !!editingContract || !!renewingContract}
                                                     />
                                                 </div>
                                                 <div className="sm:col-span-2">
-                                                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                    <label htmlFor="contract-property-unit" className="block text-xs font-medium text-gray-700 mb-1">
                                                         Depto
                                                     </label>
                                                     <input
+                                                        id="contract-property-unit"
                                                         type="text"
                                                         name="unit"
                                                         className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
                                                         placeholder="Ej: B"
                                                         value={formData.unit}
                                                         onChange={handleChange}
-                                                        disabled={!!selectedProperty || !!editingContract}
+                                                        disabled={!!selectedProperty || !!editingContract || !!renewingContract}
                                                     />
 			                                        </div>
                                             </div>
@@ -491,189 +378,26 @@ export default function NewContractModal({
 
                                     {/* ─── Propietarios & Inquilinos ─── */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {/* Propietarios */}
-                                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                                            <div className="flex justify-between items-center mb-3">
-                                                <h4 className="text-sm font-semibold text-indigo-900 uppercase tracking-wide">
-                                                    Propietarios *
-                                                </h4>
-                                                {!editingContract && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => addOwner(null)}
-                                                        className="text-indigo-600 hover:text-indigo-800 text-xs font-bold"
-                                                    >
-                                                        + AGREGAR OTRO
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <div className="space-y-3">
-                                                {owners.map((owner, index) => (
-                                                    <div key={index} className="p-3 bg-white rounded-lg border border-gray-200 relative">
-                                                        {owners.length > 1 && !editingContract && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => removeOwner(index)}
-                                                                className="absolute top-2 right-2 text-red-500 hover:text-red-700"
-                                                            >
-                                                                <XMarkIcon className="w-4 h-4" />
-                                                            </button>
-                                                        )}
-                                                        <p className="text-xs font-bold text-indigo-400 mb-2">
-                                                            {index === 0 ? "PROPIETARIO PRINCIPAL" : `CO-PROPIETARIO ${index}`}
-                                                            {owner.id && <span className="ml-2 text-green-500">(existente)</span>}
-                                                        </p>
-                                                        <div className="space-y-2">
-                                                            <input
-                                                                type="text"
-                                                                placeholder="Nombre Completo *"
-                                                                required
-                                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2.5 px-3"
-                                                                value={owner.nombreCompleto}
-                                                                onChange={(e) => updateOwner(index, 'nombreCompleto', e.target.value)}
-                                                                disabled={!!owner.id || !!editingContract}
-                                                            />
-                                                            <input
-                                                                type="text"
-                                                                placeholder="Teléfono"
-                                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2.5 px-3"
-                                                                value={owner.telefono}
-                                                                onChange={(e) => updateOwner(index, 'telefono', e.target.value)}
-                                                                disabled={!!owner.id || !!editingContract}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                ))}
-
-                                                {/* Búsqueda de propietario existente como opción secundaria */}
-                                                {!editingContract && (
-                                                    <div>
-                                                        {!searchingExistingOwner ? (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setSearchingExistingOwner(true)}
-                                                                className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 mt-1"
-                                                            >
-                                                                <MagnifyingGlassIcon className="w-4 h-4" />
-                                                                ¿Buscar propietario existente?
-                                                            </button>
-                                                        ) : (
-                                                            <div>
-                                                                <AutocompleteSelector<Persona>
-                                                                    label="Buscar Propietario"
-                                                                    placeholder="Nombre o DNI..."
-                                                                    onSearch={personasService.search}
-                                                                    onSelect={addOwner}
-                                                                    renderItem={(p) => `${p.nombreCompleto} ${p.dni ? `(${p.dni})` : ""}`}
-                                                                    renderSelection={() => ""}
-                                                                    idField="id"
-                                                                    value={null}
-                                                                />
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setSearchingExistingOwner(false)}
-                                                                    className="text-xs text-gray-600 hover:text-gray-600 mt-1"
-                                                                >
-                                                                    Cancelar búsqueda
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Inquilinos */}
-                                        <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                                            <div className="flex justify-between items-center mb-3">
-                                                <h4 className="text-sm font-semibold text-indigo-900 uppercase tracking-wide">
-                                                    Inquilinos *
-                                                </h4>
-                                                {!editingContract && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => addTenant(null)}
-                                                        className="text-indigo-600 hover:text-indigo-800 text-xs font-bold"
-                                                    >
-                                                        + AGREGAR OTRO
-                                                    </button>
-                                                )}
-                                            </div>
-                                            <div className="space-y-3">
-                                                {tenants.map((tenant, index) => (
-                                                    <div key={index} className="p-3 bg-white rounded-lg border border-gray-200 relative">
-                                                        {tenants.length > 1 && !editingContract && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => removeTenant(index)}
-                                                                className="absolute top-2 right-2 text-red-500 hover:text-red-700"
-                                                            >
-                                                                <XMarkIcon className="w-4 h-4" />
-                                                            </button>
-                                                        )}
-                                                        <p className="text-xs font-bold text-indigo-400 mb-2">
-                                                            {index === 0 ? "INQUILINO PRINCIPAL" : `CO-INQUILINO ${index}`}
-                                                            {tenant.id && <span className="ml-2 text-green-500">(existente)</span>}
-                                                        </p>
-                                                        <div className="space-y-2">
-                                                            <input
-                                                                type="text"
-                                                                placeholder="Nombre Completo *"
-                                                                required
-                                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2.5 px-3"
-                                                                value={tenant.nombreCompleto}
-                                                                onChange={(e) => updateTenant(index, 'nombreCompleto', e.target.value)}
-                                                                disabled={!!tenant.id || !!editingContract}
-                                                            />
-                                                            <input
-                                                                type="text"
-                                                                placeholder="Teléfono"
-                                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm py-2.5 px-3"
-                                                                value={tenant.telefono}
-                                                                onChange={(e) => updateTenant(index, 'telefono', e.target.value)}
-                                                                disabled={!!tenant.id || !!editingContract}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                ))}
-
-                                                {/* Búsqueda de inquilino existente como opción secundaria */}
-                                                {!editingContract && (
-                                                    <div>
-                                                        {!searchingExistingTenant ? (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => setSearchingExistingTenant(true)}
-                                                                className="flex items-center gap-1 text-xs text-indigo-500 hover:text-indigo-700 mt-1"
-                                                            >
-                                                                <MagnifyingGlassIcon className="w-4 h-4" />
-                                                                ¿Buscar inquilino existente?
-                                                            </button>
-                                                        ) : (
-                                                            <div>
-                                                                <AutocompleteSelector<Persona>
-                                                                    label="Buscar Inquilino"
-                                                                    placeholder="Nombre o DNI..."
-                                                                    onSearch={personasService.search}
-                                                                    onSelect={addTenant}
-                                                                    renderItem={(p) => `${p.nombreCompleto} ${p.dni ? `(${p.dni})` : ""}`}
-                                                                    renderSelection={() => ""}
-                                                                    idField="id"
-                                                                    value={null}
-                                                                />
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => setSearchingExistingTenant(false)}
-                                                                    className="text-xs text-gray-600 hover:text-gray-600 mt-1"
-                                                                >
-                                                                    Cancelar búsqueda
-                                                                </button>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
+                                        <ContractPartyFields
+                                            kind="owner"
+                                            parties={owners}
+                                            editing={!!editingContract}
+                                            searching={searchingExistingOwner}
+                                            onSearchingChange={setSearchingExistingOwner}
+                                            onAdd={addOwner}
+                                            onUpdate={updateOwner}
+                                            onRemove={removeOwner}
+                                        />
+                                        <ContractPartyFields
+                                            kind="tenant"
+                                            parties={tenants}
+                                            editing={!!editingContract}
+                                            searching={searchingExistingTenant}
+                                            onSearchingChange={setSearchingExistingTenant}
+                                            onAdd={addTenant}
+                                            onUpdate={updateTenant}
+                                            onRemove={removeTenant}
+                                        />
                                     </div>
 
                                     {/* ─── Condiciones Económicas ─── */}
@@ -683,30 +407,33 @@ export default function NewContractModal({
                                         </h4>
 	                                        <div className="grid grid-cols-1 md:grid-cols-[220px_1fr] gap-4">
 	                                            <div>
-	                                                <label className="block text-xs font-medium text-gray-700 mb-1">
+	                                                <label htmlFor="contract-currency" className="block text-xs font-medium text-gray-700 mb-1">
 	                                                    Moneda *
 	                                                </label>
-	                                                <select
+	                                                <AppSelect
+	                                                    id="contract-currency"
 	                                                    name="moneda"
 	                                                    required
-	                                                    className="w-full rounded-lg border-gray-300 bg-white shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
+	                                                    ariaLabel="Moneda del contrato"
 	                                                    value={formData.moneda}
-	                                                    onChange={(e) => handleCurrencyChange(e.target.value as Moneda)}
-	                                                >
-	                                                    <option value="ARS">{MONEDA_LABELS.ARS}</option>
-	                                                    <option value="USD">{MONEDA_LABELS.USD}</option>
-	                                                </select>
+	                                                    onChange={(value) => handleCurrencyChange(value as Moneda)}
+	                                                    options={[
+	                                                        { value: "ARS", label: `ARS — ${MONEDA_LABELS.ARS}`, description: "Moneda local" },
+	                                                        { value: "USD", label: `USD — ${MONEDA_LABELS.USD}`, description: "Moneda extranjera" }
+	                                                    ]}
+	                                                />
 	                                                {editingContract && (
-	                                                    <p className="mt-1 text-xs text-gray-500">
+	                                                    <p className="mt-1 text-xs text-content-muted">
 	                                                        Si el contrato ya tiene liquidaciones, pagos o caja asociada, no se puede modificar.
 	                                                    </p>
 	                                                )}
 	                                            </div>
 	                                            <div>
-	                                                <label className="block text-xs font-medium text-gray-700 mb-1">
+	                                                <label htmlFor="contract-rent-amount" className="block text-xs font-medium text-gray-700 mb-1">
 	                                                    Alquiler Mensual *
                                                 </label>
                                                 <NumericInput
+                                                    id="contract-rent-amount"
                                                     name="montoAlquiler"
                                                     required
                                                     className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
@@ -725,14 +452,15 @@ export default function NewContractModal({
                                                 Honorarios por Alta de Contrato
                                             </h4>
                                             <p className="text-xs text-green-700 mb-3">
-                                                Si se cobra un honorario único por firmar este contrato, regístralo aquí. Se sumará automáticamente a la Caja Chica.
+                                                Si se cobra un honorario único por firmar este contrato, regístralo aquí. Se sumará automáticamente a Gestión financiera.
                                             </p>
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div>
-                                                    <label className="block text-xs font-medium text-green-800 mb-1">
+                                                    <label htmlFor="contract-initial-fee" className="block text-xs font-medium text-green-800 mb-1">
                                                         Monto Honorario de Alta
                                                     </label>
                                                     <NumericInput
+                                                        id="contract-initial-fee"
                                                         name="honorarioInicial"
                                                         className="w-full rounded-lg border-green-300 bg-white shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm py-2 px-3"
                                                         placeholder="Monto a cobrar hoy..."
@@ -742,21 +470,22 @@ export default function NewContractModal({
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-xs font-medium text-green-800 mb-1">
+                                                    <label htmlFor="contract-initial-fee-method" className="block text-xs font-medium text-green-800 mb-1">
                                                         Método de Pago *
                                                     </label>
-                                                    <select
+                                                    <AppSelect
+                                                        id="contract-initial-fee-method"
                                                         name="honorarioInicialMetodoPago"
                                                         required
-                                                        className="w-full rounded-lg border-green-300 bg-white shadow-sm focus:border-green-500 focus:ring-green-500 sm:text-sm py-2 px-3"
+                                                        ariaLabel="Método de pago del honorario inicial"
                                                         value={formData.honorarioInicialMetodoPago}
-                                                        onChange={(e) => setFormData(prev => ({ ...prev, honorarioInicialMetodoPago: e.target.value }))}
-                                                    >
-                                                        <option value="" disabled>Seleccione un método...</option>
-                                                        <option value="EFECTIVO">Efectivo</option>
-                                                        <option value="TRANSFERENCIA">Transferencia</option>
-                                                        <option value="DEPOSITO">Depósito</option>
-                                                    </select>
+                                                        onChange={(value) => setFormData(prev => ({ ...prev, honorarioInicialMetodoPago: value }))}
+                                                        options={[
+                                                            { value: "", label: "Seleccionar un método…", disabled: true },
+                                                            ...PAYMENT_METHOD_OPTIONS
+                                                        ]}
+                                                        buttonClassName="border-green-300 focus-visible:border-green-500 focus-visible:ring-green-100 data-open:border-green-500 data-open:ring-green-100"
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
@@ -768,12 +497,14 @@ export default function NewContractModal({
                                             <h4 className="text-sm font-semibold text-indigo-900 uppercase tracking-wide">
                                                 Administración
                                             </h4>
-                                            <p className="text-xs text-gray-500">¿La inmobiliaria administra este contrato mensualmente?</p>
+                                            <p className="text-xs text-content-muted">¿La inmobiliaria administra este contrato mensualmente?</p>
                                         </div>
                                         <div className="flex items-center">
                                             <span className={`mr-3 text-xs font-bold ${!formData.administrado ? 'text-indigo-600' : 'text-gray-600'}`}>NO</span>
                                             <button
                                                 type="button"
+                                                aria-label="La inmobiliaria administra el contrato"
+                                                aria-pressed={formData.administrado}
                                                 onClick={() => setFormData(prev => ({ ...prev, administrado: !prev.administrado }))}
                                                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${formData.administrado ? 'bg-indigo-600' : 'bg-gray-200'}`}
                                             >
@@ -792,10 +523,11 @@ export default function NewContractModal({
                                         </h4>
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                <label htmlFor="contract-start-date" className="block text-xs font-medium text-gray-700 mb-1">
                                                     Fecha Inicio *
                                                 </label>
                                                 <input
+                                                    id="contract-start-date"
                                                     type="date"
                                                     name="startDate"
                                                     required
@@ -805,10 +537,11 @@ export default function NewContractModal({
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                <label htmlFor="contract-end-date" className="block text-xs font-medium text-gray-700 mb-1">
                                                     Fecha Fin *
                                                 </label>
                                                 <input
+                                                    id="contract-end-date"
                                                     type="date"
                                                     name="endDate"
                                                     required
@@ -821,12 +554,14 @@ export default function NewContractModal({
                                             <div className="mt-4 flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
                                                 <div>
                                                     <p className="text-sm font-semibold text-gray-800">Actualización de alquiler</p>
-                                                    <p className="text-xs text-gray-500">Define si este contrato tendrá una actualización programada.</p>
+                                                    <p className="text-xs text-content-muted">Define si este contrato tendrá una actualización programada.</p>
                                                 </div>
                                                 <div className="flex items-center">
                                                     <span className={`mr-3 text-xs font-bold ${!formData.requiereActualizacion ? 'text-indigo-600' : 'text-gray-600'}`}>NO</span>
                                                     <button
                                                         type="button"
+                                                        aria-label="El contrato tiene actualización programada"
+                                                        aria-pressed={formData.requiereActualizacion}
                                                         onClick={() => setFormData(prev => ({
                                                             ...prev,
                                                             requiereActualizacion: !prev.requiereActualizacion,
@@ -846,10 +581,11 @@ export default function NewContractModal({
                                             {formData.requiereActualizacion && (
                                                 <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                                                     <div>
-                                                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                        <label htmlFor="contract-update-frequency" className="block text-xs font-medium text-gray-700 mb-1">
                                                             Frecuencia Actualiz. (Meses) *
                                                         </label>
                                                         <NumericInput
+                                                            id="contract-update-frequency"
                                                             className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
                                                             required
                                                             placeholder="Ej: 3"
@@ -858,10 +594,11 @@ export default function NewContractModal({
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                        <label htmlFor="contract-next-update" className="block text-xs font-medium text-gray-700 mb-1">
                                                             Próxima Actualización *
                                                         </label>
                                                         <input
+                                                            id="contract-next-update"
                                                             type="date"
                                                             name="updateDate"
                                                             required
@@ -880,10 +617,11 @@ export default function NewContractModal({
 	                                            Tipo de Ajuste
                                         </h4>
                                         <div>
-                                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                                            <label htmlFor="contract-adjustment-type" className="block text-xs font-medium text-gray-700 mb-1">
                                                 Tipo de Ajuste (Ej: IPC trimestral) *
                                             </label>
                                             <input
+                                                id="contract-adjustment-type"
                                                 type="text"
                                                 name="tipoAjuste"
                                                 required
@@ -897,78 +635,88 @@ export default function NewContractModal({
 
                                     {/* ─── Observaciones ─── */}
                                     <div>
-                                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                                            Observaciones (Opcional)
+                                        <label htmlFor="contract-observations" className="block text-xs font-medium text-gray-700 mb-1">
+                                            Observaciones (opcional)
                                         </label>
                                         <textarea
+                                            id="contract-observations"
                                             name="observations"
                                             rows={3}
                                             className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
-                                            placeholder="Ingrese cualquier observación relevante..."
+                                            placeholder="Ingresá cualquier observación relevante..."
                                             value={formData.observations}
                                             onChange={handleChange}
                                         />
                                     </div>
 
                                     {/* ─── Archivos ─── */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                        {/* Contrato Principal */}
-                                        <div>
-                                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                                                Contrato Principal ({MAIN_CONTRACT_FORMATS_LABEL})
-                                            </label>
-                                            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer relative h-32 flex items-center justify-center">
-                                                <input
-                                                    type="file"
-                                                    accept={MAIN_CONTRACT_ACCEPT}
-                                                    onChange={handleFileChange}
-                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                                />
-                                                <div className="flex flex-col items-center justify-center gap-2">
-                                                    <DocumentArrowUpIcon className="w-8 h-8 text-indigo-400" />
-                                                    <div className="text-sm text-gray-600">
-                                                        {formData.file ? (
-                                                            <span className="font-semibold text-indigo-600 truncate max-w-[200px] block">
-                                                                {formData.file.name}
-                                                            </span>
-                                                        ) : (
-                                                            <span className="font-semibold text-indigo-600">
-                                                                Subir Contrato
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Archivos Adicionales */}
-                                        <div>
-                                            <label className="block text-xs font-medium text-gray-700 mb-1">
-                                                Archivos Adicionales ({ATTACHMENT_FORMATS_LABEL})
-                                            </label>
-                                            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors cursor-pointer relative h-32 flex items-center justify-center">
-                                                <input
-                                                    type="file"
-                                                    accept={ATTACHMENT_ACCEPT}
-                                                    multiple
-                                                    onChange={handleAdditionalFilesChange}
-                                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                                />
-                                                <div className="flex flex-col items-center justify-center gap-2">
-                                                    <DocumentArrowUpIcon className="w-8 h-8 text-gray-600" />
-                                                    <div className="text-sm text-gray-600">
-                                                        <span className="font-semibold text-indigo-600">
-                                                            Agregar archivos
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
+                                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                        <LocalizedFilePicker
+                                            id="contract-main-file"
+                                            label="Contrato principal"
+                                            accept={MAIN_CONTRACT_ACCEPT}
+                                            formatsLabel={MAIN_CONTRACT_FORMATS_LABEL}
+                                            selectedFiles={formData.file ? [formData.file] : []}
+                                            onFilesSelected={handleFileSelection}
+                                            validateFile={validateMainContractFile}
+                                            onValidationError={message => toast.error(message)}
+                                            disabled={isSubmitting}
+                                        />
+                                        <LocalizedFilePicker
+                                            id="contract-additional-files"
+                                            label="Archivos adicionales"
+                                            accept={ATTACHMENT_ACCEPT}
+                                            formatsLabel={ATTACHMENT_FORMATS_LABEL}
+                                            selectedFiles={formData.additionalFiles}
+                                            onFilesSelected={handleAdditionalFilesSelection}
+                                            validateFile={validateAttachmentFile}
+                                            onValidationError={message => toast.error(message)}
+                                            multiple
+                                            disabled={isSubmitting}
+                                        />
                                     </div>
+
+                                    {formData.file && (
+                                        <div>
+                                            <label htmlFor="contract-document-observation" className="block text-xs font-medium text-gray-700 mb-1">
+                                                Observación de esta versión (opcional)
+                                            </label>
+                                            <textarea
+                                                id="contract-document-observation"
+                                                name="observacionDocumento"
+                                                rows={2}
+                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
+                                                placeholder="Ej.: Reemplaza el contrato firmado el 01/03/2026"
+                                                value={formData.observacionDocumento}
+                                                onChange={handleChange}
+                                            />
+                                            <p className="mt-1 text-xs text-gray-500">
+                                                Al reemplazar el contrato principal, la versión anterior se conserva en el historial.
+                                            </p>
+                                        </div>
+                                    )}
 
                                     {/* Lista de archivos adicionales seleccionados */}
                                     {formData.additionalFiles.length > 0 && (
                                         <div className="bg-gray-50 rounded-lg p-3">
+                                            <div className="mb-3 max-w-sm">
+                                                <label className="mb-1 block text-xs font-medium text-gray-700">
+                                                    Tipo de archivos adicionales
+                                                </label>
+                                                <AppSelect
+                                                    value={formData.tipoArchivosAdicionales}
+                                                    onChange={value => setFormData(prev => ({
+                                                        ...prev,
+                                                        tipoArchivosAdicionales: value as 'ADENDA' | 'ADJUNTO'
+                                                    }))}
+                                                    options={[
+                                                        { value: 'ADJUNTO', label: 'Adjuntos', description: 'Documentación complementaria.' },
+                                                        { value: 'ADENDA', label: 'Adendas', description: 'Modifican o complementan el contrato.' }
+                                                    ]}
+                                                    ariaLabel="Tipo de archivos adicionales"
+                                                    disabled={isSubmitting}
+                                                />
+                                            </div>
                                             <h5 className="text-xs font-medium text-gray-700 mb-2">
                                                 Archivos adicionales seleccionados:
                                             </h5>
@@ -1009,7 +757,7 @@ export default function NewContractModal({
                                             disabled={isSubmitting}
                                             className="min-h-11 flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm sm:flex-none"
                                         >
-                                            {isSubmitting ? 'Guardando...' : editingContract ? 'Guardar Cambios' : 'Guardar Contrato'}
+                                            {isSubmitting ? 'Guardando...' : editingContract ? 'Guardar cambios' : 'Guardar contrato'}
                                         </button>
                                     </div>
                                 </form>

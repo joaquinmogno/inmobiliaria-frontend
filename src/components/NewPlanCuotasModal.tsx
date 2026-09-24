@@ -6,6 +6,7 @@ import { planesCuotasService } from "../services/planes-cuotas.service";
 import { toast } from "react-hot-toast";
 import type { Moneda } from "../utils/currency";
 import FormError, { useFormError } from "./FormError";
+import { currentMonthInput } from "../utils/date";
 
 interface NewPlanCuotasModalProps {
     isOpen: boolean;
@@ -19,6 +20,7 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
     const [concepto, setConcepto] = useState("");
     const [montoTotal, setMontoTotal] = useState("");
     const [cantidadCuotas, setCantidadCuotas] = useState("1");
+    const [fechaPrimeraCuota, setFechaPrimeraCuota] = useState(() => currentMonthInput());
     const [tipoMovimiento, setTipoMovimiento] = useState<'INGRESO' | 'DESCUENTO'>('DESCUENTO');
     const [esParaInmobiliaria, setEsParaInmobiliaria] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -26,7 +28,7 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!concepto || !montoTotal || !cantidadCuotas) return;
+        if (!concepto || !montoTotal || !cantidadCuotas || !fechaPrimeraCuota) return;
         setFormError("");
 
         setIsSubmitting(true);
@@ -36,16 +38,18 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                 concepto,
                 montoTotal: Number(montoTotal),
                 cantidadCuotas: Number(cantidadCuotas),
+                fechaPrimeraCuota: `${fechaPrimeraCuota}-01`,
                 tipoMovimiento,
                 esParaInmobiliaria
             });
-            toast.success("Plan de cuotas creado exitosamente");
+            toast.success("Plan de cuotas creado correctamente");
             onSuccess();
             onClose();
             // Reset form
             setConcepto("");
             setMontoTotal("");
             setCantidadCuotas("1");
+            setFechaPrimeraCuota(currentMonthInput());
             setEsParaInmobiliaria(false);
         } catch (error) {
             console.error(error);
@@ -88,7 +92,7 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                     </Dialog.Title>
                                     <button
                                         onClick={onClose}
-                                        className="text-gray-600 hover:text-gray-500 transition-colors focus:outline-none"
+                                        className="text-gray-600 hover:text-content-muted transition-colors focus:outline-none"
                                     >
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
@@ -97,10 +101,11 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                 <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
                                     <FormError message={formError} />
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-1.5">
+                                        <label htmlFor="installment-plan-concept" className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-1.5">
                                             Concepto / Motivo
                                         </label>
                                         <input
+                                            id="installment-plan-concept"
                                             type="text"
                                             required
                                             placeholder="Ej: Compra de Heladera, Honorarios Contrato, etc."
@@ -112,10 +117,11 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-1.5">
+                                            <label htmlFor="installment-plan-total" className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-1.5">
                                                 Monto Total ({moneda})
                                             </label>
                                             <NumericInput
+                                                id="installment-plan-total"
                                                 className="block w-full px-4 py-2 text-sm border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50/50"
                                                 value={montoTotal}
                                                 onChange={(val) => setMontoTotal(val.toString())}
@@ -124,12 +130,14 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-1.5">
+                                            <label htmlFor="installment-plan-count" className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-1.5">
                                                 Cant. Cuotas
                                             </label>
                                             <input
+                                                id="installment-plan-count"
                                                 type="number"
                                                 min="1"
+                                                max="120"
                                                 required
                                                 className="block w-full px-4 py-2 text-sm border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50/50"
                                                 value={cantidadCuotas}
@@ -139,12 +147,30 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                     </div>
 
                                     <div>
-                                        <label className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-1.5">
-                                            Tipo de Movimiento / Destinatario
+                                        <label htmlFor="installment-plan-first-period" className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-1.5">
+                                            Primera cuota (mes/año)
                                         </label>
+                                        <input
+                                            id="installment-plan-first-period"
+                                            type="month"
+                                            required
+                                            className="block min-h-11 w-full rounded-xl border border-gray-300 bg-gray-50/50 px-4 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                            value={fechaPrimeraCuota}
+                                            onChange={(event) => setFechaPrimeraCuota(event.target.value)}
+                                        />
+                                        <p className="mt-1.5 text-xs text-content-muted">
+                                            Las cuotas siguientes vencerán mensualmente a partir de este período.
+                                        </p>
+                                    </div>
+
+                                    <fieldset>
+                                        <legend className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-1.5">
+                                            Tipo de Movimiento / Destinatario
+                                        </legend>
                                         <div className="grid grid-cols-2 gap-2">
                                             <button
                                                 type="button"
+                                                aria-pressed={tipoMovimiento === 'DESCUENTO'}
                                                 onClick={() => {
                                                     setTipoMovimiento('DESCUENTO');
                                                     setEsParaInmobiliaria(false);
@@ -152,28 +178,29 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                                 className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all ${
                                                     tipoMovimiento === 'DESCUENTO'
                                                         ? 'bg-red-50 border-red-200 text-red-700 ring-2 ring-red-100'
-                                                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                                                        : 'bg-white border-gray-200 text-content-muted hover:bg-gray-50'
                                                 }`}
                                             >
                                                 DESCUENTO (Al Dueño)
                                             </button>
                                             <button
                                                 type="button"
+                                                aria-pressed={tipoMovimiento === 'INGRESO'}
                                                 onClick={() => setTipoMovimiento('INGRESO')}
                                                 className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all ${
                                                     tipoMovimiento === 'INGRESO'
                                                         ? 'bg-indigo-50 border-indigo-200 text-indigo-700 ring-2 ring-indigo-100'
-                                                        : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'
+                                                        : 'bg-white border-gray-200 text-content-muted hover:bg-gray-50'
                                                 }`}
                                             >
                                                 INGRESO (Paga Inquilino)
                                             </button>
                                         </div>
 
-                                        <div className="mt-4 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                                            <label className="block text-xs font-bold text-gray-600 uppercase tracking-widest mb-2">
+                                        <fieldset className="mt-4 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                                            <legend className="block px-1 text-xs font-bold text-gray-600 uppercase tracking-widest mb-2">
                                                 {tipoMovimiento === 'INGRESO' ? 'Destinatario del Cobro' : '¿A favor de quién es el descuento?'}
-                                            </label>
+                                            </legend>
                                             <div className="flex gap-4">
                                                 <label className="flex items-center gap-2 cursor-pointer">
                                                     <input 
@@ -198,7 +225,7 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                                     <span className="text-xs text-gray-700">Inmobiliaria</span>
                                                 </label>
                                             </div>
-                                        </div>
+                                        </fieldset>
 
                                         <p className="mt-2 text-xs text-gray-600 italic leading-relaxed">
                                             {tipoMovimiento === 'DESCUENTO' 
@@ -209,7 +236,7 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                                     ? "* Lo paga el inquilino pero queda para la inmobiliaria (ej: heladera propia)."
                                                     : "* Lo paga el inquilino y se le entrega al propietario.")}
                                         </p>
-                                    </div>
+                                    </fieldset>
 
                                     <div className="mt-8 flex justify-end gap-3 pt-6 border-t border-gray-100">
                                         <button
@@ -221,7 +248,7 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                         </button>
                                         <button
                                             type="submit"
-                                            disabled={isSubmitting || !concepto || !montoTotal}
+                                            disabled={isSubmitting || !concepto || !montoTotal || !cantidadCuotas || !fechaPrimeraCuota}
                                             className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             {isSubmitting ? "Creando..." : "Crear Plan"}

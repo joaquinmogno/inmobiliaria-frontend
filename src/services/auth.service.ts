@@ -5,12 +5,13 @@ export interface User {
     email: string;
     fullName: string;
     nombreCompleto?: string;
-    role: string;
-    rol?: string;
+    tipo: 'ADMIN' | 'USUARIO';
+    role: 'ADMIN' | 'USUARIO';
+    rol?: { id: number; nombre: string; activo: boolean } | null;
     permissions?: string[];
-    inheritedPermissions?: string[];
-    directPermissions?: string[];
-    deniedPermissions?: string[];
+    activo?: boolean;
+    ultimoAcceso?: string | null;
+    fechaCreacion?: string;
     mustChangePassword?: boolean;
     csrfToken?: string;
     inmobiliaria: {
@@ -35,21 +36,8 @@ export const authService = {
         return response;
     },
 
-    loginWithGoogle: async (idToken: string, currentPassword?: string): Promise<LoginResponse> => {
-        const response = await api.post<LoginResponse>('/auth/google', { idToken, currentPassword });
-        if (response.user) {
-            localStorage.setItem('user', JSON.stringify(response.user));
-            localStorage.setItem('loginTimestamp', Date.now().toString());
-        }
-        return response;
-    },
-
     changePassword: async (currentPassword: string, newPassword: string) => {
         return api.post('/auth/change-password', { currentPassword, newPassword });
-    },
-
-    completePasswordReset: async (token: string, newPassword: string) => {
-        return api.post<{ message: string }>('/auth/complete-password-reset', { token, newPassword });
     },
 
     me: async (): Promise<User> => {

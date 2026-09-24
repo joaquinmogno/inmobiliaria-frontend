@@ -58,12 +58,13 @@ export default function UpdateContractModal({
             await contractsService.actualizarMonto(contract.id, {
                 montoNuevo,
                 fechaProximaNueva,
-                observaciones
+                observaciones,
+                version: contract.version
             });
             onUpdate();
             onClose();
-        } catch (err: any) {
-            setError(err.response?.data?.message || "Error al actualizar el contrato");
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Error al actualizar el contrato");
         } finally {
             setIsSubmitting(false);
         }
@@ -100,7 +101,7 @@ export default function UpdateContractModal({
                                     <Dialog.Title as="h3" className="text-xl font-bold leading-6 text-gray-900 flex items-center gap-2">
                                         Actualizar Alquiler
                                     </Dialog.Title>
-                                    <button onClick={onClose} className="text-gray-600 hover:text-gray-500 transition-colors">
+                                    <button onClick={onClose} className="text-gray-600 hover:text-content-muted transition-colors">
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
                                 </div>
@@ -114,13 +115,13 @@ export default function UpdateContractModal({
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
-                                                <p className="text-xs text-indigo-500 font-bold uppercase">Monto Actual</p>
+                                                <p className="text-xs text-status-accent font-bold uppercase">Monto Actual</p>
                                                 <p className="text-sm font-black text-indigo-900">
 	                                                    {formatCurrency(contract.montoAlquiler, contract.moneda)}
                                                 </p>
                                             </div>
                                             <div>
-                                                <p className="text-xs text-indigo-500 font-bold uppercase">Próxima Fecha</p>
+                                                <p className="text-xs text-status-accent font-bold uppercase">Próxima Fecha</p>
                                                 <p className="text-sm font-black text-indigo-900">
                                                     {contract.requiereActualizacion
                                                         ? formatDate(contract.fechaProximaActualizacion || "")
@@ -132,24 +133,26 @@ export default function UpdateContractModal({
 
                                     {/* Nuevo Monto */}
                                     <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-1.5 font-display">
+                                        <label htmlFor="contract-update-amount" className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-1.5 font-display">
                                             <BanknotesIcon className="w-4 h-4 text-gray-600" />
                                             Nuevo Monto de Alquiler
                                         </label>
                                         <NumericInput
+                                            id="contract-update-amount"
                                             value={montoNuevo}
                                             onChange={setMontoNuevo}
-                                            placeholder="Ingrese el nuevo monto"
+                                            placeholder="Ingresá el nuevo monto"
                                         />
                                     </div>
 
                                     {/* Próxima Fecha */}
                                     <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-1.5 font-display">
+                                        <label htmlFor="contract-update-date" className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-1.5 font-display">
                                             <CalendarIcon className="w-4 h-4 text-gray-600" />
-                                            Nueva Próxima Fecha de Actualización
+                                            Nueva fecha de actualización
                                         </label>
                                         <input
+                                            id="contract-update-date"
                                             type="date"
                                             value={fechaProximaNueva}
                                             onChange={(e) => setFechaProximaNueva(e.target.value)}
@@ -160,11 +163,12 @@ export default function UpdateContractModal({
 
                                     {/* Observaciones */}
                                     <div>
-                                        <label className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-1.5 font-display">
+                                        <label htmlFor="contract-update-observations" className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-1.5 font-display">
                                             <InformationCircleIcon className="w-4 h-4 text-gray-600" />
                                             Observaciones (opcional)
                                         </label>
                                         <textarea
+                                            id="contract-update-observations"
                                             value={observaciones}
                                             onChange={(e) => setObservaciones(e.target.value)}
                                             rows={2}
@@ -174,7 +178,7 @@ export default function UpdateContractModal({
                                     </div>
 
                                     {error && (
-                                        <p className="text-xs font-bold text-red-600 bg-red-50 p-3 rounded-lg border border-red-100">
+                                        <p className="text-xs font-bold text-status-danger bg-red-50 p-3 rounded-lg border border-red-100">
                                             {error}
                                         </p>
                                     )}

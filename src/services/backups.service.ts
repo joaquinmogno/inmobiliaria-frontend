@@ -1,4 +1,4 @@
-import api from './api';
+import api, { getFilenameFromDisposition } from './api';
 import { requestReauthentication } from './reauthentication';
 
 export interface BackupFile {
@@ -25,14 +25,13 @@ export const backupsService = {
         return await api.delete(`/backups/${type}/${filename}`);
     },
 
-    verifyBackup: async (type: 'db' | 'uploads', filename: string) => {
-        return await api.post<{ message: string; details: Record<string, number> }>(`/backups/${type}/${filename}/verify`);
-    },
-
     downloadBackup: async (type: 'db' | 'uploads', filename: string, retried = false): Promise<void> => {
         const envUrl = import.meta.env.VITE_API_URL;
         const baseUrl = envUrl ? (envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`) : 'http://localhost:3000/api';
-        const response = await fetch(`${baseUrl}/backups/download/${type}/${filename}`, { credentials: 'include' });
+        const response = await fetch(`${baseUrl}/backups/download/${type}/${encodeURIComponent(filename)}`, {
+            credentials: 'include',
+            cache: 'no-store'
+        });
 
         if (response.status === 403 && !retried) {
             const payload = await response.json().catch(() => ({}));
@@ -49,10 +48,11 @@ export const backupsService = {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', filename);
+        link.download = getFilenameFromDisposition(response.headers.get('content-disposition'))
+            || filename.replace(/\.enc$/, '');
         document.body.appendChild(link);
         link.click();
         link.remove();
-        window.URL.revokeObjectURL(url);
+        window.setTimeout(() => window.URL.revokeObjectURL(url), 0);
     }
 };

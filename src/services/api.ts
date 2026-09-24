@@ -44,9 +44,16 @@ export class ApiError extends Error {
     }
 }
 
+export interface PaginationMeta {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+}
+
 export interface PaginatedResponse<T> {
     data: T[];
-    meta: { total: number; page: number; limit: number; totalPages: number; retentionDays?: number };
+    meta: PaginationMeta & { status?: string; retentionDays?: number };
 }
 
 const getCookie = (name: string) => {
@@ -85,7 +92,8 @@ async function request<T>(endpoint: string, options: RequestOptions = {}, retrie
         cache: 'no-store',
     });
 
-    if (response.status === 401) {
+    const isLoginRequest = endpoint === '/auth/login';
+    if (response.status === 401 && !isLoginRequest) {
         localStorage.removeItem('user');
         if (endpoint !== '/auth/logout') {
             window.dispatchEvent(new Event('logout'));
@@ -109,7 +117,19 @@ async function request<T>(endpoint: string, options: RequestOptions = {}, retrie
         }
         const details = formatErrorDetails(errorData);
         const requestIdSuffix = errorData.requestId ? ` [ref: ${errorData.requestId}]` : "";
-        const message = (details || errorData.message || `HTTP error! status: ${response.status}`) + requestIdSuffix;
+        const versionComparison = errorData.code === 'STALE_WRITE'
+            && Number.isInteger(errorData.details?.submittedVersion)
+            && Number.isInteger(errorData.details?.currentVersion)
+            ? ` Versión abierta: ${errorData.details.submittedVersion}; versión vigente: ${errorData.details.currentVersion}.`
+            : '';
+        const message = (details || errorData.message || `HTTP error! status: ${response.status}`)
+            + versionComparison
+            + requestIdSuffix;
+
+        if (response.status === 403 && errorData.code === 'PASSWORD_CHANGE_REQUIRED') {
+            window.dispatchEvent(new CustomEvent('password-change-required'));
+            throw new ApiError('Antes de continuar, tenés que reemplazar tu contraseña temporal.', response.status, errorData.code);
+        }
 
         if (response.status === 403) {
             window.dispatchEvent(new CustomEvent('permission-denied', {
@@ -146,8 +166,16 @@ export const getFileUrl = (path: string | null) => {
     return `${BASE_URL}/files/${path}`;
 };
 
-const getFilenameFromDisposition = (disposition: string | null) => {
+export const getFilenameFromDisposition = (disposition: string | null) => {
     if (!disposition) return null;
+    const encodedMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+    if (encodedMatch) {
+        try {
+            return decodeURIComponent(encodedMatch[1].trim());
+        } catch {
+            return encodedMatch[1].trim();
+        }
+    }
     const match = disposition.match(/filename="([^"]+)"/i) || disposition.match(/filename=([^;]+)/i);
     return match ? match[1].trim() : null;
 };
@@ -185,6 +213,33 @@ export const openAuthenticatedFile = async (path: string | null): Promise<'opene
         window.open(blobUrl, '_blank');
     }
     return 'opened';
+};
+
+export const openAuthenticatedPdf = async (endpoint: string): Promise<void> => {
+    const fileWindow = window.open('', '_blank');
+    try {
+        const response = await fetch(`${BASE_URL}${endpoint}`, { credentials: 'include', cache: 'no-store' });
+        if (response.status === 401) {
+            localStorage.removeItem('user');
+            window.dispatchEvent(new Event('logout'));
+        }
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || 'No se pudo generar el PDF');
+        }
+        const contentType = response.headers.get('content-type') || '';
+        if (!contentType.toLowerCase().includes('application/pdf')) {
+            throw new Error('El servidor no devolvió un documento PDF válido');
+        }
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        if (fileWindow) fileWindow.location.href = blobUrl;
+        else window.open(blobUrl, '_blank', 'noopener,noreferrer');
+        window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+    } catch (error) {
+        fileWindow?.close();
+        throw error;
+    }
 };
 
 export default api;

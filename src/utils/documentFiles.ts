@@ -45,7 +45,7 @@ function hasMatchingMimeType(file: File) {
 
 function validateFileSize(file: File) {
     if (file.size > MAX_FILE_SIZE_BYTES) {
-        return 'El archivo supera el limite maximo de 30 MB.';
+        return 'El archivo supera el límite máximo de 30 MB.';
     }
     return null;
 }
@@ -59,7 +59,7 @@ export function validateMainContractFile(file: File) {
 
 export function validateAttachmentFile(file: File) {
     if (!hasAllowedExtension(file, ATTACHMENT_EXTENSIONS) || !hasMatchingMimeType(file)) {
-        return `Formato no permitido. Solo se aceptan ${ATTACHMENT_FORMATS_LABEL}.`;
+        return `Formato no permitido. Sólo se aceptan ${ATTACHMENT_FORMATS_LABEL}.`;
     }
     return validateFileSize(file);
 }

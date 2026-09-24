@@ -2,8 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 const user = {
   id: 1, email: 'chaos@example.com', fullName: 'QA Chaos', nombreCompleto: 'QA Chaos',
-  role: 'OWNER', rol: 'OWNER', permissions: ['reportes.dashboard.ver'], inheritedPermissions: [],
-  directPermissions: ['reportes.dashboard.ver'], deniedPermissions: [], inmobiliaria: { id: 1, nombre: 'Chaos' }
+  tipo: 'ADMIN', role: 'ADMIN', rol: null, permissions: ['reportes.dashboard.ver'], inmobiliaria: { id: 1, nombre: 'Chaos' }
 };
 
 async function fillLogin(page: Page) {

@@ -1,10 +1,15 @@
 import { useState, useEffect, useId, useRef } from "react";
 import { MagnifyingGlassIcon, XMarkIcon, CheckIcon } from "@heroicons/react/24/outline";
 
+type SearchPage<T> = {
+    data: T[];
+    meta: { page: number; totalPages: number };
+};
+
 interface AutocompleteSelectorProps<T> {
     label: string;
     placeholder: string;
-    onSearch: (query: string) => Promise<T[]>;
+    onSearch: (query: string, page?: number) => Promise<T[] | SearchPage<T>>;
     onSelect: (item: T | null) => void;
     renderItem: (item: T) => string;
     renderSelection: (item: T) => string;
@@ -29,8 +34,11 @@ export default function AutocompleteSelector<T>({
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [hasMore, setHasMore] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const listId = useId();
+    const searchSequence = useRef(0);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -54,11 +62,19 @@ export default function AutocompleteSelector<T>({
         return () => clearTimeout(delayDebounceFn);
     }, [query, isOpen]);
 
-    const performSearch = async (q: string) => {
+    const performSearch = async (q: string, page = 1, append = false) => {
+        const sequence = ++searchSequence.current;
         setLoading(true);
         try {
-            const data = await onSearch(q);
-            setResults(data);
+            const response = await onSearch(q, page);
+            if (sequence !== searchSequence.current) return;
+            const data = Array.isArray(response) ? response : response.data;
+            setResults(current => append
+                ? [...current, ...data.filter(item => !current.some(existing => existing[idField] === item[idField]))]
+                : data
+            );
+            setCurrentPage(Array.isArray(response) ? 1 : response.meta.page);
+            setHasMore(!Array.isArray(response) && response.meta.page < response.meta.totalPages);
             setActiveIndex(data.length ? 0 : -1);
         } catch (error) {
             console.error("Error searching:", error);
@@ -92,7 +108,7 @@ export default function AutocompleteSelector<T>({
 
     return (
         <div className="relative" ref={dropdownRef}>
-            <label className="block text-xs font-medium text-gray-700 mb-1">
+            <label htmlFor={`${listId}-input`} className="block text-xs font-medium text-gray-700 mb-1">
                 {label}
             </label>
 
@@ -119,6 +135,7 @@ export default function AutocompleteSelector<T>({
                         <MagnifyingGlassIcon className={`w-4 h-4 ${loading ? 'animate-pulse text-indigo-500' : 'text-gray-600'}`} />
                     </div>
                     <input
+                        id={`${listId}-input`}
                         type="text"
                         role="combobox"
                         aria-autocomplete="list"
@@ -142,7 +159,7 @@ export default function AutocompleteSelector<T>({
             {isOpen && query.length > 1 && !value && (
                 <div id={listId} role="listbox" aria-label={`Resultados para ${label}`} className="absolute z-50 mt-1 w-full rounded-md bg-white shadow-lg border border-gray-200 py-1 max-h-60 overflow-auto">
                     {loading ? (
-                        <div className="px-4 py-2 text-xs text-gray-500 italic">Buscando...</div>
+                        <div className="px-4 py-2 text-xs text-content-muted italic">Buscando...</div>
                     ) : results.length > 0 ? (
                         results.map((item, index) => (
                             <button
@@ -159,8 +176,9 @@ export default function AutocompleteSelector<T>({
                             </button>
                         ))
                     ) : (
-                        <div className="px-4 py-2 text-xs text-gray-500 italic">No se encontraron resultados. Continuar con carga manual.</div>
+                        <div className="px-4 py-2 text-xs text-content-muted italic">No se encontraron resultados. Continuar con carga manual.</div>
                     )}
+                    {hasMore && !loading && <button type="button" onClick={() => void performSearch(query, currentPage + 1, true)} className="min-h-11 w-full border-t border-gray-100 px-4 py-2 text-left text-xs font-bold text-indigo-700 hover:bg-indigo-50">Ver más resultados</button>}
                 </div>
             )}
             <span className="sr-only" aria-live="polite">{!loading && query.length > 1 ? `${results.length} resultados encontrados` : ""}</span>

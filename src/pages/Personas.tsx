@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
     UserGroupIcon,
+    EyeIcon,
     PlusIcon,
     PencilSquareIcon,
     TrashIcon,
 } from "@heroicons/react/24/outline";
-import { personasService, type Persona, type CreatePersonaData } from "../services/personas.service";
+import { personasService, type Persona, type CreatePersonaData, type PersonaCoincidencia } from "../services/personas.service";
 import WhatsAppLink from "../components/WhatsAppLink";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
@@ -14,21 +16,28 @@ import toast from "react-hot-toast";
 import { requestConfirmation } from "../services/confirmation";
 import FilterBar, { persistFilter, readPersistedFilter } from "../components/FilterBar";
 import FormError, { useFormError } from "../components/FormError";
+import AppSelect from "../components/AppSelect";
+import { getStatusLabel } from "../utils/status";
+import PersonDetailsModal from "../components/PersonDetailsModal";
+import ActiveFilterChips from "../components/ActiveFilterChips";
 
 export default function Personas() {
     const { user } = useAuth();
     const canCreate = hasPermission(user, "personas.crear");
     const canEdit = hasPermission(user, "personas.editar");
     const canDelete = hasPermission(user, "personas.eliminar");
+    const [searchParams, setSearchParams] = useSearchParams();
     const [personas, setPersonas] = useState<Persona[]>([]);
     const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState(() => readPersistedFilter("personas"));
-    const [debouncedSearch, setDebouncedSearch] = useState(() => readPersistedFilter("personas"));
+    const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') ?? readPersistedFilter("personas"));
+    const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('q') ?? readPersistedFilter("personas"));
     const [currentPage, setCurrentPage] = useState(1);
     const [total, setTotal] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingPersona, setEditingPersona] = useState<Persona | null>(null);
+    const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
+    const [coincidencias, setCoincidencias] = useState<PersonaCoincidencia[]>([]);
     const { error: formError, setError: setFormError, reportError, formRef } = useFormError();
     const [formData, setFormData] = useState<CreatePersonaData>({
         nombreCompleto: "",
@@ -36,6 +45,14 @@ export default function Personas() {
         email: "",
         telefono: "",
         direccion: "",
+        cuit: "",
+        banco: "",
+        cbu: "",
+        aliasBancario: "",
+        titularCuentaBancaria: "",
+        titularidadBancariaVerificada: false,
+        contactoAlternativo: "",
+        telefonoAlternativo: "",
         estado: "ACTIVO",
     });
 
@@ -50,10 +67,57 @@ export default function Personas() {
     }, [searchTerm]);
 
     useEffect(() => {
+        const query = searchParams.get('q');
+        if (query !== null && query !== searchTerm) {
+            setSearchTerm(query);
+            setDebouncedSearch(query);
+            setCurrentPage(1);
+        }
+    }, [searchParams]);
+
+    const updateSearch = (value: string) => {
+        setSearchTerm(value);
+        setSearchParams(current => {
+            const next = new URLSearchParams(current);
+            if (value.trim()) next.set('q', value.trim());
+            else next.delete('q');
+            return next;
+        }, { replace: true });
+    };
+
+    useEffect(() => {
         const controller = new AbortController();
         loadPersonas(debouncedSearch, currentPage, controller.signal);
         return () => controller.abort();
     }, [debouncedSearch, currentPage]);
+
+    useEffect(() => {
+        if (!isModalOpen) {
+            setCoincidencias([]);
+            return;
+        }
+        const digits = (value?: string | null) => (value || '').replace(/\D/g, '');
+        const identity = {
+            dni: formData.dni?.trim() || undefined,
+            cuit: digits(formData.cuit).length === 11 ? formData.cuit : undefined,
+            email: formData.email?.includes('@') ? formData.email : undefined,
+            telefono: digits(formData.telefono).length >= 8 ? formData.telefono : undefined,
+            excluirId: editingPersona?.id
+        };
+        if (!identity.dni && !identity.cuit && !identity.email && !identity.telefono) {
+            setCoincidencias([]);
+            return;
+        }
+        let active = true;
+        const timer = window.setTimeout(() => {
+            personasService.findMatches(identity)
+                .then(response => { if (active) setCoincidencias(response.coincidencias); })
+                // The server remains authoritative at save time. While a phone/email is still being typed,
+                // a validation error simply means that no useful pre-alert can be shown yet.
+                .catch(() => { if (active) setCoincidencias([]); });
+        }, 350);
+        return () => { active = false; window.clearTimeout(timer); };
+    }, [isModalOpen, editingPersona?.id, formData.dni, formData.cuit, formData.email, formData.telefono]);
 
     const loadPersonas = async (searchQuery: string = debouncedSearch, page: number = currentPage, signal?: AbortSignal) => {
         setLoading(true);
@@ -75,7 +139,7 @@ export default function Personas() {
         setFormError("");
         try {
             if (editingPersona) {
-                await personasService.update(editingPersona.id, formData);
+                await personasService.update(editingPersona.id, { ...formData, version: editingPersona.version });
             } else {
                 await personasService.create(formData);
             }
@@ -99,13 +163,48 @@ export default function Personas() {
         }
     };
 
+    const handleMerge = async (target: PersonaCoincidencia) => {
+        if (!editingPersona) return;
+        const approved = await requestConfirmation({
+            title: 'Fusionar personas',
+            message: `Se conservará “${target.nombreCompleto}” como ficha principal. Los contratos, garantías y liquidaciones de “${editingPersona.nombreCompleto}” pasarán a esa ficha. Esta acción queda auditada y no se puede deshacer.`,
+            confirmText: 'Fusionar'
+        });
+        if (!approved) return;
+        const motivo = window.prompt('Motivo de la fusión (quedará en la auditoría):');
+        if (!motivo?.trim()) return;
+        try {
+            await personasService.merge(editingPersona.id, {
+                personaDestinoId: target.id,
+                version: editingPersona.version,
+                motivo: motivo.trim()
+            });
+            toast.success('Las personas se fusionaron y el historial fue reasignado.');
+            setIsModalOpen(false);
+            setEditingPersona(null);
+            resetForm();
+            loadPersonas();
+        } catch (error) {
+            reportError(error, 'No se pudieron fusionar las personas');
+        }
+    };
+
     const resetForm = () => {
+        setCoincidencias([]);
         setFormData({
             nombreCompleto: "",
             dni: "",
             email: "",
             telefono: "",
             direccion: "",
+            cuit: "",
+            banco: "",
+            cbu: "",
+            aliasBancario: "",
+            titularCuentaBancaria: "",
+            titularidadBancariaVerificada: false,
+            contactoAlternativo: "",
+            telefonoAlternativo: "",
             estado: "ACTIVO",
         });
     };
@@ -118,6 +217,14 @@ export default function Personas() {
             email: persona.email || "",
             telefono: persona.telefono || "",
             direccion: persona.direccion || "",
+            cuit: persona.cuit || "",
+            banco: persona.banco || "",
+            cbu: persona.cbu || "",
+            aliasBancario: persona.aliasBancario || "",
+            titularCuentaBancaria: persona.titularCuentaBancaria || "",
+            titularidadBancariaVerificada: persona.titularidadBancariaVerificada || false,
+            contactoAlternativo: persona.contactoAlternativo || "",
+            telefonoAlternativo: persona.telefonoAlternativo || "",
             estado: persona.estado,
         });
         setIsModalOpen(true);
@@ -129,8 +236,8 @@ export default function Personas() {
         <div className="p-4 md:p-8 max-w-7xl mx-auto">
             <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Módulo de Personas</h1>
-                    <p className="text-gray-500 mt-1">Centraliza la información de inquilinos, propietarios y garantes</p>
+                    <h1 className="text-3xl font-bold text-gray-900">Personas</h1>
+                    <p className="text-content-muted mt-1">Centraliza la información de inquilinos, propietarios y garantes</p>
                 </div>
                 {canCreate && <button
                     onClick={() => {
@@ -141,23 +248,25 @@ export default function Personas() {
                     className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 font-semibold"
                 >
                     <PlusIcon className="w-5 h-5" />
-                    Nueva Persona
+                    Nueva persona
                 </button>}
             </div>
 
-            <div className="mb-6"><FilterBar query={searchTerm} onQueryChange={setSearchTerm} onClear={() => setSearchTerm("")} resultCount={total} placeholder="Buscar por nombre, DNI o email..." /></div>
+            <div className="mb-6 space-y-3"><FilterBar query={searchTerm} onQueryChange={updateSearch} onClear={() => updateSearch("")} resultCount={total} placeholder="Buscar por nombre, DNI, CUIT, email o teléfono..." />
+                <ActiveFilterChips filters={searchTerm ? [{ key: 'q', label: `Búsqueda: ${searchTerm}`, onRemove: () => updateSearch('') }] : []} />
+            </div>
 
             {/* VISTA DESKTOP */}
-            <div className="hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden lg:block">
+            <div className="hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden 2xl:block">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead className="sticky top-0 z-10 bg-gray-50">
                             <tr className="bg-gray-50/50 border-b border-gray-100">
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Persona</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Contacto</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Roles</th>
-                                <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider">Estado</th>
-                                <th className="sticky right-0 z-20 bg-gray-50 px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wider text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">Acciones</th>
+                                <th className="px-6 py-4 text-xs font-bold text-content-muted uppercase tracking-wider">Persona</th>
+                                <th className="px-6 py-4 text-xs font-bold text-content-muted uppercase tracking-wider">Contacto</th>
+                                <th className="px-6 py-4 text-xs font-bold text-content-muted uppercase tracking-wider">Roles</th>
+                                <th className="px-6 py-4 text-xs font-bold text-content-muted uppercase tracking-wider">Estado</th>
+                                <th className="sticky right-0 z-20 bg-gray-50 px-6 py-4 text-xs font-bold text-content-muted uppercase tracking-wider text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
@@ -170,7 +279,7 @@ export default function Personas() {
                                             </div>
                                             <div className="min-w-0 max-w-64">
                                                 <p className="truncate font-semibold text-gray-900" title={p.nombreCompleto}>{p.nombreCompleto}</p>
-                                                <p className="text-sm text-gray-500">{p.dni || "Sin ID"}</p>
+                                                <p className="text-sm text-content-muted">{p.dni || "Sin ID"}</p>
                                             </div>
                                         </div>
                                     </td>
@@ -178,9 +287,9 @@ export default function Personas() {
                                         <div className="text-sm">
                                             <p className="text-gray-900">{p.email || "-"}</p>
                                             {p.telefono ? (
-                                                <WhatsAppLink phone={p.telefono} className="text-gray-500" />
+                                                <WhatsAppLink phone={p.telefono} className="text-content-muted" />
                                             ) : (
-                                                <p className="text-gray-500">-</p>
+                                                <p className="text-content-muted">-</p>
                                             )}
                                             <p className="text-gray-600 text-xs truncate max-w-[150px]" title={p.direccion || undefined}>{p.direccion}</p>
                                         </div>
@@ -201,11 +310,19 @@ export default function Personas() {
                                     <td className="px-6 py-4">
                                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${p.estado === 'ACTIVO' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                                             }`}>
-                                            {p.estado}
+                                            {getStatusLabel(p.estado)}
                                         </span>
                                     </td>
                                     <td className="sticky right-0 z-10 bg-white px-6 py-4 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">
                                         <div className="flex justify-end gap-2">
+                                            <button
+                                                onClick={() => setSelectedPersona(p)}
+                                                className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-white text-indigo-700 transition-colors hover:bg-indigo-50"
+                                                title="Ver ficha completa"
+                                                aria-label={`Ver ficha de ${p.nombreCompleto}`}
+                                            >
+                                                <EyeIcon className="w-5 h-5" />
+                                            </button>
                                             {canEdit && <button
                                                 onClick={() => handleEdit(p)}
                                                 className="inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-blue-700 transition-colors bg-white hover:bg-blue-50 rounded-lg"
@@ -215,7 +332,8 @@ export default function Personas() {
                                             </button>}
                                             {canDelete && <button
                                                 onClick={() => handleDelete(p.id)}
-                                                className="inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-red-700 transition-colors bg-white hover:bg-red-50 rounded-lg"
+                                                data-danger-trigger="true"
+                                                className="destructive-icon-action inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors"
                                                 title="Eliminar"
                                             >
                                                 <TrashIcon className="w-5 h-5" />
@@ -226,7 +344,7 @@ export default function Personas() {
                             ))}
                             {personas.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                                    <td colSpan={5} className="px-6 py-8 text-center text-content-muted">
                                         No se encontraron personas con ese criterio.
                                     </td>
                                 </tr>
@@ -237,7 +355,7 @@ export default function Personas() {
             </div>
 
             {/* VISTA MOBILE */}
-            <div className="space-y-4 lg:hidden">
+            <div className="space-y-4 2xl:hidden">
                 {personas.map((p) => (
                     <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
                         <div className="flex justify-between items-start">
@@ -251,7 +369,7 @@ export default function Personas() {
                                 </div>
                             </div>
                             <span className={`px-2 py-0.5 rounded-md text-xs font-bold uppercase tracking-wider shrink-0 ${p.estado === 'ACTIVO' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                {p.estado}
+                                {getStatusLabel(p.estado)}
                             </span>
                         </div>
                         
@@ -271,7 +389,13 @@ export default function Personas() {
                             </div>
                         )}
                         
-                        {(canEdit || canDelete) && <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 mt-1">
+                        <div className="flex justify-end gap-2 pt-3 border-t border-gray-100 mt-1">
+                            <button
+                                onClick={() => setSelectedPersona(p)}
+                                className="flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-bold text-indigo-800 transition-colors hover:bg-indigo-100"
+                            >
+                                <EyeIcon className="w-4 h-4" /> Ver ficha
+                            </button>
                             {canEdit && <button
                                 onClick={() => handleEdit(p)}
                                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
@@ -280,15 +404,16 @@ export default function Personas() {
                             </button>}
                             {canDelete && <button
                                 onClick={() => handleDelete(p.id)}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                                data-danger-trigger="true"
+                                className="destructive-action flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors"
                             >
                                 <TrashIcon className="w-4 h-4" /> Eliminar
                             </button>}
-                        </div>}
+                        </div>
                     </div>
                 ))}
                 {personas.length === 0 && (
-                    <div className="p-8 text-center bg-white rounded-xl border border-gray-100 text-gray-500 text-sm">
+                    <div className="p-8 text-center bg-white rounded-xl border border-gray-100 text-content-muted text-sm">
                         No se encontraron personas con ese criterio.
                     </div>
                 )}
@@ -296,13 +421,21 @@ export default function Personas() {
 
             <ServerPagination page={currentPage} totalPages={totalPages} total={total} pageSize={25} currentCount={personas.length} onPageChange={setCurrentPage} />
 
+            <PersonDetailsModal
+                isOpen={Boolean(selectedPersona)}
+                person={selectedPersona}
+                canEdit={canEdit}
+                onClose={() => setSelectedPersona(null)}
+                onEdit={handleEdit}
+            />
+
             {/* Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-bold text-gray-900">
-                                {editingPersona ? "Editar Persona" : "Nueva Persona"}
+                                {editingPersona ? "Editar persona" : "Nueva persona"}
                             </h2>
                             <button onClick={() => setIsModalOpen(false)} className="text-gray-600 hover:text-gray-600">
                                 ✕
@@ -311,10 +444,29 @@ export default function Personas() {
 
                         <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
                             <FormError message={formError} />
+                            {coincidencias.length > 0 && (
+                                <aside className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" aria-live="polite">
+                                    <p className="font-bold">Posible persona duplicada</p>
+                                    <p className="mt-1 text-amber-900">Antes de guardar, revisá la ficha existente para no fragmentar contratos, deudas ni documentación.</p>
+                                    <ul className="mt-3 space-y-2">
+                                        {coincidencias.map(persona => (
+                                            <li key={persona.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/70 px-3 py-2">
+                                                <span><strong>{persona.nombreCompleto}</strong> · coincide por {persona.coincidencias.map(item => item.label).join(', ')}</span>
+                                                {editingPersona && canEdit && (
+                                                    <button type="button" onClick={() => handleMerge(persona)} className="rounded-lg border border-amber-500 px-2.5 py-1 text-xs font-bold text-amber-900 hover:bg-amber-100">
+                                                        Fusionar en esta ficha
+                                                    </button>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </aside>
+                            )}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre y Apellido / Razón Social *</label>
+                                    <label htmlFor="person-name" className="block text-sm font-medium text-gray-700 mb-1">Nombre y Apellido / Razón Social *</label>
                                     <input
+                                        id="person-name"
                                         type="text"
                                         required
                                         className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
@@ -323,10 +475,19 @@ export default function Personas() {
                                         placeholder="Ej: Juan Pérez S.A."
                                     />
                                 </div>
+                                <div><label className="block text-sm font-medium text-gray-700 mb-1">CUIT (opcional)</label><input inputMode="numeric" value={formData.cuit || ''} onChange={e => setFormData({ ...formData, cuit: e.target.value })} placeholder="11 dígitos" className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
+                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Contacto alternativo (opcional)</label><input value={formData.contactoAlternativo || ''} onChange={e => setFormData({ ...formData, contactoAlternativo: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
+                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Teléfono alternativo (opcional)</label><input value={formData.telefonoAlternativo || ''} onChange={e => setFormData({ ...formData, telefonoAlternativo: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
+                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Banco (opcional)</label><input value={formData.banco || ''} onChange={e => setFormData({ ...formData, banco: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
+                                <div><label className="block text-sm font-medium text-gray-700 mb-1">CBU (opcional)</label><input inputMode="numeric" value={formData.cbu || ''} onChange={e => setFormData({ ...formData, cbu: e.target.value, titularidadBancariaVerificada: false })} placeholder="22 dígitos" className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
+                                <div><label className="block text-sm font-medium text-gray-700 mb-1">Alias bancario (opcional)</label><input value={formData.aliasBancario || ''} onChange={e => setFormData({ ...formData, aliasBancario: e.target.value, titularidadBancariaVerificada: false })} placeholder="Ej: LUZ.CASA.123" className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
+                                <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Titular de la cuenta (opcional si coincide con la persona)</label><input value={formData.titularCuentaBancaria || ''} onChange={e => setFormData({ ...formData, titularCuentaBancaria: e.target.value, titularidadBancariaVerificada: false })} placeholder={formData.nombreCompleto || 'Se asumirá el nombre de la persona'} className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
+                                {(formData.cbu || formData.aliasBancario) && <label className="md:col-span-2 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"><input type="checkbox" checked={Boolean(formData.titularidadBancariaVerificada)} onChange={e => setFormData({ ...formData, titularidadBancariaVerificada: e.target.checked })} className="mt-0.5 h-4 w-4 rounded border-amber-400 text-indigo-600 focus:ring-indigo-500" /><span><strong>Cuenta verificada.</strong> Confirmo que el CBU o alias pertenece a {formData.titularCuentaBancaria?.trim() || formData.nombreCompleto || 'la persona indicada'}.</span></label>}
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">DNI / CUIT</label>
+                                    <label htmlFor="person-document" className="block text-sm font-medium text-gray-700 mb-1">DNI (opcional)</label>
                                     <input
+                                        id="person-document"
                                         type="text"
                                         className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                         value={formData.dni || ""}
@@ -335,20 +496,23 @@ export default function Personas() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                                    <select
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                                    <label htmlFor="person-status" className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+                                    <AppSelect
+                                        id="person-status"
+                                        ariaLabel="Estado de la persona"
                                         value={formData.estado}
-                                        onChange={(e) => setFormData({ ...formData, estado: e.target.value as 'ACTIVO' | 'INACTIVO' })}
-                                    >
-                                        <option value="ACTIVO">Activo</option>
-                                        <option value="INACTIVO">Inactivo</option>
-                                    </select>
+                                        onChange={(value) => setFormData({ ...formData, estado: value as 'ACTIVO' | 'INACTIVO' })}
+                                        options={[
+                                            { value: "ACTIVO", label: "Activo" },
+                                            { value: "INACTIVO", label: "Inactivo" }
+                                        ]}
+                                    />
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                    <label htmlFor="person-email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                                     <input
+                                        id="person-email"
                                         type="email"
                                         className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                         value={formData.email || ""}
@@ -357,8 +521,9 @@ export default function Personas() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                                    <label htmlFor="person-phone" className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
                                     <input
+                                        id="person-phone"
                                         type="tel"
                                         className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                         value={formData.telefono}
@@ -367,8 +532,9 @@ export default function Personas() {
                                 </div>
 
                                 <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+                                    <label htmlFor="person-address" className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
                                     <input
+                                        id="person-address"
                                         type="text"
                                         className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                                         value={formData.direccion || ""}
@@ -390,7 +556,7 @@ export default function Personas() {
                                     type="submit"
                                     className="px-6 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-semibold shadow-lg shadow-indigo-100"
                                 >
-                                    Guardar Persona
+                                    Guardar persona
                                 </button>
                             </div>
                         </form>

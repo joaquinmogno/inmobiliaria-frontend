@@ -64,12 +64,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             toast.error(detail || 'No tenés permiso para realizar esta acción');
         };
 
+        const handlePasswordChangeRequired = () => {
+            setUser(currentUser => {
+                const existingUser = currentUser || authService.getCurrentUser();
+                if (!existingUser) return currentUser;
+                const updatedUser = { ...existingUser, mustChangePassword: true };
+                localStorage.setItem('user', JSON.stringify(updatedUser));
+                return updatedUser;
+            });
+            toast.error('Antes de continuar, tenés que reemplazar tu contraseña temporal.', {
+                id: 'password-change-required'
+            });
+        };
+
         const handleFocus = () => {
             if (Date.now() - lastValidationRef.current >= 60_000) refreshUser();
         };
 
         window.addEventListener('logout', handleLogoutEvent);
         window.addEventListener('permission-denied', handlePermissionDenied);
+        window.addEventListener('password-change-required', handlePasswordChangeRequired);
         window.addEventListener('focus', handleFocus);
 
         const currentUser = authService.getCurrentUser();
@@ -87,6 +101,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return () => {
             window.removeEventListener('logout', handleLogoutEvent);
             window.removeEventListener('permission-denied', handlePermissionDenied);
+            window.removeEventListener('password-change-required', handlePasswordChangeRequired);
             window.removeEventListener('focus', handleFocus);
         };
     }, [clearSession, refreshUser]);
