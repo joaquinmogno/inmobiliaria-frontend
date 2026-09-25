@@ -6,7 +6,7 @@ import AppSelect from '../../components/AppSelect';
 import AutocompleteSelector from '../../components/AutocompleteSelector';
 import FilterBar from '../../components/FilterBar';
 import ServerPagination from '../../components/ServerPagination';
-import { liquidacionesService, type Liquidacion } from '../../services/liquidaciones.service';
+import { liquidacionesService, settlementStatusLabel, type Liquidacion } from '../../services/liquidaciones.service';
 import { formatCurrency } from '../../utils/currency';
 import { formatDate, formatMonthYear } from '../../utils/date';
 import { getTenantPaidTotal } from './liquidation-detail.model';
@@ -43,9 +43,11 @@ const filtersFromSearchParams = (searchParams: URLSearchParams): HistoryFilters 
   adelantos: searchParams.get('adelantos') === 'true'
 });
 
+const hasTenantCollectionPending = (liquidation: Liquidacion) => ['PENDIENTE', 'PARCIAL'].includes(liquidation.estadoCobroInquilino);
+const hasOwnerPaymentPending = (liquidation: Liquidacion) => ['PENDIENTE', 'PARCIAL'].includes(liquidation.estadoPagoPropietario);
 const nextAction = (liquidation: Liquidacion) => liquidation.estado === 'BORRADOR' ? 'Revisar borrador'
-  : liquidation.estado === 'CONFIRMADA' && liquidation.estadoCobroInquilino !== 'COBRADO' ? 'Registrar cobro'
-    : liquidation.estado === 'CONFIRMADA' && liquidation.estadoPagoPropietario !== 'PAGADO' ? `Pagar a ${liquidation.propietarioNombre || liquidation.contrato?.propietarios.find(owner => owner.esPrincipal)?.persona.nombreCompleto || 'propietario'}`
+  : liquidation.estado === 'CONFIRMADA' && hasTenantCollectionPending(liquidation) ? 'Registrar cobro'
+    : liquidation.estado === 'CONFIRMADA' && hasOwnerPaymentPending(liquidation) ? `Pagar a ${liquidation.propietarioNombre || liquidation.contrato?.propietarios.find(owner => owner.esPrincipal)?.persona.nombreCompleto || 'propietario'}`
       : 'Ver comprobantes';
 
 const operationalBalances = (liquidation: Liquidacion) => {
@@ -253,7 +255,7 @@ export default function LiquidationHistory() {
               {rows.map(row => {
                 const property = row.propiedadDireccion || row.contrato?.propiedad.direccion || 'Propiedad sin dirección';
                 const tenant = row.inquilinoNombre || row.contrato?.inquilinos.find(item => item.esPrincipal)?.persona.nombreCompleto || 'Sin inquilino';
-                const state = row.estado === 'BORRADOR' ? 'Borrador' : row.estado === 'ANULADA' ? 'Anulada' : `Cobro ${row.estadoCobroInquilino.toLowerCase()} · dueño ${row.estadoPagoPropietario.toLowerCase()}`;
+                const state = row.estado === 'BORRADOR' ? 'Borrador' : row.estado === 'ANULADA' ? 'Anulada' : `Cobro ${settlementStatusLabel(row.estadoCobroInquilino)} · dueño ${settlementStatusLabel(row.estadoPagoPropietario)}`;
                 return <tr key={row.id} className="align-top hover:bg-gray-50/80">
                   <td className="px-3 py-3.5 text-sm font-bold text-gray-900">{formatMonthYear(row.periodo)}</td>
                   <td className="min-w-0 px-3 py-3.5"><p className="max-w-56 break-words text-sm font-black text-gray-950">{property}</p><p className="mt-1 text-xs text-gray-600">Vence {formatDate(row.fechaVencimiento)}</p></td>
@@ -277,7 +279,7 @@ export default function LiquidationHistory() {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2"><h3 className="break-words font-black text-gray-950">{property}</h3><span className="rounded-full border border-gray-300 bg-gray-50 px-2 py-0.5 text-xs font-bold text-gray-800">{formatMonthYear(row.periodo)}</span></div>
               <p className="mt-1 break-words text-sm text-gray-700">{tenant} · vence {formatDate(row.fechaVencimiento)}</p>
-              <p className="mt-2 text-xs font-bold text-gray-700">{row.estado === 'BORRADOR' ? 'Borrador' : row.estado === 'ANULADA' ? 'Anulada' : `Cobro ${row.estadoCobroInquilino.toLowerCase()} · pago al propietario ${row.estadoPagoPropietario.toLowerCase()}`}</p>
+              <p className="mt-2 text-xs font-bold text-gray-700">{row.estado === 'BORRADOR' ? 'Borrador' : row.estado === 'ANULADA' ? 'Anulada' : `Cobro ${settlementStatusLabel(row.estadoCobroInquilino)} · pago al propietario ${settlementStatusLabel(row.estadoPagoPropietario)}`}</p>
               <div className="mt-3"><OperationalBalanceChips liquidation={row} /></div>
             </div>
             <div className="flex min-w-0 flex-col gap-2 border-t border-gray-100 pt-3 md:items-end md:border-0 md:pt-0">

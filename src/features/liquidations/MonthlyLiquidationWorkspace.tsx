@@ -14,9 +14,14 @@ import { formatCurrency } from '../../utils/currency';
 import { formatDate, formatMonthYear } from '../../utils/date';
 import ExceptionReviewDialog from './ExceptionReviewDialog';
 import { useMonthlyLiquidationWorkspace } from './useMonthlyLiquidationWorkspace';
+import { settlementStatusLabel } from '../../services/liquidaciones.service';
 
 type Props = { canCreate: boolean; onOpenIndividual: () => void };
 type ViewFilter = 'PENDIENTES' | 'REVISAR' | 'FINALIZADAS' | 'TODAS';
+const tenantPending = (state: string | null) => state === 'PENDIENTE' || state === 'PARCIAL';
+const ownerPending = (state: string | null) => state === 'PENDIENTE' || state === 'PARCIAL';
+const tenantResolved = (state: string | null) => state === 'COBRADO' || state === 'NO_APLICA';
+const ownerResolved = (state: string | null) => state === 'PAGADO' || state === 'NO_APLICA';
 
 export default function MonthlyLiquidationWorkspace({ canCreate, onOpenIndividual }: Props) {
   const navigate = useNavigate();
@@ -24,10 +29,10 @@ export default function MonthlyLiquidationWorkspace({ canCreate, onOpenIndividua
   const [filter, setFilter] = useState<ViewFilter>('PENDIENTES');
   const rows = useMemo(() => (workspace.preparation?.data || []).filter(row => {
     if (filter === 'REVISAR') return row.status === 'REVISAR';
-    if (filter === 'FINALIZADAS') return row.estadoLiquidacion === 'CONFIRMADA' && row.estadoCobroInquilino === 'COBRADO' && row.estadoPagoPropietario === 'PAGADO';
+    if (filter === 'FINALIZADAS') return row.estadoLiquidacion === 'CONFIRMADA' && tenantResolved(row.estadoCobroInquilino) && ownerResolved(row.estadoPagoPropietario);
     if (filter === 'PENDIENTES') return row.status === 'LISTA' || row.status === 'REVISAR'
       || row.estadoLiquidacion === 'BORRADOR'
-      || (row.estadoLiquidacion === 'CONFIRMADA' && (row.estadoCobroInquilino !== 'COBRADO' || row.estadoPagoPropietario !== 'PAGADO'));
+      || (row.estadoLiquidacion === 'CONFIRMADA' && (tenantPending(row.estadoCobroInquilino) || ownerPending(row.estadoPagoPropietario)));
     return true;
   }), [filter, workspace.preparation]);
 
@@ -45,12 +50,12 @@ export default function MonthlyLiquidationWorkspace({ canCreate, onOpenIndividua
   const statusLabel = (row: typeof rows[number]) => row.status === 'LISTA' ? 'Lista para generar'
     : row.status === 'REVISAR' ? 'Requiere revisión'
       : row.estadoLiquidacion === 'BORRADOR' ? 'Borrador'
-        : row.estadoLiquidacion === 'CONFIRMADA' ? `Cobro ${row.estadoCobroInquilino?.toLowerCase()} · dueño ${row.estadoPagoPropietario?.toLowerCase()}`
+        : row.estadoLiquidacion === 'CONFIRMADA' && row.estadoCobroInquilino && row.estadoPagoPropietario ? `Cobro ${settlementStatusLabel(row.estadoCobroInquilino)} · dueño ${settlementStatusLabel(row.estadoPagoPropietario)}`
           : row.estadoLiquidacion === 'ANULADA' ? 'Anulada'
             : row.descartada ? 'Omitida este mes' : 'No corresponde';
   const statusTone = (row: typeof rows[number]) => row.status === 'REVISAR' || row.vencida
     ? 'border-red-300 bg-red-50 text-red-900'
-    : row.estadoLiquidacion === 'CONFIRMADA' && row.estadoCobroInquilino === 'COBRADO' && row.estadoPagoPropietario === 'PAGADO'
+    : row.estadoLiquidacion === 'CONFIRMADA' && tenantResolved(row.estadoCobroInquilino) && ownerResolved(row.estadoPagoPropietario)
       ? 'border-green-300 bg-green-50 text-green-900'
       : row.status === 'LISTA'
         ? 'border-indigo-300 bg-indigo-50 text-indigo-900'
@@ -113,7 +118,7 @@ export default function MonthlyLiquidationWorkspace({ canCreate, onOpenIndividua
                   <td className="px-3 py-3.5">
                     {row.status === 'LISTA' && canCreate ? <input type="checkbox" aria-label={`Seleccionar ${address(row)}`} checked={workspace.selectedIds.includes(row.contratoId)} onChange={() => workspace.toggle(row.contratoId)} className="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                       : row.status === 'REVISAR' ? <ExclamationTriangleIcon className="h-5 w-5 text-red-700" aria-label="Requiere revisión" />
-                        : row.estadoLiquidacion === 'CONFIRMADA' && row.estadoCobroInquilino === 'COBRADO' && row.estadoPagoPropietario === 'PAGADO' ? <CheckCircleIcon className="h-5 w-5 text-green-700" aria-label="Finalizada" />
+                        : row.estadoLiquidacion === 'CONFIRMADA' && tenantResolved(row.estadoCobroInquilino) && ownerResolved(row.estadoPagoPropietario) ? <CheckCircleIcon className="h-5 w-5 text-green-700" aria-label="Finalizada" />
                           : <DocumentCheckIcon className="h-5 w-5 text-indigo-700" aria-hidden="true" />}
                   </td>
                   <td className="min-w-0 px-3 py-3.5">
@@ -131,7 +136,7 @@ export default function MonthlyLiquidationWorkspace({ canCreate, onOpenIndividua
                   </td>
                   <td className="px-3 py-3.5 text-right">
                     <p className="break-words text-sm font-black text-gray-950">{formatCurrency(amount, row.moneda)}</p>
-                    {row.estadoLiquidacion === 'CONFIRMADA' && row.estadoCobroInquilino !== 'COBRADO' && Number(row.pagado) > 0 && <p className="mt-1 text-xs font-semibold text-gray-600">Falta {formatCurrency(Number(row.pendiente), row.moneda)}</p>}
+                    {row.estadoLiquidacion === 'CONFIRMADA' && tenantPending(row.estadoCobroInquilino) && Number(row.pagado) > 0 && <p className="mt-1 text-xs font-semibold text-gray-600">Falta {formatCurrency(Number(row.pendiente), row.moneda)}</p>}
                   </td>
                   <td className="px-3 py-3.5 text-right">{rowAction(row)}</td>
                 </tr>;
@@ -148,7 +153,7 @@ export default function MonthlyLiquidationWorkspace({ canCreate, onOpenIndividua
               <div className="flex min-w-0 items-start gap-3">
                 {row.status === 'LISTA' && canCreate ? <input type="checkbox" aria-label={`Seleccionar ${address(row)}`} checked={workspace.selectedIds.includes(row.contratoId)} onChange={() => workspace.toggle(row.contratoId)} className="mt-1 h-5 w-5 shrink-0 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />
                   : row.status === 'REVISAR' ? <ExclamationTriangleIcon className="mt-0.5 h-6 w-6 shrink-0 text-red-700" />
-                    : row.estadoLiquidacion === 'CONFIRMADA' && row.estadoCobroInquilino === 'COBRADO' && row.estadoPagoPropietario === 'PAGADO' ? <CheckCircleIcon className="mt-0.5 h-6 w-6 shrink-0 text-green-700" />
+                    : row.estadoLiquidacion === 'CONFIRMADA' && tenantResolved(row.estadoCobroInquilino) && ownerResolved(row.estadoPagoPropietario) ? <CheckCircleIcon className="mt-0.5 h-6 w-6 shrink-0 text-green-700" />
                       : <DocumentCheckIcon className="mt-0.5 h-6 w-6 shrink-0 text-indigo-700" />}
                 <div className="min-w-0">
                   <h3 className="break-words text-base font-black text-gray-950">{address(row)}</h3>
@@ -167,7 +172,7 @@ export default function MonthlyLiquidationWorkspace({ canCreate, onOpenIndividua
                   <span className="text-xs font-bold text-gray-600">{row.totalLiquidacion ? `Vence ${formatDate(row.fechaVencimiento)}` : 'Alquiler del período'}</span>
                   <span className="break-words text-lg font-black text-gray-950">{formatCurrency(amount, row.moneda)}</span>
                 </div>
-                {row.estadoLiquidacion === 'CONFIRMADA' && row.estadoCobroInquilino !== 'COBRADO' && Number(row.pagado) > 0 && <p className="text-xs font-semibold text-gray-700">Pagado {formatCurrency(Number(row.pagado), row.moneda)} · falta {formatCurrency(Number(row.pendiente), row.moneda)}</p>}
+                {row.estadoLiquidacion === 'CONFIRMADA' && tenantPending(row.estadoCobroInquilino) && Number(row.pagado) > 0 && <p className="text-xs font-semibold text-gray-700">Pagado {formatCurrency(Number(row.pagado), row.moneda)} · falta {formatCurrency(Number(row.pendiente), row.moneda)}</p>}
                 {rowAction(row, true)}
               </div>
             </article>;
