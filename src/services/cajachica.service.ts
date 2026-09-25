@@ -141,7 +141,6 @@ export const cajachicaService = {
 	        moneda?: Moneda;
         fecha: string;
         metodoPago: string;
-        cuenta?: CuentaCaja;
         observaciones?: string;
     }) => {
         return api.post<MovimientoCaja>('/cajachica', data);

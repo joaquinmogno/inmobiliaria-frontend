@@ -21,6 +21,7 @@ import FormError, { useFormError } from "../components/FormError";
 import AppSelect from "../components/AppSelect";
 import { PAYMENT_METHOD_OPTIONS } from "../services/pagos.service";
 import ReversalModal from "../components/ReversalModal";
+import ConfirmationModal from "../components/ConfirmationModal";
 import { toast } from "react-hot-toast";
 import { currentMonthInput, formatDate, todayDateInput } from "../utils/date";
 import ActiveFilterChips from "../components/ActiveFilterChips";
@@ -64,6 +65,7 @@ export default function CajaChica() {
     const [cierres, setCierres] = useState<CierreCaja[]>([]);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isCreateConfirmationOpen, setIsCreateConfirmationOpen] = useState(false);
     const [formData, setFormData] = useState({
         tipo: 'INGRESO',
         concepto: '',
@@ -71,7 +73,6 @@ export default function CajaChica() {
         moneda: 'ARS' as Moneda,
         fecha: todayDateInput(),
         metodoPago: 'EFECTIVO',
-        cuenta: 'CAJA',
         observaciones: ''
     });
 
@@ -130,14 +131,6 @@ export default function CajaChica() {
 
     useEffect(() => { void refreshClosures(); }, []);
 
-    // Auto-asignar cuenta según método de pago en el formulario manual
-    useEffect(() => {
-        setFormData(prev => ({
-            ...prev,
-            cuenta: prev.metodoPago === 'EFECTIVO' ? 'CAJA' : 'BANCO'
-        }));
-    }, [formData.metodoPago]);
-
     const refreshData = async (page: number, search: string, tipo: string, cuenta: string, mes?: number, anio?: number) => {
         setIsLoading(true);
         try {
@@ -164,14 +157,17 @@ export default function CajaChica() {
         return dateStr ? formatDate(dateStr) : "N/A";
     };
 
-    const handleCreate = async (e: React.FormEvent) => {
+    const handleCreate = (e: React.FormEvent) => {
         e.preventDefault();
         setFormError("");
+        setIsCreateConfirmationOpen(true);
+    };
+
+    const confirmCreate = async () => {
         try {
             await cajachicaService.create({
                 ...formData,
                 tipo: formData.tipo as 'INGRESO' | 'EGRESO',
-	                cuenta: formData.cuenta as 'CAJA' | 'BANCO',
 	                moneda: formData.moneda as Moneda,
 	                monto: Number(formData.monto)
             });
@@ -185,7 +181,6 @@ export default function CajaChica() {
 	                moneda: 'ARS',
 	                fecha: todayDateInput(),
                 metodoPago: 'EFECTIVO',
-                cuenta: 'CAJA',
                 observaciones: ''
             });
         } catch (error) {
@@ -193,6 +188,10 @@ export default function CajaChica() {
             reportError(error, "No se pudo guardar el movimiento");
         }
     };
+
+    const paymentMethodLabel = PAYMENT_METHOD_OPTIONS.find(option => option.value === formData.metodoPago)?.label ?? formData.metodoPago;
+    const movementTypeLabel = formData.tipo === 'EGRESO' ? 'un egreso' : 'un ingreso';
+    const createConfirmationMessage = `¿Está seguro que quiere registrar ${movementTypeLabel} por ${paymentMethodLabel.toLowerCase()} de ${formatCurrency(Number(formData.monto), formData.moneda)} el día ${formatDate(formData.fecha)}?`;
 
     const isManualReversible = (movement: MovimientoCaja) => (
         !movement.anuladoEn &&
@@ -695,14 +694,10 @@ export default function CajaChica() {
 	                                </div>
 	                            </div>
 
-                            <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-4">
+                            <div>
                                 <div>
                                     <label htmlFor="cash-movement-payment-method" className="block text-sm font-medium text-gray-700 mb-1">Método de Pago *</label>
                                     <AppSelect id="cash-movement-payment-method" required ariaLabel="Método de pago" value={formData.metodoPago} onChange={value => setFormData({ ...formData, metodoPago: value })} options={PAYMENT_METHOD_OPTIONS} />
-                                </div>
-                                <div>
-                                    <label htmlFor="cash-movement-account" className="block text-sm font-medium text-gray-700 mb-1">Cuenta *</label>
-                                    <AppSelect id="cash-movement-account" required ariaLabel="Cuenta" value={formData.cuenta} onChange={value => setFormData({ ...formData, cuenta: value })} options={[{ value: "CAJA", label: "Caja (efectivo)" }, { value: "BANCO", label: "Banco / transferencia" }]} />
                                 </div>
                             </div>
 
@@ -726,6 +721,16 @@ export default function CajaChica() {
                 description={selectedMovement ? `Se registrará la contrapartida de ${formatCurrency(Number(selectedMovement.monto), selectedMovement.moneda)} en ${selectedMovement.cuenta === "BANCO" ? "banco" : "caja"}.` : ""}
                 onClose={() => setSelectedMovement(null)}
                 onConfirm={handleVoid}
+            />
+
+            <ConfirmationModal
+                isOpen={isCreateConfirmationOpen}
+                onClose={() => setIsCreateConfirmationOpen(false)}
+                onConfirm={confirmCreate}
+                title="Confirmar movimiento"
+                message={createConfirmationMessage}
+                confirmText="Registrar"
+                type="info"
             />
         </div>
     );
