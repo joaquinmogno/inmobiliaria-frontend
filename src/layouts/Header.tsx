@@ -14,6 +14,7 @@ import ConfirmationModal from "../components/ConfirmationModal";
 import UserProfileModal from "../components/UserProfileModal";
 import OperationalAlertBell from "../components/OperationalAlertBell";
 import { hasPermission } from "../utils/permissions";
+import AgencyLogo from "../components/AgencyLogo";
 
 interface HeaderProps {
   toggleMobileMenu?: () => void;
@@ -52,14 +53,7 @@ export default function Header({ toggleMobileMenu, mobileMenuOpen = false, menuB
         <Link to="/home" title="Ir al inicio" className="flex min-w-0 items-center gap-4 rounded-xl">
           <span className="sr-only">Ir al inicio: </span>
           <div className="flex h-11 w-[132px] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-md sm:w-[160px]">
-            <img
-              src="/logo-440.webp"
-              width="440"
-              height="240"
-              alt=""
-              aria-hidden="true"
-              className="h-full w-full object-contain scale-[2]"
-            />
+            <AgencyLogo inmobiliaria={user?.inmobiliaria} />
           </div>
           <div className="hidden min-w-0 leading-tight sm:block">
             <h1 className="max-w-40 truncate font-bold text-lg text-white/95 lg:max-w-64" title={user?.inmobiliaria?.nombre || ""}>{user?.inmobiliaria?.nombre || ""}</h1>

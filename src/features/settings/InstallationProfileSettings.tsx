@@ -5,6 +5,7 @@ import FormError, { useFormError } from '../../components/FormError';
 import { useAuth } from '../../context/AuthContext';
 import {
     inmobiliariaService,
+    getAgencyLogoUrl,
     type CondicionIva,
     type Inmobiliaria,
     type InmobiliariaProfileInput
@@ -41,14 +42,31 @@ export default function InstallationProfileSettings({ refreshToken }: { refreshT
     const { updateInmobiliaria } = useAuth();
     const { error, setError, reportError, formRef } = useFormError();
     const [profile, setProfile] = useState<InmobiliariaProfileInput>(emptyProfile);
+    const [agency, setAgency] = useState<Inmobiliaria | null>(null);
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const [selectedLogo, setSelectedLogo] = useState<File | null>(null);
+    const [logoPreview, setLogoPreview] = useState<string | null>(null);
+    const [logoLoading, setLogoLoading] = useState(false);
 
     useEffect(() => {
         inmobiliariaService.getMe()
-            .then(agency => setProfile(profileFromAgency(agency)))
+            .then(loadedAgency => {
+                setAgency(loadedAgency);
+                setProfile(profileFromAgency(loadedAgency));
+            })
             .catch(loadError => console.error('Error loading inmobiliaria:', loadError));
     }, [refreshToken]);
+
+    useEffect(() => {
+        if (!selectedLogo) {
+            setLogoPreview(null);
+            return;
+        }
+        const previewUrl = URL.createObjectURL(selectedLogo);
+        setLogoPreview(previewUrl);
+        return () => URL.revokeObjectURL(previewUrl);
+    }, [selectedLogo]);
 
     const updateText = (field: Exclude<keyof InmobiliariaProfileInput, 'puntoVenta' | 'condicionIva'>, value: string) => {
         setProfile(current => ({ ...current, [field]: blankToNull(value) }));
@@ -61,14 +79,80 @@ export default function InstallationProfileSettings({ refreshToken }: { refreshT
         setSuccess(false);
         try {
             const updated = await inmobiliariaService.updateMe(profile);
+            setAgency(updated);
             setProfile(profileFromAgency(updated));
-            updateInmobiliaria(updated.nombre);
+            updateInmobiliaria({
+                nombre: updated.nombre,
+                logoUrl: updated.logoUrl,
+                logoArchivo: updated.logoArchivo,
+            });
             setSuccess(true);
             window.setTimeout(() => setSuccess(false), 3000);
         } catch (submitError) {
             reportError(submitError, 'No se pudo actualizar el perfil institucional');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleLogoSelection = (file: File | undefined) => {
+        if (!file) return;
+        const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            setSelectedLogo(null);
+            reportError(new Error('El logo debe ser una imagen JPG, PNG o WEBP. No se aceptan PDF, SVG ni documentos.'), 'Formato de logo inválido');
+            return;
+        }
+        if (file.size > 7 * 1024 * 1024) {
+            setSelectedLogo(null);
+            reportError(new Error('El logo no puede superar los 7 MB.'), 'El logo supera el tamaño máximo');
+            return;
+        }
+        setError('');
+        setSelectedLogo(file);
+    };
+
+    const applyUpdatedAgency = (updated: Inmobiliaria) => {
+        setAgency(updated);
+        setProfile(profileFromAgency(updated));
+        updateInmobiliaria({
+            nombre: updated.nombre,
+            logoUrl: updated.logoUrl,
+            logoArchivo: updated.logoArchivo,
+        });
+    };
+
+    const handleUploadLogo = async () => {
+        if (!selectedLogo) {
+            reportError(new Error('Seleccioná una imagen antes de cargarla.'), 'Seleccioná una imagen antes de cargarla.');
+            return;
+        }
+        setError('');
+        setLogoLoading(true);
+        try {
+            applyUpdatedAgency(await inmobiliariaService.uploadLogo(selectedLogo));
+            setSelectedLogo(null);
+            setSuccess(true);
+            window.setTimeout(() => setSuccess(false), 3000);
+        } catch (uploadError) {
+            reportError(uploadError, 'No se pudo cargar el logo institucional');
+        } finally {
+            setLogoLoading(false);
+        }
+    };
+
+    const handleRemoveLogo = async () => {
+        if (!getAgencyLogoUrl(agency)) return;
+        if (!window.confirm('¿Querés quitar el logo personalizado y volver al logo predeterminado?')) return;
+        setError('');
+        setLogoLoading(true);
+        try {
+            applyUpdatedAgency(await inmobiliariaService.removeLogo());
+            setSelectedLogo(null);
+        } catch (removeError) {
+            reportError(removeError, 'No se pudo quitar el logo institucional');
+        } finally {
+            setLogoLoading(false);
         }
     };
 
@@ -155,12 +239,26 @@ export default function InstallationProfileSettings({ refreshToken }: { refreshT
 
                 <fieldset className="border-t border-gray-100 pt-7">
                     <legend className="flex items-center text-base font-semibold text-gray-900"><PhotoIcon className="mr-2 h-5 w-5 text-indigo-600" />Identidad visual</legend>
-                    <p className="mt-1 text-sm text-content-muted">Podés usar una URL pública completa (http o https) para incluir el logo en los comprobantes.</p>
-                    <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end">
-                        <label className="block flex-1 text-sm font-medium text-gray-700">URL del logo
-                            <input type="url" maxLength={2048} value={profile.logoUrl ?? ''} onChange={event => updateText('logoUrl', event.target.value)} className={inputClass} placeholder="https://ejemplo.com/logo.png" />
-                        </label>
-                        {profile.logoUrl && <img src={profile.logoUrl} alt="Vista previa del logo" className="h-16 max-w-40 rounded-lg border border-gray-200 object-contain p-1" onError={event => { event.currentTarget.style.display = 'none'; }} />}
+                    <p className="mt-1 text-sm text-content-muted">Cargá una imagen JPG, PNG o WEBP de hasta 7 MB. No se aceptan PDF, SVG ni documentos.</p>
+                    <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center">
+                        <div className="flex h-20 w-32 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+                            {logoPreview || getAgencyLogoUrl(agency) ? (
+                                <img src={logoPreview || getAgencyLogoUrl(agency) || ''} alt="Vista previa del logo institucional" className="h-full w-full object-contain p-1" />
+                            ) : (
+                                <PhotoIcon className="h-8 w-8 text-gray-400" />
+                            )}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <label htmlFor="agency-logo" className="block text-sm font-medium text-gray-700">Logo institucional</label>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                <input id="agency-logo" type="file" accept="image/jpeg,image/png,image/webp" onChange={event => handleLogoSelection(event.target.files?.[0])} className="block max-w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100" />
+                                <button type="button" onClick={handleUploadLogo} disabled={!selectedLogo || logoLoading} className="min-h-11 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300">
+                                    {logoLoading ? 'Cargando...' : 'Cargar logo'}
+                                </button>
+                                {getAgencyLogoUrl(agency) && <button type="button" onClick={handleRemoveLogo} disabled={logoLoading} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-status-danger transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Quitar logo</button>}
+                            </div>
+                            {selectedLogo && <p className="mt-2 truncate text-xs text-indigo-700" title={selectedLogo.name}>Seleccionado: {selectedLogo.name} ({(selectedLogo.size / 1024 / 1024).toFixed(2)} MB)</p>}
+                        </div>
                     </div>
                 </fieldset>
 

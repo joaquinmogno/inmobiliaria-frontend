@@ -6,6 +6,8 @@ const BASE_URL = envUrl
     ? (envUrl.endsWith('/api') ? envUrl : `${envUrl}/api`) 
     : 'http://localhost:3000/api';
 
+export const apiBaseUrl = BASE_URL;
+
 const formatErrorDetails = (errorData: any) => {
     if (!errorData) return null;
 
@@ -30,7 +32,7 @@ const formatErrorDetails = (errorData: any) => {
 };
 
 interface RequestOptions extends RequestInit {
-    params?: Record<string, string>;
+    params?: Record<string, string | number | boolean | null | undefined>;
 }
 
 export class ApiError extends Error {
@@ -68,8 +70,14 @@ async function request<T>(endpoint: string, options: RequestOptions = {}, retrie
 
     let url = `${BASE_URL}${endpoint}`;
     if (params) {
-        const searchParams = new URLSearchParams(params);
-        url += `?${searchParams.toString()}`;
+        const searchParams = new URLSearchParams();
+        Object.entries(params).forEach(([key, value]) => {
+            if (value !== undefined && value !== null && value !== '') {
+                searchParams.set(key, String(value));
+            }
+        });
+        const query = searchParams.toString();
+        if (query) url += `?${query}`;
     }
 
     const headers = new Headers(init.headers);

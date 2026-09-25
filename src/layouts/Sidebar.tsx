@@ -17,6 +17,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
+import AgencyLogo from "../components/AgencyLogo";
 
 interface SidebarProps {
   mobileOpen?: boolean;
@@ -48,7 +49,7 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
   const canViewConfiguration = user?.tipo === "ADMIN";
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex min-h-11 items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 whitespace-nowrap overflow-hidden ${isActive
+    `flex min-h-11 items-center rounded-xl py-2 transition-all duration-200 whitespace-nowrap overflow-hidden ${menuExpanded ? "gap-3 px-4" : "justify-center px-0"} ${isActive
       ? "bg-indigo-600 text-white font-semibold shadow-md"
       : "text-indigo-100 hover:bg-indigo-700/50 hover:text-white"
     }`;
@@ -86,14 +87,14 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
         } ${isExpanded && !mobileOpen ? "xl:w-64" : "xl:w-20"}`}
     >
       {/* Logo / Branding */}
-        <div className={`flex items-center mb-6 transition-all duration-300 ${menuExpanded ? 'px-2' : 'justify-center px-0'}`}>
+        <div className={`flex h-12 items-center mb-6 transition-all duration-300 ${menuExpanded ? 'px-2' : 'justify-center px-0'}`}>
           {menuExpanded ? (
             <div className="bg-white rounded-xl shadow-md flex items-center justify-center overflow-hidden h-12 w-full">
-               <img src="/logo-440.webp" alt="PropControl" width="440" height="240" className="h-full w-full object-contain scale-[2]" onError={(e)=>(e.target as HTMLImageElement).style.display='none'} />
+               <AgencyLogo inmobiliaria={user?.inmobiliaria} />
             </div>
           ) : (
             <div className="bg-white rounded-xl shadow-md flex items-center justify-center overflow-hidden w-11 h-11 flex-shrink-0">
-               <img src="/logo-icon.png" alt="PropControl Icon" className="h-full w-full object-contain p-1.5" onError={(e)=>(e.target as HTMLImageElement).style.display='none'} />
+               <AgencyLogo inmobiliaria={user?.inmobiliaria} variant="icon" />
             </div>
           )}
         </div>

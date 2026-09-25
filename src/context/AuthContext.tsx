@@ -8,7 +8,7 @@ interface AuthContextType {
     login: (user: User) => void;
     logout: () => void;
     refreshUser: () => Promise<User | null>;
-    updateInmobiliaria: (nombre: string) => void;
+    updateInmobiliaria: (inmobiliaria: Partial<User['inmobiliaria']> & Pick<User['inmobiliaria'], 'nombre'>) => void;
     loading: boolean;
 }
 
@@ -112,11 +112,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsAuthenticated(true);
     };
 
-    const updateInmobiliaria = (nombre: string) => {
+    const updateInmobiliaria = (inmobiliaria: Partial<User['inmobiliaria']> & Pick<User['inmobiliaria'], 'nombre'>) => {
         if (!user) return;
         const updatedUser = {
             ...user,
-            inmobiliaria: { ...user.inmobiliaria, nombre }
+            inmobiliaria: { ...user.inmobiliaria, ...inmobiliaria }
         };
         setUser(updatedUser);
         localStorage.setItem('user', JSON.stringify(updatedUser));

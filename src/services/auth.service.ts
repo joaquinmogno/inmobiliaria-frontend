@@ -17,6 +17,8 @@ export interface User {
     inmobiliaria: {
         id: number;
         nombre: string;
+        logoUrl?: string | null;
+        logoArchivo?: string | null;
     };
 }
 
