@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
-import { cajachicaService, type MovimientoCaja, type CajaChicaSummary, type CierreCaja } from "../services/cajachica.service";
+import { cajachicaService, type MovimientoCaja, type CajaChicaSummary, type CierreCaja, type CuentaCaja } from "../services/cajachica.service";
 import NumericInput from "../components/NumericInput";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
@@ -29,6 +29,13 @@ const parsePeriod = (value: string | null) => {
     const match = value?.match(/^(\d{4})-(0[1-9]|1[0-2])$/);
     return match ? { year: Number(match[1]), month: Number(match[2]) } : null;
 };
+
+const CASH_CLOSING_TARGETS: Array<{ cuenta: CuentaCaja; moneda: Moneda; label: string }> = [
+    { cuenta: 'CAJA', moneda: 'ARS', label: 'Caja ARS' },
+    { cuenta: 'BANCO', moneda: 'ARS', label: 'Banco ARS' },
+    { cuenta: 'CAJA', moneda: 'USD', label: 'Caja USD' },
+    { cuenta: 'BANCO', moneda: 'USD', label: 'Banco USD' }
+];
 
 export default function CajaChica() {
     const { error: formError, setError: setFormError, reportError, formRef } = useFormError();
@@ -206,46 +213,57 @@ export default function CajaChica() {
             cajachicaService.getSummary(selectedMonth, selectedYear).then(setMeta)
         ]);
     };
-    const handleClosePeriod = async () => {
-        if (selectedCashClosing?.estado === 'CERRADO') {
-            toast.error('La Caja ARS de este período ya está cerrada. Reabrila con autorización antes de volver a cerrarla.');
+    const getCashClosing = (target: { cuenta: CuentaCaja; moneda: Moneda }) => cierres.find(cierre => (
+        cierre.periodo.slice(0, 10) === selectedPeriod
+        && cierre.cuenta === target.cuenta
+        && cierre.moneda === target.moneda
+    ));
+
+    const getLedgerBalance = (target: { cuenta: CuentaCaja; moneda: Moneda }) => (
+        meta?.saldoAlCierre?.[target.moneda]?.cuentas[target.cuenta].saldo ?? 0
+    );
+
+    const handleClosePeriod = async (target: { cuenta: CuentaCaja; moneda: Moneda; label: string }) => {
+        const closing = getCashClosing(target);
+        if (closing?.estado === 'CERRADO') {
+            toast.error(`${target.label} ya está cerrado. Reabrilo con autorización antes de volver a cerrarlo.`);
             return;
         }
-        const saldoSistema = meta?.saldoAlCierre?.ARS?.cuentas.CAJA.saldo ?? meta?.balanceCaja ?? 0;
-        const saldo = window.prompt(`Saldo contado/declarado para Caja ARS al cierre de ${meta?.hasta || `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`} (el período quedará bloqueado):`, String(saldoSistema));
+        const saldoSistema = getLedgerBalance(target);
+        const saldo = window.prompt(`Saldo contado/declarado para ${target.label} al cierre de ${meta?.hasta || `${selectedYear}-${String(selectedMonth).padStart(2, "0")}`} (el período quedará bloqueado):`, String(saldoSistema));
         if (saldo === null) return;
-        const motivo = Number(saldo) === Number(saldoSistema) ? undefined : window.prompt('Motivo de la diferencia:') || undefined;
+        const saldoDeclarado = Number(saldo);
+        if (!Number.isFinite(saldoDeclarado)) {
+            toast.error('Indicá un saldo numérico válido.');
+            return;
+        }
+        const motivo = saldoDeclarado === Number(saldoSistema) ? undefined : window.prompt('Motivo de la diferencia:') || undefined;
         try {
-            await cajachicaService.cerrarPeriodo({ periodo: selectedPeriod, cuenta: 'CAJA', moneda: 'ARS', saldoDeclarado: Number(saldo), motivoDiferencia: motivo });
+            await cajachicaService.cerrarPeriodo({ periodo: selectedPeriod, cuenta: target.cuenta, moneda: target.moneda, saldoDeclarado, motivoDiferencia: motivo });
             await refreshClosures();
-            toast.success('Caja ARS cerrada para el período seleccionado');
+            toast.success(`${target.label} cerrado para el período seleccionado`);
         }
         catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudo cerrar la caja'); }
     };
 
-    const handleReopenPeriod = async () => {
-        if (!selectedCashClosing || selectedCashClosing.estado !== 'CERRADO') return;
-        const motivo = window.prompt(`Motivo para reabrir Caja ARS de ${selectedPeriod.slice(0, 7)}. Esta acción quedará auditada:`);
+    const handleReopenPeriod = async (target: { cuenta: CuentaCaja; moneda: Moneda; label: string }, closing: CierreCaja) => {
+        if (closing.estado !== 'CERRADO') return;
+        const motivo = window.prompt(`Motivo para reabrir ${target.label} de ${selectedPeriod.slice(0, 7)}. Esta acción quedará auditada:`);
         if (motivo === null) return;
         if (motivo.trim().length < 5) {
             toast.error('Indicá un motivo de al menos 5 caracteres para reabrir el período.');
             return;
         }
         try {
-            await cajachicaService.reabrirPeriodo(selectedCashClosing.id, motivo.trim());
+            await cajachicaService.reabrirPeriodo(closing.id, motivo.trim());
             await refreshClosures();
-            toast.success('Caja ARS reabierta. Podés registrar la corrección y cerrarla nuevamente.');
+            toast.success(`${target.label} reabierto. Podés registrar la corrección y cerrarlo nuevamente.`);
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'No se pudo reabrir la caja');
         }
     };
 
     const selectedPeriod = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
-    const selectedCashClosing = cierres.find(cierre => (
-        cierre.periodo.slice(0, 10) === selectedPeriod
-        && cierre.cuenta === 'CAJA'
-        && cierre.moneda === 'ARS'
-    ));
 
     return (
         <div className="max-w-7xl mx-auto space-y-6 pb-20">
@@ -282,27 +300,52 @@ export default function CajaChica() {
                         <PlusIcon className="w-5 h-5" />
                         Nuevo Movimiento
                     </button>}
-                    {canCloseCash && selectedCashClosing?.estado !== 'CERRADO' && <button onClick={() => void handleClosePeriod()} className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-indigo-200 bg-white px-4 py-2 text-sm font-bold text-indigo-700 hover:bg-indigo-50 sm:w-auto">Cerrar Caja ARS</button>}
-                    {canReopenCash && selectedCashClosing?.estado === 'CERRADO' && <button onClick={() => void handleReopenPeriod()} className="inline-flex min-h-11 w-full items-center justify-center rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-bold text-amber-900 hover:bg-amber-100 sm:w-auto">Reabrir Caja ARS</button>}
                 </div>
             </div>
 
-            {selectedCashClosing && <section aria-label="Estado del cierre de Caja ARS" className={`rounded-2xl border p-4 ${selectedCashClosing.estado === 'CERRADO' ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
-                <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+            <section aria-labelledby="cash-closing-title" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <p className={`text-xs font-black uppercase tracking-wide ${selectedCashClosing.estado === 'CERRADO' ? 'text-emerald-800' : 'text-amber-900'}`}>Caja ARS · {selectedCashClosing.estado === 'CERRADO' ? 'Período cerrado' : 'Período reabierto'}</p>
-                        <p className="mt-1 text-sm text-gray-800">Saldo sistema {formatCurrency(Number(selectedCashClosing.saldoSistema))} · declarado {formatCurrency(Number(selectedCashClosing.saldoDeclarado))} · diferencia {formatCurrency(Number(selectedCashClosing.diferencia))}</p>
-                        <p className="mt-1 text-xs text-gray-700">Último cierre: {formatDate(selectedCashClosing.cerradoEn)} por {selectedCashClosing.cerradoPor.nombreCompleto} · versión {selectedCashClosing.version}</p>
-                        {selectedCashClosing.estado === 'REABIERTO' && <p className="mt-1 text-xs font-semibold text-amber-900">Reabierto por {selectedCashClosing.reabiertoPor?.nombreCompleto || 'un usuario'}: {selectedCashClosing.motivoReapertura || 'sin motivo informado'}</p>}
+                        <h2 id="cash-closing-title" className="text-base font-black text-gray-950">Cierres por cuenta y moneda</h2>
+                        <p className="mt-1 text-sm text-gray-600">Cada conciliación bloquea únicamente los movimientos de esa cuenta, moneda y período.</p>
                     </div>
-                    <details className="text-sm text-gray-800">
-                        <summary className="cursor-pointer font-bold">Ver historial ({selectedCashClosing.eventos.length})</summary>
-                        <ol className="mt-2 space-y-1 border-l border-gray-300 pl-3 text-xs">
-                            {selectedCashClosing.eventos.map(evento => <li key={evento.id}><span className="font-bold">V{evento.version} · {evento.tipo === 'CIERRE' ? 'Cierre' : 'Reapertura'}</span> · {formatDate(evento.fechaCreacion)} · {evento.usuario.nombreCompleto}{evento.motivo ? ` · ${evento.motivo}` : ''}</li>)}
-                        </ol>
-                    </details>
+                    <p className="text-xs font-bold text-gray-600">Período {selectedPeriod.slice(0, 7)}</p>
                 </div>
-            </section>}
+                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    {CASH_CLOSING_TARGETS.map(target => {
+                        const closing = getCashClosing(target);
+                        const isClosed = closing?.estado === 'CERRADO';
+                        const stateLabel = isClosed ? 'Cerrado' : closing?.estado === 'REABIERTO' ? 'Reabierto' : 'Abierto';
+                        const stateTone = isClosed
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
+                            : closing?.estado === 'REABIERTO'
+                                ? 'border-amber-200 bg-amber-50 text-amber-950'
+                                : 'border-gray-200 bg-gray-50 text-gray-800';
+                        const saldoSistema = getLedgerBalance(target);
+                        return <article key={`${target.cuenta}-${target.moneda}`} className={`rounded-xl border p-4 ${stateTone}`}>
+                            <div className="flex items-start justify-between gap-2">
+                                <div>
+                                    <h3 className="font-black">{target.label}</h3>
+                                    <p className="mt-1 text-xs font-bold uppercase tracking-wide">{stateLabel}</p>
+                                </div>
+                                {isClosed ? <span className="rounded-full bg-white/70 px-2 py-1 text-[10px] font-black uppercase">Bloqueado</span> : <span className="rounded-full bg-white/70 px-2 py-1 text-[10px] font-black uppercase">Operable</span>}
+                            </div>
+                            <p className="mt-4 text-xs font-bold uppercase tracking-wide">Saldo de sistema</p>
+                            <p className="mt-1 text-lg font-black">{formatCurrency(Number(saldoSistema), target.moneda)}</p>
+                            {closing && <>
+                                <p className="mt-3 text-xs">Declarado {formatCurrency(Number(closing.saldoDeclarado), target.moneda)} · diferencia {formatCurrency(Number(closing.diferencia), target.moneda)}</p>
+                                <p className="mt-1 text-xs">V{closing.version} · {formatDate(closing.cerradoEn)} · {closing.cerradoPor.nombreCompleto}</p>
+                                {closing.estado === 'REABIERTO' && <p className="mt-1 text-xs font-semibold">Reabierto: {closing.motivoReapertura || 'sin motivo informado'}</p>}
+                            </>}
+                            <div className="mt-4 flex flex-wrap gap-2">
+                                {canCloseCash && !isClosed && <button type="button" onClick={() => void handleClosePeriod(target)} className="min-h-10 rounded-lg border border-indigo-300 bg-white px-3 text-xs font-black text-indigo-800 hover:bg-indigo-50">Cerrar</button>}
+                                {canReopenCash && isClosed && closing && <button type="button" onClick={() => void handleReopenPeriod(target, closing)} className="min-h-10 rounded-lg border border-amber-300 bg-white px-3 text-xs font-black text-amber-900 hover:bg-amber-100">Reabrir</button>}
+                                {closing && <details className="relative text-xs text-gray-800"><summary className="flex min-h-10 cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 font-bold hover:bg-gray-50">Historial ({closing.eventos.length})</summary><ol className="absolute right-0 z-20 mt-1 w-72 space-y-1 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">{closing.eventos.map(evento => <li key={evento.id}><span className="font-bold">V{evento.version} · {evento.tipo === 'CIERRE' ? 'Cierre' : 'Reapertura'}</span> · {formatDate(evento.fechaCreacion)} · {evento.usuario.nombreCompleto}{evento.motivo ? ` · ${evento.motivo}` : ''}</li>)}</ol></details>}
+                            </div>
+                        </article>;
+                    })}
+                </div>
+            </section>
 
             {/* KPIs Principales */}
             {meta && (

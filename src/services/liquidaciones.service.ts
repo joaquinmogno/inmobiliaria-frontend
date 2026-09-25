@@ -6,9 +6,13 @@ import type { PaginationMeta } from './api';
 import type { Moneda } from '../utils/currency';
 
 export type EstadoLiquidacion = 'BORRADOR' | 'CONFIRMADA' | 'ANULADA';
-export type EstadoCobroInquilino = 'PENDIENTE' | 'PARCIAL' | 'COBRADO';
-export type EstadoPagoPropietario = 'PENDIENTE' | 'PARCIAL' | 'PAGADO';
+export type EstadoCobroInquilino = 'PENDIENTE' | 'PARCIAL' | 'COBRADO' | 'NO_APLICA';
+export type EstadoPagoPropietario = 'PENDIENTE' | 'PARCIAL' | 'PAGADO' | 'NO_APLICA';
 export type TipoMovimiento = 'INGRESO' | 'DESCUENTO';
+
+export const settlementStatusLabel = (status: EstadoCobroInquilino | EstadoPagoPropietario) => (
+    status === 'NO_APLICA' ? 'sin saldo' : status.toLowerCase()
+);
 
 export interface Movimiento {
     id: number;
@@ -99,6 +103,8 @@ export interface Liquidacion {
         tipo: 'CREDITO' | 'DEBITO';
         concepto: string;
         motivo: string;
+        montoInquilino: number;
+        montoPropietario: number;
         monto: number;
         impactoInquilino: number;
         impactoPropietario: number;
@@ -137,6 +143,8 @@ export interface Liquidacion {
             tipo: 'CREDITO' | 'DEBITO';
             concepto: string;
             motivo: string;
+            montoInquilino: number;
+            montoPropietario: number;
             impactoInquilino: number;
             impactoPropietario: number;
             creadoPor: { id: number; nombreCompleto: string };
@@ -317,8 +325,8 @@ export const liquidacionesService = {
         return api.patch<Liquidacion>(`/liquidaciones/${id}/pagar-propietario`, data);
     },
     crearAjuste: async (id: number, data: {
-        tipo: 'CREDITO' | 'DEBITO'; concepto: string; motivo: string; monto: number;
-        impactoInquilino: number; impactoPropietario: number;
+        tipo: 'CREDITO' | 'DEBITO'; concepto: string; motivo: string;
+        montoInquilino: number; montoPropietario: number;
         destinoCredito?: 'DEVOLUCION' | 'SALDO_A_FAVOR' | 'COMPENSACION';
         liquidacionDestinoId?: number;
         fechaDevolucion?: string;

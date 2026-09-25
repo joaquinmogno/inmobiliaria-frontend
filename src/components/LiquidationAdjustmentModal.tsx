@@ -10,9 +10,8 @@ type AdjustmentPayload = {
   tipo: 'CREDITO' | 'DEBITO';
   concepto: string;
   motivo: string;
-  monto: number;
-  impactoInquilino: number;
-  impactoPropietario: number;
+  montoInquilino: number;
+  montoPropietario: number;
   destinoCredito?: CreditDestination;
   liquidacionDestinoId?: number;
   fechaDevolucion?: string;
@@ -34,33 +33,32 @@ export default function LiquidationAdjustmentModal({
   const [tipo, setTipo] = useState<'CREDITO' | 'DEBITO'>('CREDITO');
   const [concepto, setConcepto] = useState('');
   const [motivo, setMotivo] = useState('');
-  const [monto, setMonto] = useState('');
-  const [parte, setParte] = useState<'INQUILINO' | 'PROPIETARIO'>('INQUILINO');
+  const [montoInquilino, setMontoInquilino] = useState('');
+  const [montoPropietario, setMontoPropietario] = useState('');
   const [destinoCredito, setDestinoCredito] = useState<CreditDestination>('SALDO_A_FAVOR');
   const [liquidacionDestinoId, setLiquidacionDestinoId] = useState('');
   const [fechaDevolucion, setFechaDevolucion] = useState(() => todayDateInput());
   const [metodoDevolucion, setMetodoDevolucion] = useState<MetodoPago>('EFECTIVO');
   const [observacionesDevolucion, setObservacionesDevolucion] = useState('');
 
-  const value = Number(monto) || 0;
-  const impacto = tipo === 'CREDITO' ? -value : value;
+  const tenantAmount = Number(montoInquilino) || 0;
+  const ownerAmount = Number(montoPropietario) || 0;
   const excess = useMemo(() => {
-    if (tipo !== 'CREDITO' || parte !== 'INQUILINO' || value <= 0) return 0;
-    return Math.max(0, tenantPaid - (tenantTotal - value));
-  }, [parte, tenantPaid, tenantTotal, tipo, value]);
+    if (tipo !== 'CREDITO' || tenantAmount <= 0) return 0;
+    return Math.max(0, tenantPaid - (tenantTotal - tenantAmount));
+  }, [tenantAmount, tenantPaid, tenantTotal, tipo]);
   const compensationTargets = debtTargets.filter(target => target.deuda >= excess && target.deuda > 0);
   const canCompensate = destinoCredito !== 'COMPENSACION' || Boolean(liquidacionDestinoId);
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if (!value || !canCompensate) return;
+    if ((tenantAmount <= 0 && ownerAmount <= 0) || !canCompensate) return;
     const data: AdjustmentPayload = {
       tipo,
       concepto,
       motivo,
-      monto: value,
-      impactoInquilino: parte === 'INQUILINO' ? impacto : 0,
-      impactoPropietario: parte === 'PROPIETARIO' ? impacto : 0
+      montoInquilino: tenantAmount,
+      montoPropietario: ownerAmount
     };
     if (excess > 0) {
       data.destinoCredito = destinoCredito;
@@ -90,18 +88,19 @@ export default function LiquidationAdjustmentModal({
                     <option value="DEBITO">Nota de débito — aumenta saldo</option>
                   </select>
                 </label>
-                <label className="block text-sm font-bold">Afecta a
-                  <select value={parte} onChange={event => setParte(event.target.value as 'INQUILINO' | 'PROPIETARIO')} className="mt-1 w-full rounded-lg border p-2">
-                    <option value="INQUILINO">Inquilino</option>
-                    <option value="PROPIETARIO">Propietario</option>
-                  </select>
-                </label>
                 <label className="block text-sm font-bold">Concepto
                   <input required maxLength={255} value={concepto} onChange={event => setConcepto(event.target.value)} className="mt-1 w-full rounded-lg border p-2" />
                 </label>
-                <label className="block text-sm font-bold">Importe ({moneda})
-                  <input required min="0.01" step="0.01" type="number" value={monto} onChange={event => setMonto(event.target.value)} className="mt-1 w-full rounded-lg border p-2" />
-                </label>
+                <fieldset className="grid gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 sm:grid-cols-2">
+                  <legend className="px-1 text-sm font-black text-gray-900">Importes documentados ({moneda})</legend>
+                  <p className="sm:col-span-2 text-xs text-gray-600">Informá una o ambas partes. Los importes siempre son positivos: la nota de crédito reduce y la de débito aumenta los saldos.</p>
+                  <label className="block text-sm font-bold">Inquilino
+                    <input min="0" step="0.01" type="number" inputMode="decimal" value={montoInquilino} onChange={event => setMontoInquilino(event.target.value)} placeholder="0,00" className="mt-1 w-full rounded-lg border bg-white p-2" />
+                  </label>
+                  <label className="block text-sm font-bold">Propietario
+                    <input min="0" step="0.01" type="number" inputMode="decimal" value={montoPropietario} onChange={event => setMontoPropietario(event.target.value)} placeholder="0,00" className="mt-1 w-full rounded-lg border bg-white p-2" />
+                  </label>
+                </fieldset>
                 <label className="block text-sm font-bold">Motivo
                   <textarea required minLength={5} value={motivo} onChange={event => setMotivo(event.target.value)} className="mt-1 w-full rounded-lg border p-2" />
                 </label>
@@ -144,7 +143,7 @@ export default function LiquidationAdjustmentModal({
                 )}
                 <div className="flex justify-end gap-3">
                   <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 font-bold">Cancelar</button>
-                  <button disabled={!canCompensate} className="rounded-lg bg-indigo-600 px-4 py-2 font-bold text-white disabled:cursor-not-allowed disabled:bg-gray-400">Emitir ajuste</button>
+                  <button disabled={!canCompensate || (tenantAmount <= 0 && ownerAmount <= 0)} className="rounded-lg bg-indigo-600 px-4 py-2 font-bold text-white disabled:cursor-not-allowed disabled:bg-gray-400">Emitir ajuste</button>
                 </div>
               </form>
             </Dialog.Panel>

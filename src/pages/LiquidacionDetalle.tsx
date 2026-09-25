@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { liquidacionesService } from "../services/liquidaciones.service";
+import { liquidacionesService, settlementStatusLabel } from "../services/liquidaciones.service";
 import {
     ChevronLeftIcon,
     PlusIcon,
@@ -115,6 +115,8 @@ export default function LiquidacionDetalle() {
     const ownerPaid = Number(liquidacion.resumenOperativo?.pagadoPropietario ?? liquidacion.montoPagadoPropietario ?? 0);
     const ownerTotal = Number(liquidacion.montoPropietario || 0);
     const ownerRemaining = Math.max(0, ownerTotal - ownerPaid);
+    const tenantCollectionPending = ['PENDIENTE', 'PARCIAL'].includes(liquidacion.estadoCobroInquilino);
+    const ownerPaymentPending = ['PENDIENTE', 'PARCIAL'].includes(liquidacion.estadoPagoPropietario);
 
     // Los importes quedan congelados al confirmar; luego sólo avanza el flujo de cobro/pago.
     const esEditable = isLiquidationEditable(liquidacion.estado);
@@ -143,7 +145,7 @@ export default function LiquidacionDetalle() {
                             Confirmar liquidación
                         </button>
                     )}
-                    {canCreatePayments && liquidacion.estado === 'CONFIRMADA' && liquidacion.estadoCobroInquilino !== 'COBRADO' && (
+                    {canCreatePayments && liquidacion.estado === 'CONFIRMADA' && tenantCollectionPending && (
                         <button
                             onClick={() => setIsPaymentModalOpen(true)}
                             className="flex min-h-11 items-center justify-center gap-2 bg-status-success text-white px-4 py-2.5 rounded-xl hover:bg-status-success-strong transition-all shadow-md shadow-green-100 font-bold text-sm cursor-pointer"
@@ -153,7 +155,7 @@ export default function LiquidacionDetalle() {
                         </button>
                     )}
                     {canAdjustLiquidations && liquidacion.estado === 'CONFIRMADA' && <button onClick={() => setIsAdjustmentModalOpen(true)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-sm font-bold text-indigo-700 hover:bg-indigo-50">Emitir ajuste</button>}
-                    {canPayOwners && liquidacion.estado === 'CONFIRMADA' && liquidacion.estadoPagoPropietario !== 'PAGADO' && (
+                    {canPayOwners && liquidacion.estado === 'CONFIRMADA' && ownerPaymentPending && (
                         <button
                             onClick={() => setIsOwnerPaymentModalOpen(true)}
                             className="flex min-h-11 items-center justify-center gap-2 bg-orange-600 text-white px-4 py-2.5 rounded-xl hover:bg-orange-700 transition-all shadow-md shadow-orange-100 font-bold text-sm cursor-pointer"
@@ -243,8 +245,8 @@ export default function LiquidacionDetalle() {
             <section data-testid="liquidation-lifecycle" aria-labelledby="liquidation-lifecycle-title" className="relative overflow-hidden rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-8">
                 <h2 id="liquidation-lifecycle-title" className="text-xs font-black uppercase tracking-widest text-gray-600">Estado de la liquidación</h2>
                 <div className="mt-4 grid gap-3 md:grid-cols-3" aria-label="Saldos operativos independientes">
-                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4"><p className="text-xs font-black uppercase tracking-wide text-indigo-700">Cobro inquilino · {liquidacion.estadoCobroInquilino.toLowerCase()}</p><p className="mt-1 font-black text-gray-950">Cobrado {formatCurrency(Number(liquidacion.resumenOperativo?.cobradoInquilino || 0))}</p><p className="text-sm text-gray-700">Saldo {formatCurrency(Number(liquidacion.resumenOperativo?.saldoInquilino || 0))}</p></div>
-                    <div className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4"><p className="text-xs font-black uppercase tracking-wide text-orange-800">Pago propietario · {liquidacion.estadoPagoPropietario.toLowerCase()}</p><p className="mt-1 font-black text-gray-950">Entregado {formatCurrency(ownerPaid)}</p><p className="text-sm text-gray-700">Saldo {formatCurrency(ownerRemaining)}</p></div>
+                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4"><p className="text-xs font-black uppercase tracking-wide text-indigo-700">Cobro inquilino · {settlementStatusLabel(liquidacion.estadoCobroInquilino)}</p><p className="mt-1 font-black text-gray-950">Cobrado {formatCurrency(Number(liquidacion.resumenOperativo?.cobradoInquilino || 0))}</p><p className="text-sm text-gray-700">Saldo {formatCurrency(Number(liquidacion.resumenOperativo?.saldoInquilino || 0))}</p></div>
+                    <div className="rounded-2xl border border-orange-100 bg-orange-50/60 p-4"><p className="text-xs font-black uppercase tracking-wide text-orange-800">Pago propietario · {settlementStatusLabel(liquidacion.estadoPagoPropietario)}</p><p className="mt-1 font-black text-gray-950">Entregado {formatCurrency(ownerPaid)}</p><p className="text-sm text-gray-700">Saldo {formatCurrency(ownerRemaining)}</p></div>
                     <div className="rounded-2xl border border-rose-100 bg-rose-50/60 p-4"><p className="text-xs font-black uppercase tracking-wide text-rose-800">Capital propio expuesto</p><p className="mt-1 font-black text-rose-900">{formatCurrency(Number(liquidacion.resumenOperativo?.capitalPropioExpuesto || 0))}</p><p className="text-sm text-gray-700">Adelanto aún a recuperar</p></div>
                 </div>
                 <div className="mt-2 md:hidden">
@@ -757,7 +759,7 @@ export default function LiquidacionDetalle() {
                     </div>
 
                     {/* Remaining Liquidation Debt */}
-                    {liquidacion.estado === 'CONFIRMADA' && liquidacion.estadoCobroInquilino !== 'COBRADO' && (
+                    {liquidacion.estado === 'CONFIRMADA' && tenantCollectionPending && (
                         <div className="flex justify-end pr-6">
                             <div className="text-right">
                                 <p className="text-xs font-black text-gray-600 uppercase tracking-widest mb-1">Saldo Remanente Inquilino</p>
@@ -787,7 +789,10 @@ export default function LiquidacionDetalle() {
                                             <p className="mt-1 text-sm text-gray-700">{adjustment.motivo}</p>
                                             <p className="mt-1 text-xs font-semibold text-gray-600">{formatDate(adjustment.fechaCreacion)} · {adjustment.creadoPor.nombreCompleto}</p>
                                         </div>
-                                        <p className={adjustment.tipo === 'CREDITO' ? 'font-black text-status-success' : 'font-black text-status-danger'}>{adjustment.tipo === 'CREDITO' ? '-' : '+'}{formatCurrency(Number(adjustment.monto))}</p>
+                                        <div className={`text-right ${adjustment.tipo === 'CREDITO' ? 'text-status-success' : 'text-status-danger'}`}>
+                                            {Number(adjustment.montoInquilino) > 0 && <p className="font-black">Inquilino {adjustment.tipo === 'CREDITO' ? '−' : '+'}{formatCurrency(Number(adjustment.montoInquilino))}</p>}
+                                            {Number(adjustment.montoPropietario) > 0 && <p className="mt-1 font-black">Propietario {adjustment.tipo === 'CREDITO' ? '−' : '+'}{formatCurrency(Number(adjustment.montoPropietario))}</p>}
+                                        </div>
                                     </div>
                                     {credit && (
                                         <div className="mt-3 rounded-xl bg-indigo-50 p-3 text-sm text-indigo-950">

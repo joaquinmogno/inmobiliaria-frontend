@@ -121,8 +121,8 @@ export const useLiquidationDetailController = (id?: string) => {
         }
     };
     const handleCreateAdjustment = async (data: {
-        tipo: 'CREDITO' | 'DEBITO'; concepto: string; motivo: string; monto: number;
-        impactoInquilino: number; impactoPropietario: number;
+        tipo: 'CREDITO' | 'DEBITO'; concepto: string; motivo: string;
+        montoInquilino: number; montoPropietario: number;
         destinoCredito?: 'DEVOLUCION' | 'SALDO_A_FAVOR' | 'COMPENSACION';
         liquidacionDestinoId?: number; fechaDevolucion?: string;
         metodoDevolucion?: MetodoPago; observacionesDevolucion?: string;
