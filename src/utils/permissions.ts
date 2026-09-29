@@ -1,12 +1,5 @@
 import { type User } from "../services/auth.service";
 
-export const SUELDOS_PERMISSIONS = [
-  "sueldos.ver",
-  "sueldos.crear",
-  "sueldos.editar",
-  "sueldos.eliminar",
-] as const;
-
 export const MODULE_PERMISSIONS = [
   "contratos.ver",
   "contratos.crear",
@@ -56,7 +49,6 @@ export const MODULE_PERMISSIONS = [
   "reportes.financieros.ver",
   "contratos.archivos.ver",
   "contratos.restaurar",
-  ...SUELDOS_PERMISSIONS,
 ] as const;
 
 export type PermissionKey = typeof MODULE_PERMISSIONS[number];
@@ -110,10 +102,6 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   "reportes.financieros.ver": "Ver reportes financieros",
   "contratos.archivos.ver": "Ver archivos de contratos",
   "contratos.restaurar": "Restaurar contratos",
-  "sueldos.ver": "Ver sueldos",
-  "sueldos.crear": "Crear sueldos",
-  "sueldos.editar": "Editar sueldos",
-  "sueldos.eliminar": "Eliminar sueldos",
 };
 
 export const PERMISSION_GROUPS: Array<{ title: string; permissions: PermissionKey[] }> = [
@@ -121,12 +109,10 @@ export const PERMISSION_GROUPS: Array<{ title: string; permissions: PermissionKe
   { title: "Gestión financiera", permissions: ["caja_chica.ver", "caja_chica.crear", "caja_chica.eliminar", "caja_chica.cerrar", "caja_chica.reabrir"] },
   { title: "Liquidaciones", permissions: ["liquidaciones.ver", "liquidaciones.crear", "liquidaciones.editar", "liquidaciones.confirmar", "liquidaciones.pagar_propietario", "liquidaciones.adelantar_propietario", "liquidaciones.ajustar", "liquidaciones.anular_pago_propietario", "liquidaciones.eliminar"] },
   { title: "Pagos", permissions: ["pagos.ver", "pagos.crear", "pagos.eliminar"] },
-  { title: "Propiedades", permissions: ["propiedades.ver", "propiedades.crear", "propiedades.editar", "propiedades.eliminar"] },
   { title: "Personas", permissions: ["personas.ver", "personas.crear", "personas.editar", "personas.eliminar"] },
   { title: "Usuarios", permissions: ["usuarios.ver", "usuarios.crear", "usuarios.editar", "usuarios.eliminar", "usuarios.permisos", "usuarios.asignar_rol"] },
   { title: "Configuración", permissions: ["configuracion.perfil.ver", "configuracion.perfil.editar", "configuracion.backups.ver", "configuracion.backups.crear", "configuracion.backups.descargar", "configuracion.backups.eliminar", "configuracion.auditoria.ver"] },
   { title: "Reportes", permissions: ["reportes.dashboard.ver", "reportes.contratos.ver", "reportes.morosidad.ver", "reportes.financieros.ver"] },
-  { title: "Sueldos", permissions: [...SUELDOS_PERMISSIONS] },
 ];
 
 export function isAdminRole(role?: string): boolean {

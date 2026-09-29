@@ -22,7 +22,9 @@ test('el Administrador restablece una contraseña temporal sin exponer enlaces',
   await page.locator('#login-password').fill('Password!2026');
   await page.getByRole('button', { name: /Ingresar a mi cuenta/i }).click();
   await page.goto('/usuarios');
-  await page.getByLabel('Cambiar contraseña de Usuario').click();
+  const targetCard = page.getByRole('article', { name: 'Usuario' });
+  await targetCard.getByRole('button', { name: 'Acciones' }).click();
+  await page.getByRole('menuitem', { name: 'Cambiar contraseña' }).click();
   await page.getByLabel('Nueva contraseña temporal').fill('NuevaTemporal!2026');
   await page.getByRole('button', { name: 'Restablecer' }).click();
   expect(sentPassword).toBe('NuevaTemporal!2026');
@@ -159,6 +161,7 @@ test('el catálogo de roles muestra solo capacidades reales y resuelve sus depen
   await expect(roleDialog.getByText('Editar pagos', { exact: true })).toHaveCount(0);
   await expect(roleDialog.getByText('Editar movimientos de caja', { exact: true })).toHaveCount(0);
   await expect(roleDialog.getByText('Configuración', { exact: true })).toHaveCount(0);
+  await expect(roleDialog.getByText('Propiedades', { exact: true })).toHaveCount(0);
 
   const viewContracts = page.locator('label', { hasText: 'Ver contratos' }).locator('input');
   const restoreContracts = page.locator('label', { hasText: 'Restaurar contratos' }).locator('input');
@@ -167,7 +170,9 @@ test('el catálogo de roles muestra solo capacidades reales y resuelve sus depen
   await viewContracts.uncheck();
   await expect(restoreContracts).not.toBeChecked();
 
-  await page.locator('label', { hasText: 'Registrar pagos' }).locator('input').check();
-  await expect(page.locator('label', { hasText: 'Ver pagos' }).locator('input')).toBeChecked();
-  await expect(page.locator('label', { hasText: 'Ver liquidaciones' }).locator('input')).toBeChecked();
+  await roleDialog.getByRole('button', { name: /^Pagos / }).click();
+  await roleDialog.getByRole('button', { name: /^Liquidaciones / }).click();
+  await roleDialog.getByRole('checkbox', { name: 'Registrar pagos' }).check();
+  await expect(roleDialog.getByRole('checkbox', { name: 'Ver pagos' })).toBeChecked();
+  await expect(roleDialog.getByRole('checkbox', { name: 'Ver liquidaciones' })).toBeChecked();
 });

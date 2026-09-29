@@ -1,7 +1,7 @@
 import { useState, useEffect, Fragment } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { Menu, MenuButton, MenuItem, MenuItems, Transition } from "@headlessui/react";
-import { contractsService, type Contract, type EstadoContrato } from "../services/contracts.service";
+import { contractsService, type Contract, type ContractDraft, type EstadoContrato } from "../services/contracts.service";
 import { formatCurrency } from "../utils/currency";
 import { openAuthenticatedFile } from "../services/api";
 import { getDocumentActionLabel, isWordDocument } from "../utils/documentFiles";
@@ -26,6 +26,7 @@ import ServerPagination from "../components/ServerPagination";
 import FilterBar, { persistFilter, readPersistedFilter } from "../components/FilterBar";
 import AppSelect from "../components/AppSelect";
 import ActiveFilterChips from "../components/ActiveFilterChips";
+import { requestConfirmation } from "../services/confirmation";
 
 type ContractListStatus = Exclude<EstadoContrato, 'PAPELERA'>;
 
@@ -67,6 +68,7 @@ export default function Contratos() {
     if (location.state?.openNewContractModal && canCreate) {
       setEditingContract(null);
       setRenewingContract(null);
+      setActiveDraft(null);
       setIsModalOpen(true);
       window.history.replaceState({}, document.title);
     }
@@ -140,6 +142,19 @@ export default function Contratos() {
     }
   };
 
+  const loadDrafts = async () => {
+    if (!canCreate) return;
+    try {
+      setDrafts(await contractsService.getDrafts());
+    } catch (error) {
+      console.error('Error loading contract drafts:', error);
+    }
+  };
+
+  useEffect(() => {
+    void loadDrafts();
+  }, [canCreate]);
+
   const itemsPerPage = 10;
 
   const currentContracts = contractsList;
@@ -161,9 +176,13 @@ export default function Contratos() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContract, setEditingContract] = useState<Contract | null>(null);
   const [renewingContract, setRenewingContract] = useState<Contract | null>(null);
+  const [activeDraft, setActiveDraft] = useState<ContractDraft | null>(null);
+  const [drafts, setDrafts] = useState<ContractDraft[]>([]);
+  const [showDrafts, setShowDrafts] = useState(false);
 
   const handleEdit = (contract: Contract) => {
     setRenewingContract(null);
+    setActiveDraft(null);
     setEditingContract(contract);
     setIsModalOpen(true);
   };
@@ -172,6 +191,7 @@ export default function Contratos() {
     setIsModalOpen(false);
     setEditingContract(null);
     setRenewingContract(null);
+    setActiveDraft(null);
   };
 
   const handleSaveContract = async (data: any) => {
@@ -184,6 +204,7 @@ export default function Contratos() {
       formData.append('fechaFin', data.endDate);
       formData.append('fechaActualizacion', data.updateDate);
       formData.append('observaciones', data.observations || '');
+      formData.append('serviciosGastos', JSON.stringify(data.serviciosGastos || []));
       formData.append('montoAlquiler', data.montoAlquiler);
       formData.append('moneda', data.moneda || 'ARS');
       formData.append('montoHonorarios', data.montoHonorarios || '0');
@@ -195,6 +216,7 @@ export default function Contratos() {
       formData.append('administrado', data.administrado.toString());
       formData.append('requiereActualizacion', data.requiereActualizacion.toString());
       if (data.contratoAnteriorId) formData.append('contratoAnteriorId', String(data.contratoAnteriorId));
+      if (data.borradorId) formData.append('borradorId', String(data.borradorId));
       if (data.file) {
         formData.append('pdf', data.file);
         if (data.observacionDocumento?.trim()) {
@@ -229,12 +251,21 @@ export default function Contratos() {
 
         if (data.honorarioInicial) {
             formData.append('honorarioInicial', data.honorarioInicial.toString());
+            formData.append('monedaHonorarioInicial', data.monedaHonorarioInicial || 'ARS');
         }
         if (data.honorarioInicialMetodoPago) {
             formData.append('honorarioInicialMetodoPago', data.honorarioInicialMetodoPago);
         }
+        if (data.honorarioInicialCuentaBancariaId) {
+            formData.append('honorarioInicialCuentaBancariaId', data.honorarioInicialCuentaBancariaId);
+        }
 
         const contract = await contractsService.create(formData);
+
+        if (data.borradorId) {
+          setDrafts(current => current.filter(draft => draft.id !== data.borradorId));
+          setActiveDraft(null);
+        }
 
         // Upload additional files
         if (data.additionalFiles && data.additionalFiles.length > 0) {
@@ -273,8 +304,70 @@ export default function Contratos() {
   const handleRenewContract = (contract: Contract) => {
     setIsDetailsModalOpen(false);
     setEditingContract(null);
+    setActiveDraft(null);
     setRenewingContract(contract);
     setIsModalOpen(true);
+  };
+
+  const handleSaveDraft = async (data: {
+    datos: ContractDraft['datos'];
+    principalFile: File | null;
+    additionalFiles: File[];
+    additionalFilesType: 'ADENDA' | 'ADJUNTO';
+  }, draft: ContractDraft | null) => {
+    const saved = draft
+      ? await contractsService.updateDraft(draft.id, data.datos, draft.version)
+      : await contractsService.createDraft(data.datos);
+
+    if (data.principalFile) {
+      await contractsService.addDraftAttachment(saved.id, data.principalFile, 'CONTRATO_PRINCIPAL');
+    }
+    for (const file of data.additionalFiles) {
+      await contractsService.addDraftAttachment(saved.id, file, data.additionalFilesType);
+    }
+
+    const complete = await contractsService.getDraft(saved.id);
+    setActiveDraft(complete);
+    setDrafts(current => [complete, ...current.filter(item => item.id !== complete.id)]);
+    return complete;
+  };
+
+  const handleContinueDraft = (draft: ContractDraft) => {
+    setEditingContract(null);
+    setRenewingContract(null);
+    setActiveDraft(draft);
+    setShowDrafts(false);
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteDraftAttachment = async (attachmentId: number) => {
+    if (!activeDraft) return;
+    try {
+      await contractsService.deleteDraftAttachment(activeDraft.id, attachmentId);
+      const updated = await contractsService.getDraft(activeDraft.id);
+      setActiveDraft(updated);
+      setDrafts(current => [updated, ...current.filter(item => item.id !== updated.id)]);
+      toast.success('Archivo eliminado del borrador');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo eliminar el archivo del borrador');
+    }
+  };
+
+  const handleDeleteDraft = async (draft: ContractDraft) => {
+    const confirmed = await requestConfirmation({
+      title: 'Eliminar borrador',
+      message: `Se eliminará el borrador de ${draft.resumen.direccion} y los documentos que tenga guardados.`,
+      confirmText: 'Eliminar'
+    });
+    if (!confirmed) return;
+    try {
+      await contractsService.deleteDraft(draft.id);
+      setDrafts(current => current.filter(item => item.id !== draft.id));
+      if (activeDraft?.id === draft.id) handleCloseModal();
+      toast.success('Borrador eliminado');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo eliminar el borrador');
+    }
   };
 
   const handleDelete = (id: number) => {
@@ -364,6 +457,7 @@ export default function Contratos() {
               onClick={() => {
                 setEditingContract(null);
                 setRenewingContract(null);
+                setActiveDraft(null);
                 setIsModalOpen(true);
               }}
               className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm font-medium cursor-pointer"
@@ -372,8 +466,49 @@ export default function Contratos() {
               Nuevo contrato
             </button>
           )}
+          {canCreate && (
+            <button
+              type="button"
+              onClick={() => setShowDrafts(open => !open)}
+              aria-expanded={showDrafts}
+              className="flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
+            >
+              <DocumentTextIcon className="h-5 w-5" />
+              Borradores{drafts.length ? ` (${drafts.length})` : ''}
+            </button>
+          )}
         </div>
       </div>
+
+      {showDrafts && canCreate && (
+        <section className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4" aria-label="Borradores de contratos">
+          <div className="mb-3">
+            <h2 className="font-semibold text-indigo-950">Borradores de contratos</h2>
+            <p className="text-sm text-indigo-800">No generan movimientos, liquidaciones ni contratos activos.</p>
+          </div>
+          {drafts.length === 0 ? (
+            <p className="rounded-lg border border-dashed border-indigo-200 bg-white p-4 text-sm text-content-muted">Todavía no hay borradores guardados.</p>
+          ) : (
+            <ul className="space-y-2">
+              {drafts.map(draft => (
+                <li key={draft.id} className="flex flex-col gap-3 rounded-lg border border-indigo-100 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-gray-900">{draft.resumen.direccion}</p>
+                    <p className="text-sm text-content-muted">
+                      {[draft.resumen.propietario, draft.resumen.inquilino].filter(Boolean).join(' · ') || 'Sin partes definidas'}
+                      {' · '}Actualizado {new Date(draft.fechaActualizacion).toLocaleDateString('es-AR')}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <button type="button" onClick={() => handleContinueDraft(draft)} className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">Continuar</button>
+                    <button type="button" onClick={() => void handleDeleteDraft(draft)} aria-label={`Eliminar borrador ${draft.resumen.direccion}`} className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">Eliminar</button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       <NewContractModal
         isOpen={isModalOpen}
@@ -381,6 +516,9 @@ export default function Contratos() {
         onSave={handleSaveContract}
         editingContract={editingContract}
         renewingContract={renewingContract}
+        draft={activeDraft}
+        onSaveDraft={handleSaveDraft}
+        onDeleteDraftAttachment={handleDeleteDraftAttachment}
       />
 
       <ContractDetailsModal

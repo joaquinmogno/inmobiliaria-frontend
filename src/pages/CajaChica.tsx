@@ -13,7 +13,11 @@ import {
     UserGroupIcon,
     ChartBarIcon,
     ReceiptPercentIcon,
-    NoSymbolIcon
+    NoSymbolIcon,
+    ArrowsRightLeftIcon,
+    DocumentTextIcon,
+    PaperClipIcon,
+    XMarkIcon
 } from "@heroicons/react/24/outline";
 import { formatCurrency, formatSignedCurrency, type Moneda } from "../utils/currency";
 import FilterBar, { persistFilter, readPersistedFilter } from "../components/FilterBar";
@@ -25,17 +29,25 @@ import ConfirmationModal from "../components/ConfirmationModal";
 import { toast } from "react-hot-toast";
 import { currentMonthInput, formatDate, todayDateInput } from "../utils/date";
 import ActiveFilterChips from "../components/ActiveFilterChips";
+import { cuentasBancariasService, type CuentaBancaria } from "../services/cuentas-bancarias.service";
+import LocalizedFilePicker from "../components/LocalizedFilePicker";
+import { ATTACHMENT_ACCEPT, ATTACHMENT_FORMATS_LABEL, getDocumentActionLabel, isWordDocument, validateAttachmentFile } from "../utils/documentFiles";
+import { openAuthenticatedFile } from "../services/api";
+
+// Cheque se conserva para poder consultar registros históricos y otros flujos,
+// pero no es una opción de carga manual en caja.
+const MANUAL_CASH_PAYMENT_METHOD_OPTIONS = PAYMENT_METHOD_OPTIONS.filter(method => method.value !== 'CHEQUE');
 
 const parsePeriod = (value: string | null) => {
     const match = value?.match(/^(\d{4})-(0[1-9]|1[0-2])$/);
     return match ? { year: Number(match[1]), month: Number(match[2]) } : null;
 };
 
-const CASH_CLOSING_TARGETS: Array<{ cuenta: CuentaCaja; moneda: Moneda; label: string }> = [
+type CashClosingTarget = { cuenta: CuentaCaja; moneda: Moneda; label: string; cuentaBancariaId?: number };
+
+const CASH_CLOSING_TARGETS: CashClosingTarget[] = [
     { cuenta: 'CAJA', moneda: 'ARS', label: 'Caja ARS' },
-    { cuenta: 'BANCO', moneda: 'ARS', label: 'Banco ARS' },
-    { cuenta: 'CAJA', moneda: 'USD', label: 'Caja USD' },
-    { cuenta: 'BANCO', moneda: 'USD', label: 'Banco USD' }
+    { cuenta: 'CAJA', moneda: 'USD', label: 'Caja USD' }
 ];
 
 export default function CajaChica() {
@@ -55,17 +67,26 @@ export default function CajaChica() {
     const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('q') ?? readPersistedFilter("caja-chica"));
     const [currentPage, setCurrentPage] = useState(1);
     const [tipoFilter, setTipoFilter] = useState(() => searchParams.get('tipo') === 'INGRESO' || searchParams.get('tipo') === 'EGRESO' ? searchParams.get('tipo')! : "");
-    const [cuentaFilter, setCuentaFilter] = useState(() => searchParams.get('cuenta') === 'CAJA' || searchParams.get('cuenta') === 'BANCO' ? searchParams.get('cuenta')! : "");
+    const [estadoFilter, setEstadoFilter] = useState<'REVERSIONES' | ''>(() => searchParams.get('estado') === 'REVERSIONES' ? 'REVERSIONES' : '');
+    const [cuentaFilter, setCuentaFilter] = useState(() => {
+        const value = searchParams.get('cuenta') || '';
+        return value === 'CAJA' || value === 'BANCO' || /^BANCO:\d+$/.test(value) ? value : '';
+    });
     // Default a mes actual
     const [initialYear, initialMonth] = currentMonthInput().split("-").map(Number);
     const [selectedMonth, setSelectedMonth] = useState<number>(urlPeriod?.month ?? initialMonth);
     const [selectedYear, setSelectedYear] = useState<number>(urlPeriod?.year ?? initialYear);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedMovement, setSelectedMovement] = useState<MovimientoCaja | null>(null);
+    const [movementForAttachments, setMovementForAttachments] = useState<MovimientoCaja | null>(null);
+    const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
+    const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
     const [cierres, setCierres] = useState<CierreCaja[]>([]);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
     const [isCreateConfirmationOpen, setIsCreateConfirmationOpen] = useState(false);
+    const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>([]);
     const [formData, setFormData] = useState({
         tipo: 'INGRESO',
         concepto: '',
@@ -73,6 +94,17 @@ export default function CajaChica() {
         moneda: 'ARS' as Moneda,
         fecha: todayDateInput(),
         metodoPago: 'EFECTIVO',
+        cuentaBancariaId: '',
+        observaciones: '',
+        comprobantes: [] as File[]
+    });
+    const [transferData, setTransferData] = useState({
+        fecha: todayDateInput(),
+        moneda: 'ARS' as Moneda,
+        monto: '',
+        cuentaOrigenId: '',
+        cuentaDestinoId: '',
+        concepto: '',
         observaciones: ''
     });
 
@@ -87,6 +119,7 @@ export default function CajaChica() {
     useEffect(() => {
         const nextSearch = searchParams.get('q');
         const nextTipo = searchParams.get('tipo');
+        const nextEstado = searchParams.get('estado');
         const nextCuenta = searchParams.get('cuenta');
         const nextPeriod = parsePeriod(searchParams.get('periodo'));
         if (nextSearch !== null && nextSearch !== searchTerm) {
@@ -94,7 +127,8 @@ export default function CajaChica() {
             setDebouncedSearch(nextSearch);
         }
         setTipoFilter(nextTipo === 'INGRESO' || nextTipo === 'EGRESO' ? nextTipo : '');
-        setCuentaFilter(nextCuenta === 'CAJA' || nextCuenta === 'BANCO' ? nextCuenta : '');
+        setEstadoFilter(nextEstado === 'REVERSIONES' ? 'REVERSIONES' : '');
+        setCuentaFilter(nextCuenta === 'CAJA' || nextCuenta === 'BANCO' || /^BANCO:\d+$/.test(nextCuenta || '') ? nextCuenta! : '');
         if (nextPeriod) {
             setSelectedMonth(nextPeriod.month);
             setSelectedYear(nextPeriod.year);
@@ -105,15 +139,15 @@ export default function CajaChica() {
         const period = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}`;
         setSearchParams(current => {
             const next = new URLSearchParams(current);
-            const values = { q: searchTerm.trim(), tipo: tipoFilter, cuenta: cuentaFilter, periodo: period };
+            const values = { q: searchTerm.trim(), tipo: tipoFilter, estado: estadoFilter, cuenta: cuentaFilter, periodo: period };
             Object.entries(values).forEach(([key, value]) => value ? next.set(key, value) : next.delete(key));
             return next;
         }, { replace: true });
-    }, [searchTerm, tipoFilter, cuentaFilter, selectedMonth, selectedYear, setSearchParams]);
+    }, [searchTerm, tipoFilter, estadoFilter, cuentaFilter, selectedMonth, selectedYear, setSearchParams]);
 
     useEffect(() => {
-        refreshData(currentPage, debouncedSearch, tipoFilter, cuentaFilter, selectedMonth, selectedYear);
-    }, [currentPage, debouncedSearch, tipoFilter, cuentaFilter, selectedMonth, selectedYear]);
+        refreshData(currentPage, debouncedSearch, tipoFilter, estadoFilter, cuentaFilter, selectedMonth, selectedYear);
+    }, [currentPage, debouncedSearch, tipoFilter, estadoFilter, cuentaFilter, selectedMonth, selectedYear]);
 
     useEffect(() => {
         cajachicaService.getSummary(selectedMonth, selectedYear).then(setMeta).catch(error => {
@@ -131,7 +165,13 @@ export default function CajaChica() {
 
     useEffect(() => { void refreshClosures(); }, []);
 
-    const refreshData = async (page: number, search: string, tipo: string, cuenta: string, mes?: number, anio?: number) => {
+    useEffect(() => {
+        cuentasBancariasService.getAll(true).then(setCuentasBancarias).catch(error => {
+            console.error('Error loading bank accounts:', error);
+        });
+    }, []);
+
+    const refreshData = async (page: number, search: string, tipo: string, estado: 'REVERSIONES' | '', cuenta: string, mes?: number, anio?: number) => {
         setIsLoading(true);
         try {
             const response = await cajachicaService.getAll(
@@ -141,7 +181,8 @@ export default function CajaChica() {
                 cuenta || undefined, 
                 search || undefined,
                 mes,
-                anio
+                anio,
+                estado || undefined
             );
             setMovimientos(response.data);
             setTotal(response.meta.total);
@@ -169,19 +210,22 @@ export default function CajaChica() {
                 ...formData,
                 tipo: formData.tipo as 'INGRESO' | 'EGRESO',
 	                moneda: formData.moneda as Moneda,
+	                cuentaBancariaId: formData.cuentaBancariaId ? Number(formData.cuentaBancariaId) : undefined,
 	                monto: Number(formData.monto)
             });
             setIsModalOpen(false);
-            refreshData(1, debouncedSearch, tipoFilter, cuentaFilter, selectedMonth, selectedYear);
+            refreshData(1, debouncedSearch, tipoFilter, estadoFilter, cuentaFilter, selectedMonth, selectedYear);
             cajachicaService.getSummary(selectedMonth, selectedYear).then(setMeta);
             setFormData({
 	                tipo: 'INGRESO',
 	                concepto: '',
 	                monto: '',
 	                moneda: 'ARS',
-	                fecha: todayDateInput(),
+                fecha: todayDateInput(),
                 metodoPago: 'EFECTIVO',
-                observaciones: ''
+                cuentaBancariaId: '',
+                observaciones: '',
+                comprobantes: []
             });
         } catch (error) {
             console.error("Error al guardar movimiento:", error);
@@ -189,18 +233,87 @@ export default function CajaChica() {
         }
     };
 
-    const paymentMethodLabel = PAYMENT_METHOD_OPTIONS.find(option => option.value === formData.metodoPago)?.label ?? formData.metodoPago;
+    const handleTransfer = async (event: React.FormEvent) => {
+        event.preventDefault();
+        setFormError('');
+        if (!transferData.cuentaOrigenId || !transferData.cuentaDestinoId) {
+            setFormError('Seleccioná la cuenta de origen y la de destino.');
+            return;
+        }
+        if (transferData.cuentaOrigenId === transferData.cuentaDestinoId) {
+            setFormError('La cuenta de destino debe ser distinta de la cuenta de origen.');
+            return;
+        }
+        try {
+            await cajachicaService.transferirEntreCuentas({
+                ...transferData,
+                monto: Number(transferData.monto),
+                cuentaOrigenId: Number(transferData.cuentaOrigenId),
+                cuentaDestinoId: Number(transferData.cuentaDestinoId)
+            });
+            toast.success('Transferencia interna registrada en ambas cuentas.');
+            setIsTransferModalOpen(false);
+            setTransferData({ fecha: todayDateInput(), moneda: 'ARS', monto: '', cuentaOrigenId: '', cuentaDestinoId: '', concepto: '', observaciones: '' });
+            await Promise.all([
+                refreshData(1, debouncedSearch, tipoFilter, estadoFilter, cuentaFilter, selectedMonth, selectedYear),
+                cajachicaService.getSummary(selectedMonth, selectedYear).then(setMeta)
+            ]);
+        } catch (error) {
+            reportError(error, 'No se pudo registrar la transferencia interna');
+        }
+    };
+
+    const paymentMethodLabel = MANUAL_CASH_PAYMENT_METHOD_OPTIONS.find(option => option.value === formData.metodoPago)?.label ?? formData.metodoPago;
     const movementTypeLabel = formData.tipo === 'EGRESO' ? 'un egreso' : 'un ingreso';
-    const createConfirmationMessage = `¿Está seguro que quiere registrar ${movementTypeLabel} por ${paymentMethodLabel.toLowerCase()} de ${formatCurrency(Number(formData.monto), formData.moneda)} el día ${formatDate(formData.fecha)}?`;
+    const createConfirmationMessage = `¿Está seguro que quiere registrar ${movementTypeLabel} por ${paymentMethodLabel.toLowerCase()} de ${formatCurrency(Number(formData.monto), formData.moneda)} el día ${formatDate(formData.fecha)}?${formData.comprobantes.length ? ` Se adjuntarán ${formData.comprobantes.length} comprobante(s).` : ''}`;
+
+    const openAttachment = async (path: string) => {
+        try {
+            const action = await openAuthenticatedFile(path);
+            if (action === 'downloaded' && isWordDocument(path)) toast.success('El documento Word se descargó correctamente');
+        } catch {
+            toast.error('No se pudo abrir el comprobante');
+        }
+    };
+
+    const removePendingAttachment = (index: number, field: 'new' | 'existing') => {
+        if (field === 'new') {
+            setFormData(current => ({ ...current, comprobantes: current.comprobantes.filter((_, currentIndex) => currentIndex !== index) }));
+            return;
+        }
+        setPendingAttachments(current => current.filter((_, currentIndex) => currentIndex !== index));
+    };
+
+    const uploadPendingAttachments = async () => {
+        if (!movementForAttachments || pendingAttachments.length === 0) return;
+        setIsUploadingAttachments(true);
+        try {
+            const response = await cajachicaService.adjuntarComprobantes(movementForAttachments.id, pendingAttachments);
+            const updatedMovement = {
+                ...movementForAttachments,
+                adjuntos: [...(movementForAttachments.adjuntos || []), ...response.data]
+            };
+            setMovementForAttachments(updatedMovement);
+            setMovimientos(current => current.map(movement => movement.id === updatedMovement.id ? {
+                ...movement,
+                adjuntos: updatedMovement.adjuntos
+            } : movement));
+            setPendingAttachments([]);
+            toast.success(`${response.data.length} comprobante(s) adjuntado(s)`);
+        } catch (error) {
+            reportError(error, 'No se pudieron adjuntar los comprobantes');
+        } finally {
+            setIsUploadingAttachments(false);
+        }
+    };
 
     const isManualReversible = (movement: MovimientoCaja) => (
         !movement.anuladoEn &&
         !movement.reversionDeId &&
         !movement.pagoId &&
-        !movement.pagoSueldoId &&
-        !movement.ajustePagoSueldoDe &&
         !movement.liquidacionId &&
-        !movement.contratoId
+        !movement.contratoId &&
+        !movement.transferenciaInternaId
     );
 
     const handleVoid = async (motivo: string) => {
@@ -208,21 +321,24 @@ export default function CajaChica() {
         await cajachicaService.anular(selectedMovement.id, motivo);
         toast.success("Movimiento anulado y contrapartida registrada");
         await Promise.all([
-            refreshData(currentPage, debouncedSearch, tipoFilter, cuentaFilter, selectedMonth, selectedYear),
+            refreshData(currentPage, debouncedSearch, tipoFilter, estadoFilter, cuentaFilter, selectedMonth, selectedYear),
             cajachicaService.getSummary(selectedMonth, selectedYear).then(setMeta)
         ]);
     };
-    const getCashClosing = (target: { cuenta: CuentaCaja; moneda: Moneda }) => cierres.find(cierre => (
+    const getCashClosing = (target: CashClosingTarget) => cierres.find(cierre => (
         cierre.periodo.slice(0, 10) === selectedPeriod
         && cierre.cuenta === target.cuenta
         && cierre.moneda === target.moneda
+        && (target.cuenta === 'CAJA' ? !cierre.cuentaBancariaId : cierre.cuentaBancariaId === target.cuentaBancariaId)
     ));
 
-    const getLedgerBalance = (target: { cuenta: CuentaCaja; moneda: Moneda }) => (
-        meta?.saldoAlCierre?.[target.moneda]?.cuentas[target.cuenta].saldo ?? 0
-    );
+    const getLedgerBalance = (target: CashClosingTarget) => target.cuenta === 'BANCO'
+        ? target.cuentaBancariaId
+            ? meta?.saldoAlCierre?.[target.moneda]?.cuentasBancarias?.[String(target.cuentaBancariaId)]?.saldo ?? 0
+            : meta?.saldoAlCierre?.[target.moneda]?.cuentas.BANCO.saldo ?? 0
+        : meta?.saldoAlCierre?.[target.moneda]?.cuentas.CAJA.saldo ?? 0;
 
-    const handleClosePeriod = async (target: { cuenta: CuentaCaja; moneda: Moneda; label: string }) => {
+    const handleClosePeriod = async (target: CashClosingTarget) => {
         const closing = getCashClosing(target);
         if (closing?.estado === 'CERRADO') {
             toast.error(`${target.label} ya está cerrado. Reabrilo con autorización antes de volver a cerrarlo.`);
@@ -238,14 +354,14 @@ export default function CajaChica() {
         }
         const motivo = saldoDeclarado === Number(saldoSistema) ? undefined : window.prompt('Motivo de la diferencia:') || undefined;
         try {
-            await cajachicaService.cerrarPeriodo({ periodo: selectedPeriod, cuenta: target.cuenta, moneda: target.moneda, saldoDeclarado, motivoDiferencia: motivo });
+            await cajachicaService.cerrarPeriodo({ periodo: selectedPeriod, cuenta: target.cuenta, cuentaBancariaId: target.cuentaBancariaId, moneda: target.moneda, saldoDeclarado, motivoDiferencia: motivo });
             await refreshClosures();
             toast.success(`${target.label} cerrado para el período seleccionado`);
         }
         catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudo cerrar la caja'); }
     };
 
-    const handleReopenPeriod = async (target: { cuenta: CuentaCaja; moneda: Moneda; label: string }, closing: CierreCaja) => {
+    const handleReopenPeriod = async (target: CashClosingTarget, closing: CierreCaja) => {
         if (closing.estado !== 'CERRADO') return;
         const motivo = window.prompt(`Motivo para reabrir ${target.label} de ${selectedPeriod.slice(0, 7)}. Esta acción quedará auditada:`);
         if (motivo === null) return;
@@ -263,6 +379,22 @@ export default function CajaChica() {
     };
 
     const selectedPeriod = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`;
+    const closingTargets: CashClosingTarget[] = [
+        ...CASH_CLOSING_TARGETS,
+        ...cuentasBancarias.map(cuenta => ({
+            cuenta: 'BANCO' as const,
+            moneda: cuenta.moneda,
+            cuentaBancariaId: cuenta.id,
+            label: `${cuenta.banco} — ${cuenta.nombre} ${cuenta.moneda}`
+        })),
+        ...cierres
+            .filter(cierre => cierre.periodo.slice(0, 10) === selectedPeriod && cierre.cuenta === 'BANCO' && !cierre.cuentaBancariaId)
+            .map(cierre => ({ cuenta: 'BANCO' as const, moneda: cierre.moneda, label: `Banco general (cierre histórico) ${cierre.moneda}` }))
+    ];
+    const activeAccountsFor = (moneda: Moneda) => cuentasBancarias.filter(cuenta => cuenta.activa && cuenta.moneda === moneda);
+    const accountLabel = (movimiento: MovimientoCaja) => movimiento.cuenta === 'CAJA'
+        ? 'Caja'
+        : movimiento.cuentaBancaria ? `${movimiento.cuentaBancaria.banco} — ${movimiento.cuentaBancaria.nombre}` : 'Banco histórico';
 
     return (
         <div className="max-w-7xl mx-auto space-y-6 pb-20">
@@ -299,8 +431,26 @@ export default function CajaChica() {
                         <PlusIcon className="w-5 h-5" />
                         Nuevo Movimiento
                     </button>}
+                    {canCreate && <button
+                        onClick={() => setIsTransferModalOpen(true)}
+                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-indigo-300 bg-white px-4 py-2 text-sm font-bold text-indigo-800 shadow-sm transition-colors hover:bg-indigo-50 sm:w-auto"
+                    >
+                        <ArrowsRightLeftIcon className="h-5 w-5" /> Transferir entre cuentas
+                    </button>}
                 </div>
             </div>
+
+            {meta?.saldosBancarios && Object.keys(meta.saldosBancarios).length > 0 && <section className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4 sm:p-5">
+                <div className="flex items-center gap-2"><BuildingLibraryIcon className="h-5 w-5 text-blue-700" /><h2 className="font-bold text-gray-900">Saldos por cuenta bancaria</h2></div>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {Object.values(meta.saldosBancarios).map(cuenta => <div key={cuenta.id} className="rounded-xl border border-blue-100 bg-white p-3">
+                        <p className="text-sm font-bold text-gray-900">{cuenta.banco} — {cuenta.nombre}</p>
+                        <p className="mt-1 text-lg font-black text-blue-800">{formatCurrency(cuenta.saldo, cuenta.moneda)}</p>
+                        <p className="mt-1 text-xs text-gray-600">Ingresos {formatCurrency(cuenta.ingresos, cuenta.moneda)} · Egresos {formatCurrency(cuenta.egresos, cuenta.moneda)}</p>
+                        {!cuenta.activa && <p className="mt-1 text-xs font-semibold text-gray-500">Cuenta inactiva / histórica</p>}
+                    </div>)}
+                </div>
+            </section>}
 
             <section aria-labelledby="cash-closing-title" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -311,7 +461,7 @@ export default function CajaChica() {
                     <p className="text-xs font-bold text-gray-600">Período {selectedPeriod.slice(0, 7)}</p>
                 </div>
                 <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                    {CASH_CLOSING_TARGETS.map(target => {
+                    {closingTargets.map(target => {
                         const closing = getCashClosing(target);
                         const isClosed = closing?.estado === 'CERRADO';
                         const stateLabel = isClosed ? 'Cerrado' : closing?.estado === 'REABIERTO' ? 'Reabierto' : 'Abierto';
@@ -321,7 +471,7 @@ export default function CajaChica() {
                                 ? 'border-amber-200 bg-amber-50 text-amber-950'
                                 : 'border-gray-200 bg-gray-50 text-gray-800';
                         const saldoSistema = getLedgerBalance(target);
-                        return <article key={`${target.cuenta}-${target.moneda}`} className={`rounded-xl border p-4 ${stateTone}`}>
+                        return <article key={`${target.cuenta}-${target.cuentaBancariaId || 'caja'}-${target.moneda}`} className={`rounded-xl border p-4 ${stateTone}`}>
                             <div className="flex items-start justify-between gap-2">
                                 <div>
                                     <h3 className="font-black">{target.label}</h3>
@@ -337,7 +487,7 @@ export default function CajaChica() {
                                 {closing.estado === 'REABIERTO' && <p className="mt-1 text-xs font-semibold">Reabierto: {closing.motivoReapertura || 'sin motivo informado'}</p>}
                             </>}
                             <div className="mt-4 flex flex-wrap gap-2">
-                                {canCloseCash && !isClosed && <button type="button" onClick={() => void handleClosePeriod(target)} className="min-h-10 rounded-lg border border-indigo-300 bg-white px-3 text-xs font-black text-indigo-800 hover:bg-indigo-50">Cerrar</button>}
+                                {canCloseCash && !isClosed && (target.cuenta === 'CAJA' || target.cuentaBancariaId) && <button type="button" onClick={() => void handleClosePeriod(target)} className="min-h-10 rounded-lg border border-indigo-300 bg-white px-3 text-xs font-black text-indigo-800 hover:bg-indigo-50">Cerrar</button>}
                                 {canReopenCash && isClosed && closing && <button type="button" onClick={() => void handleReopenPeriod(target, closing)} className="min-h-10 rounded-lg border border-amber-300 bg-white px-3 text-xs font-black text-amber-900 hover:bg-amber-100">Reabrir</button>}
                                 {closing && <details className="relative text-xs text-gray-800"><summary className="flex min-h-10 cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 font-bold hover:bg-gray-50">Historial ({closing.eventos.length})</summary><ol className="absolute right-0 z-20 mt-1 w-72 space-y-1 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">{closing.eventos.map(evento => <li key={evento.id}><span className="font-bold">V{evento.version} · {evento.tipo === 'CIERRE' ? 'Cierre' : 'Reapertura'}</span> · {formatDate(evento.fechaCreacion)} · {evento.usuario.nombreCompleto}{evento.motivo ? ` · ${evento.motivo}` : ''}</li>)}</ol></details>}
                             </div>
@@ -399,7 +549,7 @@ export default function CajaChica() {
                             </div>
                             <span className="text-xs font-bold text-status-warning bg-amber-50 px-2 py-0.5 rounded-full uppercase tracking-widest">Gastos</span>
                         </div>
-                        <p className="text-xs font-medium text-content-muted mb-1">Otros egresos y sueldos</p>
+                        <p className="text-xs font-medium text-content-muted mb-1">Otros egresos</p>
                         <p className="text-xl font-black text-gray-900">
                             {formatCurrency(meta.gastosGenerales)}
                         </p>
@@ -481,7 +631,7 @@ export default function CajaChica() {
                 </div>
             </div>
 
-            <FilterBar query={searchTerm} onQueryChange={setSearchTerm} resultCount={total} placeholder="Buscar concepto..." onClear={() => { const [year, month] = currentMonthInput().split('-').map(Number); setSearchTerm(""); setTipoFilter(""); setCuentaFilter(""); setSelectedYear(year); setSelectedMonth(month); }}>
+            <FilterBar query={searchTerm} onQueryChange={setSearchTerm} resultCount={total} resultCountLabel={estadoFilter ? { singular: 'corrección', plural: 'correcciones' } : undefined} placeholder="Buscar concepto..." onClear={() => { const [year, month] = currentMonthInput().split('-').map(Number); setSearchTerm(""); setTipoFilter(""); setEstadoFilter(""); setCuentaFilter(""); setSelectedYear(year); setSelectedMonth(month); }}>
                 {/* Período */}
                 <div className="flex items-center gap-2 mr-2 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100">
                     <span className="text-xs font-black text-gray-600 uppercase tracking-widest">Período:</span>
@@ -515,13 +665,24 @@ export default function CajaChica() {
                     className="w-full sm:w-44"
                 />
                 <AppSelect
+                    ariaLabel="Estado del movimiento"
+                    value={estadoFilter}
+                    onChange={(value) => setEstadoFilter(value === 'REVERSIONES' ? 'REVERSIONES' : '')}
+                    options={[
+                        { value: '', label: 'Todos los estados' },
+                        { value: 'REVERSIONES', label: 'Reversiones y anulados' }
+                    ]}
+                    className="w-full sm:w-52"
+                />
+                <AppSelect
                     ariaLabel="Cuenta"
                     value={cuentaFilter}
                     onChange={setCuentaFilter}
                     options={[
-                        { value: "", label: "Efectivo + Banco" },
-                        { value: "CAJA", label: "Solo efectivo" },
-                        { value: "BANCO", label: "Solo banco" }
+                        { value: "", label: "Todas las cuentas" },
+                        { value: "CAJA", label: "Caja" },
+                        { value: "BANCO", label: "Todos los bancos" },
+                        ...cuentasBancarias.map(cuenta => ({ value: `BANCO:${cuenta.id}`, label: `${cuenta.banco} — ${cuenta.nombre}${cuenta.activa ? '' : ' (inactiva)'}` }))
                     ]}
                     className="w-full sm:w-44"
                 />
@@ -529,9 +690,10 @@ export default function CajaChica() {
             <ActiveFilterChips filters={[
                 ...(searchTerm ? [{ key: 'q', label: `Búsqueda: ${searchTerm}`, onRemove: () => setSearchTerm('') }] : []),
                 ...(tipoFilter ? [{ key: 'tipo', label: `Tipo: ${tipoFilter === 'INGRESO' ? 'Ingresos' : 'Egresos'}`, onRemove: () => setTipoFilter('') }] : []),
-                ...(cuentaFilter ? [{ key: 'cuenta', label: `Cuenta: ${cuentaFilter === 'CAJA' ? 'Caja' : 'Banco'}`, onRemove: () => setCuentaFilter('') }] : []),
+                ...(estadoFilter ? [{ key: 'estado', label: 'Reversiones y anulados', onRemove: () => setEstadoFilter('') }] : []),
+                ...(cuentaFilter ? [{ key: 'cuenta', label: `Cuenta: ${cuentaFilter === 'CAJA' ? 'Caja' : cuentaFilter === 'BANCO' ? 'Todos los bancos' : cuentasBancarias.find(cuenta => `BANCO:${cuenta.id}` === cuentaFilter) ? `${cuentasBancarias.find(cuenta => `BANCO:${cuenta.id}` === cuentaFilter)!.banco} — ${cuentasBancarias.find(cuenta => `BANCO:${cuenta.id}` === cuentaFilter)!.nombre}` : 'Banco'}`, onRemove: () => setCuentaFilter('') }] : []),
                 ...(`${selectedYear}-${String(selectedMonth).padStart(2, '0')}` !== currentMonthInput() ? [{ key: 'periodo', label: `Período: ${String(selectedMonth).padStart(2, '0')}/${selectedYear}`, onRemove: () => { const [year, month] = currentMonthInput().split('-').map(Number); setSelectedYear(year); setSelectedMonth(month); } }] : [])
-            ]} onClearAll={() => { const [year, month] = currentMonthInput().split('-').map(Number); setSearchTerm(''); setTipoFilter(''); setCuentaFilter(''); setSelectedYear(year); setSelectedMonth(month); }} />
+            ]} onClearAll={() => { const [year, month] = currentMonthInput().split('-').map(Number); setSearchTerm(''); setTipoFilter(''); setEstadoFilter(''); setCuentaFilter(''); setSelectedYear(year); setSelectedMonth(month); }} />
 
             {/* Table */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-h-[300px]">
@@ -558,10 +720,16 @@ export default function CajaChica() {
                                         {mov.tipo === 'INGRESO' ? 'Ingreso' : 'Egreso'}
                                     </span>
                                     <span className={`px-2.5 py-1 text-xs font-black rounded-full uppercase tracking-widest ${mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
-                                        {mov.cuenta === 'BANCO' ? 'Banco' : 'Caja'}
+                                        {accountLabel(mov)}
                                     </span>
                                     <span className="text-xs font-medium text-content-muted">{mov.creadoPor?.nombreCompleto || 'Sistema'}</span>
                                 </div>
+                                {mov.transferenciaInternaId && <p className="mt-2 text-xs font-bold text-indigo-700">Transferencia interna #{mov.transferenciaInternaId}</p>}
+                                {((mov.adjuntos?.length || 0) > 0 || (canCreate && !mov.anuladoEn)) && (
+                                    <button type="button" onClick={() => { setMovementForAttachments(mov); setPendingAttachments([]); }} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-800 hover:bg-indigo-100">
+                                        <PaperClipIcon className="h-4 w-4" /> {mov.adjuntos?.length ? `Comprobantes (${mov.adjuntos.length})` : 'Adjuntar comprobantes'}
+                                    </button>
+                                )}
                                 {mov.anuladoEn && (
                                     <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
                                         <p className="font-black uppercase tracking-wider">Movimiento anulado</p>
@@ -608,6 +776,7 @@ export default function CajaChica() {
                                         {mov.observaciones && <div className="text-xs text-gray-600 mt-0.5">{mov.observaciones}</div>}
                                         {mov.anuladoEn && <div className="mt-1 text-xs font-bold text-amber-800">Anulado: {mov.motivoAnulacion}</div>}
                                         {mov.reversionDeId && <div className="mt-1 text-xs font-bold text-indigo-700">Reversión de #{mov.reversionDeId}</div>}
+                                        {mov.transferenciaInternaId && <div className="mt-1 text-xs font-bold text-indigo-700">Transferencia interna #{mov.transferenciaInternaId}</div>}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`px-2.5 py-1 text-xs font-black rounded-full uppercase tracking-widest ${mov.tipo === 'INGRESO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
@@ -616,7 +785,7 @@ export default function CajaChica() {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`px-2.5 py-1 text-xs font-black rounded-full uppercase tracking-widest ${mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
-                                            {mov.cuenta === 'BANCO' ? '🏦 Banco' : '💵 Caja'}
+                                            {mov.cuenta === 'BANCO' ? `🏦 ${accountLabel(mov)}` : '💵 Caja'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -628,6 +797,11 @@ export default function CajaChica() {
                                         {mov.creadoPor?.nombreCompleto || 'Sistema'}
                                     </td>
                                     <td className={`sticky right-0 z-10 px-6 py-4 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)] ${mov.anuladoEn ? "bg-gray-50" : "bg-white"}`}>
+                                        {((mov.adjuntos?.length || 0) > 0 || (canCreate && !mov.anuladoEn)) && (
+                                            <button type="button" onClick={() => { setMovementForAttachments(mov); setPendingAttachments([]); }} className="mr-2 inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-bold text-indigo-700 hover:bg-indigo-50">
+                                                <PaperClipIcon className="h-4 w-4" /> {mov.adjuntos?.length || 'Adjuntar'}
+                                            </button>
+                                        )}
                                         {canVoid && isManualReversible(mov) && (
                                             <button type="button" onClick={() => setSelectedMovement(mov)} data-danger-trigger="true" className="destructive-action inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-bold transition-colors">
                                                 <NoSymbolIcon className="h-4 w-4" /> Anular
@@ -694,11 +868,16 @@ export default function CajaChica() {
 	                                </div>
 	                            </div>
 
-                            <div>
+                            <div className="space-y-4">
                                 <div>
                                     <label htmlFor="cash-movement-payment-method" className="block text-sm font-medium text-gray-700 mb-1">Método de Pago *</label>
-                                    <AppSelect id="cash-movement-payment-method" required ariaLabel="Método de pago" value={formData.metodoPago} onChange={value => setFormData({ ...formData, metodoPago: value })} options={PAYMENT_METHOD_OPTIONS} />
+                                    <AppSelect id="cash-movement-payment-method" required ariaLabel="Método de pago" value={formData.metodoPago} onChange={value => setFormData({ ...formData, metodoPago: value, cuentaBancariaId: value === 'EFECTIVO' ? '' : formData.cuentaBancariaId })} options={MANUAL_CASH_PAYMENT_METHOD_OPTIONS} />
                                 </div>
+                                {formData.metodoPago !== 'EFECTIVO' && <div>
+                                    <label htmlFor="cash-movement-bank-account" className="block text-sm font-medium text-gray-700 mb-1">Banco / cuenta donde ingresó *</label>
+                                    <AppSelect id="cash-movement-bank-account" required ariaLabel="Banco o cuenta" value={formData.cuentaBancariaId} onChange={value => setFormData({ ...formData, cuentaBancariaId: value })} options={[{ value: '', label: activeAccountsFor(formData.moneda).length ? 'Seleccionar cuenta' : 'No hay cuentas activas para esta moneda' }, ...activeAccountsFor(formData.moneda).map(cuenta => ({ value: String(cuenta.id), label: `${cuenta.banco} — ${cuenta.nombre}` }))]} />
+                                    <p className="mt-1 text-xs text-content-muted">Administrá las cuentas desde Configuración.</p>
+                                </div>}
                             </div>
 
                             <div>
@@ -706,10 +885,130 @@ export default function CajaChica() {
                                 <textarea id="cash-movement-observations" rows={2} className="w-full border border-gray-300 rounded-lg py-2 px-3 text-sm focus:ring-indigo-500 focus:border-indigo-500" value={formData.observaciones} onChange={e => setFormData({ ...formData, observaciones: e.target.value })} />
                             </div>
 
+                            <div className="border-t border-gray-100 pt-4">
+                                <LocalizedFilePicker
+                                    id="cash-movement-attachments"
+                                    label="Comprobantes (opcional)"
+                                    accept={ATTACHMENT_ACCEPT}
+                                    formatsLabel={ATTACHMENT_FORMATS_LABEL}
+                                    selectedFiles={formData.comprobantes}
+                                    onFilesSelected={files => setFormData(current => ({ ...current, comprobantes: files }))}
+                                    validateFile={validateAttachmentFile}
+                                    onValidationError={message => toast.error(message)}
+                                    multiple
+                                />
+                                {formData.comprobantes.length > 0 && (
+                                    <ul className="mt-3 space-y-2" aria-label="Comprobantes seleccionados">
+                                        {formData.comprobantes.map((file, index) => (
+                                            <li key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm">
+                                                <span className="min-w-0 truncate font-medium text-gray-700">{file.name}</span>
+                                                <button type="button" onClick={() => removePendingAttachment(index, 'new')} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-700" aria-label={`Quitar ${file.name}`}>
+                                                    <XMarkIcon className="h-4 w-4" />
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+
                             <div className="sticky bottom-0 -mx-5 -mb-5 flex justify-end gap-3 border-t border-gray-100 bg-white p-5 sm:-mx-6 sm:-mb-6 sm:p-6">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="min-h-11 flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 cursor-pointer">Cancelar</button>
                                 <button type="submit" className="min-h-11 flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-xl hover:bg-indigo-700 cursor-pointer">Guardar</button>
                             </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {movementForAttachments && (
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="cash-movement-attachments-title">
+                    <div className="flex max-h-[100dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
+                        <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4 sm:px-6">
+                            <div className="min-w-0">
+                                <h3 id="cash-movement-attachments-title" className="text-lg font-bold text-gray-900">Comprobantes del movimiento</h3>
+                                <p className="mt-1 truncate text-sm text-content-muted">{movementForAttachments.concepto}</p>
+                            </div>
+                            <button type="button" onClick={() => { setMovementForAttachments(null); setPendingAttachments([]); }} className="ml-4 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100" aria-label="Cerrar comprobantes">
+                                <XMarkIcon className="h-5 w-5" />
+                            </button>
+                        </div>
+                        <div className="space-y-5 overflow-y-auto p-5 sm:p-6">
+                            <section>
+                                <h4 className="text-sm font-bold text-gray-900">Archivos adjuntos</h4>
+                                {(movementForAttachments.adjuntos?.length || 0) === 0 ? (
+                                    <p className="mt-2 text-sm text-content-muted">Todavía no hay comprobantes cargados para este movimiento.</p>
+                                ) : (
+                                    <ul className="mt-3 space-y-2">
+                                        {movementForAttachments.adjuntos!.map(attachment => (
+                                            <li key={attachment.id} className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 bg-gray-50 p-3">
+                                                <div className="flex min-w-0 items-center gap-2">
+                                                    <DocumentTextIcon className="h-5 w-5 shrink-0 text-indigo-600" />
+                                                    <span className="truncate text-sm font-semibold text-gray-800">{attachment.nombreArchivo}</span>
+                                                </div>
+                                                <button type="button" onClick={() => void openAttachment(attachment.rutaArchivo)} className="shrink-0 rounded-lg bg-white px-3 py-2 text-xs font-bold text-indigo-700 shadow-sm ring-1 ring-inset ring-indigo-200 hover:bg-indigo-50">
+                                                    {getDocumentActionLabel(attachment.rutaArchivo)}
+                                                </button>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </section>
+
+                            {canCreate && !movementForAttachments.anuladoEn && (
+                                <section className="border-t border-gray-100 pt-5">
+                                    <LocalizedFilePicker
+                                        id="existing-cash-movement-attachments"
+                                        label="Agregar comprobantes"
+                                        accept={ATTACHMENT_ACCEPT}
+                                        formatsLabel={ATTACHMENT_FORMATS_LABEL}
+                                        selectedFiles={pendingAttachments}
+                                        onFilesSelected={setPendingAttachments}
+                                        validateFile={validateAttachmentFile}
+                                        onValidationError={message => toast.error(message)}
+                                        multiple
+                                        disabled={isUploadingAttachments}
+                                    />
+                                    {pendingAttachments.length > 0 && (
+                                        <ul className="mt-3 space-y-2" aria-label="Nuevos comprobantes seleccionados">
+                                            {pendingAttachments.map((file, index) => (
+                                                <li key={`${file.name}-${index}`} className="flex items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm">
+                                                    <span className="min-w-0 truncate font-medium text-gray-700">{file.name}</span>
+                                                    <button type="button" onClick={() => removePendingAttachment(index, 'existing')} disabled={isUploadingAttachments} className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-50" aria-label={`Quitar ${file.name}`}>
+                                                        <XMarkIcon className="h-4 w-4" />
+                                                    </button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                    <button type="button" onClick={() => void uploadPendingAttachments()} disabled={pendingAttachments.length === 0 || isUploadingAttachments} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
+                                        <PaperClipIcon className="h-4 w-4" /> {isUploadingAttachments ? 'Subiendo comprobantes…' : `Subir ${pendingAttachments.length || ''} comprobante${pendingAttachments.length === 1 ? '' : 's'}`}
+                                    </button>
+                                </section>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {isTransferModalOpen && canCreate && (
+                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+                    <div className="flex max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
+                        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                            <div><h3 className="text-lg font-bold text-gray-900">Transferir entre cuentas</h3><p className="mt-1 text-xs text-content-muted">Genera un egreso y un ingreso vinculados; el saldo total no cambia.</p></div>
+                            <button type="button" onClick={() => setIsTransferModalOpen(false)} className="text-gray-600 hover:text-gray-900" aria-label="Cerrar">✕</button>
+                        </div>
+                        <form onSubmit={handleTransfer} className="space-y-4 overflow-y-auto p-5 sm:p-6">
+                            <FormError message={formError} />
+                            <div className="grid grid-cols-2 gap-4">
+                                <label className="text-sm font-medium text-gray-700">Fecha *<input required type="date" max={todayDateInput()} value={transferData.fecha} onChange={event => setTransferData({ ...transferData, fecha: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
+                                <label className="text-sm font-medium text-gray-700">Moneda *<AppSelect ariaLabel="Moneda de transferencia" value={transferData.moneda} onChange={value => setTransferData({ ...transferData, moneda: value as Moneda, cuentaOrigenId: '', cuentaDestinoId: '' })} options={[{ value: 'ARS', label: 'ARS — Pesos' }, { value: 'USD', label: 'USD — Dólares' }]} className="mt-1" /></label>
+                            </div>
+                            <label className="block text-sm font-medium text-gray-700">Monto *<NumericInput required min="0" value={transferData.monto} onChange={value => setTransferData({ ...transferData, monto: value.toString() })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" icon={<span className="text-content-muted text-sm">{transferData.moneda === 'USD' ? 'US$' : '$'}</span>} /></label>
+                            <label className="block text-sm font-medium text-gray-700">Cuenta origen *<AppSelect required ariaLabel="Cuenta origen" value={transferData.cuentaOrigenId} onChange={value => setTransferData({ ...transferData, cuentaOrigenId: value })} options={[{ value: '', label: 'Seleccionar cuenta' }, ...activeAccountsFor(transferData.moneda).map(cuenta => ({ value: String(cuenta.id), label: `${cuenta.banco} — ${cuenta.nombre}` }))]} className="mt-1" /></label>
+                            <label className="block text-sm font-medium text-gray-700">Cuenta destino *<AppSelect required ariaLabel="Cuenta destino" value={transferData.cuentaDestinoId} onChange={value => setTransferData({ ...transferData, cuentaDestinoId: value })} options={[{ value: '', label: 'Seleccionar cuenta' }, ...activeAccountsFor(transferData.moneda).filter(cuenta => String(cuenta.id) !== transferData.cuentaOrigenId).map(cuenta => ({ value: String(cuenta.id), label: `${cuenta.banco} — ${cuenta.nombre}` }))]} className="mt-1" /></label>
+                            <label className="block text-sm font-medium text-gray-700">Concepto *<input required maxLength={255} value={transferData.concepto} onChange={event => setTransferData({ ...transferData, concepto: event.target.value })} placeholder="Ej. Fondeo de cuenta operativa" className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
+                            <label className="block text-sm font-medium text-gray-700">Observación<textarea rows={2} maxLength={1000} value={transferData.observaciones} onChange={event => setTransferData({ ...transferData, observaciones: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
+                            <div className="flex gap-3 border-t border-gray-100 pt-4"><button type="button" onClick={() => setIsTransferModalOpen(false)} className="min-h-11 flex-1 rounded-xl border border-gray-300 px-4 text-sm font-bold text-gray-700">Cancelar</button><button type="submit" className="min-h-11 flex-1 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white hover:bg-indigo-700">Transferir</button></div>
                         </form>
                     </div>
                 </div>

@@ -6,6 +6,22 @@ import { validateAttachmentFile, validateMainContractFile } from '../../utils/do
 import { addDaysToDateInput, addMonthsToDateInput, toDateInputValue } from '../../utils/date';
 
 export type ContractParty = { id?: number; nombreCompleto: string; telefono: string };
+export type ContractServiceExpense = {
+    id?: number;
+    concepto: string;
+    responsable: 'INQUILINO' | 'PROPIETARIO';
+};
+
+export const CONTRACT_SERVICE_EXPENSE_SUGGESTIONS = [
+    'ABL',
+    'LUZ',
+    'GAS',
+    'AGUA',
+    'WIFI / CABLE',
+    'SEGURO CONTRAINCENDIOS',
+    'EXPENSAS COMUNES',
+    'EXPENSAS EXTRAORDINARIAS'
+] as const;
 
 export type ContractFormData = {
     address: string;
@@ -25,13 +41,23 @@ export type ContractFormData = {
     file: File | null;
     observacionDocumento: string;
     observations: string;
+    serviciosGastos: ContractServiceExpense[];
     additionalFiles: File[];
     tipoArchivosAdicionales: 'ADENDA' | 'ADJUNTO';
     administrado: boolean;
     requiereActualizacion: boolean;
     frecuenciaActualizacion: string;
     honorarioInicial: string;
+    monedaHonorarioInicial: Moneda;
     honorarioInicialMetodoPago: string;
+    honorarioInicialCuentaBancariaId: string;
+};
+
+export type ContractDraftData = {
+    form: Omit<ContractFormData, 'file' | 'additionalFiles'>;
+    selectedProperty: Pick<Property, 'id' | 'direccion' | 'piso' | 'departamento'> | null;
+    owners: ContractParty[];
+    tenants: ContractParty[];
 };
 
 export const emptyContractParty = (): ContractParty => ({ nombreCompleto: '', telefono: '' });
@@ -53,9 +79,10 @@ export const createEmptyContractForm = (): ContractFormData => ({
     montoAlquiler: '', moneda: 'ARS', montoHonorarios: '', porcentajeHonorarios: '',
     porcentajeActualizacion: '', pagaHonorarios: 'INQUILINO', diaVencimiento: '10',
     tipoAjuste: '', file: null, observacionDocumento: '', observations: '', additionalFiles: [],
+    serviciosGastos: [],
     tipoArchivosAdicionales: 'ADJUNTO', administrado: true,
-    requiereActualizacion: true, frecuenciaActualizacion: '3', honorarioInicial: '',
-    honorarioInicialMetodoPago: ''
+    requiereActualizacion: true, frecuenciaActualizacion: '3', honorarioInicial: '', monedaHonorarioInicial: 'ARS',
+    honorarioInicialMetodoPago: '', honorarioInicialCuentaBancariaId: ''
 });
 
 export const createContractFormFromContract = (contract: Contract): ContractFormData => ({
@@ -76,13 +103,14 @@ export const createContractFormFromContract = (contract: Contract): ContractForm
     file: null,
     observacionDocumento: '',
     observations: contract.observaciones || '',
+    serviciosGastos: (contract.serviciosGastos || []).map(({ concepto, responsable }) => ({ concepto, responsable })),
     additionalFiles: [],
     tipoArchivosAdicionales: 'ADJUNTO',
     administrado: contract.administrado,
     requiereActualizacion: contract.requiereActualizacion ?? true,
     frecuenciaActualizacion: '3',
-    honorarioInicial: '',
-    honorarioInicialMetodoPago: ''
+    honorarioInicial: '', monedaHonorarioInicial: 'ARS',
+    honorarioInicialMetodoPago: '', honorarioInicialCuentaBancariaId: ''
 });
 
 /**
@@ -109,7 +137,8 @@ export const createRenewalContractForm = (contract: Contract): ContractFormData 
         observacionDocumento: '',
         additionalFiles: [],
         honorarioInicial: '',
-        honorarioInicialMetodoPago: ''
+        monedaHonorarioInicial: 'ARS',
+        honorarioInicialMetodoPago: '', honorarioInicialCuentaBancariaId: ''
     };
 };
 
@@ -139,8 +168,21 @@ export const getContractFormError = (
     if (form.requiereActualizacion && !form.updateDate) {
         return 'La próxima actualización es obligatoria si el contrato tiene actualización programada.';
     }
+    const emptyServiceExpense = form.serviciosGastos.find(serviceExpense => !serviceExpense.concepto.trim());
+    if (emptyServiceExpense) return 'Indicá el nombre de cada servicio o gasto que agregaste.';
+    const normalizedServiceExpenses = form.serviciosGastos.map(serviceExpense => serviceExpense.concepto
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLocaleUpperCase('es-AR'));
+    if (new Set(normalizedServiceExpenses).size !== normalizedServiceExpenses.length) {
+        return 'No se puede repetir un servicio o gasto en el mismo contrato.';
+    }
     if (form.honorarioInicial && !form.honorarioInicialMetodoPago) {
         return 'Seleccioná un método de pago para el honorario inicial.';
+    }
+    if (Number(form.honorarioInicial) > 0 && form.honorarioInicialMetodoPago && form.honorarioInicialMetodoPago !== 'EFECTIVO' && !form.honorarioInicialCuentaBancariaId) {
+        return 'Seleccioná la cuenta bancaria donde ingresó el honorario inicial.';
     }
     if (form.file) {
         const error = validateMainContractFile(form.file);
@@ -178,4 +220,36 @@ export const buildContractPayload = (
         telefono: tenant.telefono.trim() || null,
         estado: 'ACTIVO'
     }))
+});
+
+export const buildContractDraftData = (
+    form: ContractFormData,
+    selectedProperty: Property | null,
+    owners: ContractParty[],
+    tenants: ContractParty[]
+): ContractDraftData => {
+    const { file: _file, additionalFiles: _additionalFiles, ...draftForm } = form;
+    return {
+        form: draftForm,
+        selectedProperty: selectedProperty ? {
+            id: selectedProperty.id,
+            direccion: selectedProperty.direccion,
+            piso: selectedProperty.piso,
+            departamento: selectedProperty.departamento
+        } : null,
+        owners,
+        tenants
+    };
+};
+
+export const createContractFormFromDraft = (draft: ContractDraftData) => ({
+    form: {
+        ...createEmptyContractForm(),
+        ...draft.form,
+        file: null,
+        additionalFiles: []
+    },
+    selectedProperty: draft.selectedProperty as Property | null,
+    owners: draft.owners.length ? draft.owners : [emptyContractParty()],
+    tenants: draft.tenants.length ? draft.tenants : [emptyContractParty()]
 });

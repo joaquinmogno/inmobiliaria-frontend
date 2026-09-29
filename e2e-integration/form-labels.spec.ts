@@ -33,11 +33,9 @@ test('los formularios autenticados asocian sus etiquetas con cada campo', async 
 
   const forms = [
     { route: '/personas', button: 'Nueva persona' },
-    { route: '/propiedades', button: 'Nueva propiedad' },
     { route: '/contratos', button: 'Nuevo contrato' },
     { route: '/liquidaciones', button: 'Crear individual' },
     { route: '/cajachica', button: 'Nuevo Movimiento' },
-    { route: '/sueldos', button: 'Registrar pago de sueldo' },
     { route: '/usuarios', button: 'Nuevo usuario' }
   ];
 

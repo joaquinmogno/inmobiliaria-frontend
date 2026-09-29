@@ -423,6 +423,25 @@ export default function ContractDetailsModal({
                                                 </div>
                                             </div>
 
+                                            {(contract.serviciosGastos || []).length > 0 && (
+                                                <section className="rounded-xl border border-indigo-100 bg-white p-4">
+                                                    <div className="mb-3">
+                                                        <h4 className="text-sm font-bold uppercase tracking-wide text-indigo-900">Servicios y gastos</h4>
+                                                        <p className="mt-1 text-xs text-content-muted">Responsabilidades informadas en el contrato. No definen importes ni movimientos.</p>
+                                                    </div>
+                                                    <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                                        {contract.serviciosGastos?.map(serviceExpense => (
+                                                            <li key={serviceExpense.id ?? `${serviceExpense.concepto}-${serviceExpense.responsable}`} className="flex items-center justify-between gap-3 rounded-lg bg-gray-50 px-3 py-2 text-sm">
+                                                                <span className="font-semibold text-gray-900">{serviceExpense.concepto}</span>
+                                                                <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-bold ${serviceExpense.responsable === 'INQUILINO' ? 'bg-emerald-100 text-emerald-800' : 'bg-violet-100 text-violet-800'}`}>
+                                                                    {serviceExpense.responsable === 'INQUILINO' ? 'Inquilino' : 'Propietario'}
+                                                                </span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </section>
+                                            )}
+
                                             {(contract.historialRenovaciones || []).length > 1 && (
                                                 <div className="rounded-xl border border-violet-100 bg-violet-50/50 p-4">
                                                     <div className="mb-4 flex items-center gap-2">

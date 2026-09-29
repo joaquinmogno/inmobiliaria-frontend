@@ -16,7 +16,7 @@ async function authenticateAdmin(request: APIRequestContext) {
     .filter((header: { name: string }) => header.name.toLowerCase() === 'set-cookie')
     .map((header: { value: string }) => header.value.split(';')[0])
     .join('; ');
-  return { cookie, csrfToken: payload.csrfToken as string, userId: payload.user.id as number };
+  return { cookie, csrfToken: payload.csrfToken as string };
 }
 
 test('stack real: instalación única, readiness, CSP, sesión y CSRF', async ({ page, request }) => {
@@ -190,98 +190,6 @@ test('stack real: ciclo de usuarios y roles, incluida la concurrencia', async ({
     (concurrentStatuses[0] === 201 && concurrentStatuses[1] === 409)
       || (concurrentStatuses[0] === 400 && concurrentStatuses[1] === 200)
   ).toBe(true);
-});
-
-test('stack real: los sueldos impactan una sola vez en caja y banco', async ({ request }) => {
-  const { cookie, csrfToken, userId } = await authenticateAdmin(request);
-  const headers = { cookie, 'x-csrf-token': csrfToken };
-  const readHeaders = { cookie };
-  const today = new Date().toISOString().slice(0, 10);
-  const period = today.slice(0, 7);
-  const [year, month] = period.split('-').map(Number);
-
-  const getCashSummary = async () => {
-    const response = await request.get(`/api/cajachica/resumen?mes=${month}&anio=${year}`, { headers: readHeaders });
-    expect(response.status()).toBe(200);
-    return response.json();
-  };
-  const getDashboard = async () => {
-    const response = await request.get('/api/reportes/dashboard', { headers: readHeaders });
-    expect(response.status()).toBe(200);
-    return response.json();
-  };
-
-  const cashBefore = await getCashSummary();
-  const dashboardBefore = await getDashboard();
-  const salaryPayload = {
-    usuarioId: userId,
-    monto: 300000,
-    moneda: 'ARS',
-    fecha: today,
-    periodo: period,
-    metodoPago: 'EFECTIVO',
-    observaciones: 'Prueba de integración PC-005'
-  };
-
-  const createSalary = await request.post('/api/sueldos', { headers, data: salaryPayload });
-  expect(createSalary.status()).toBe(201);
-  const salary = await createSalary.json();
-
-  const cashAfterCreate = await getCashSummary();
-  expect(cashAfterCreate.totalesPorMoneda.ARS.totalEgresos).toBe(cashBefore.totalesPorMoneda.ARS.totalEgresos + 300000);
-  expect(cashAfterCreate.totalesPorMoneda.ARS.balanceCaja).toBe(cashBefore.totalesPorMoneda.ARS.balanceCaja - 300000);
-  expect(cashAfterCreate.totalesPorMoneda.ARS.balanceBanco).toBe(cashBefore.totalesPorMoneda.ARS.balanceBanco);
-  const dashboardAfterCreate = await getDashboard();
-  expect(dashboardAfterCreate.finanzas.porMoneda.ARS.gastosAgencia)
-    .toBe(dashboardBefore.finanzas.porMoneda.ARS.gastosAgencia + 300000);
-
-  const duplicateSalary = await request.post('/api/sueldos', { headers, data: salaryPayload });
-  expect(duplicateSalary.status()).toBe(409);
-  const movementsAfterDuplicate = await request.get('/api/cajachica?limit=100', { headers: readHeaders });
-  expect(movementsAfterDuplicate.status()).toBe(200);
-  const linkedAfterDuplicate = (await movementsAfterDuplicate.json()).data
-    .filter((movement: { pagoSueldoId: number | null }) => movement.pagoSueldoId === salary.id);
-  expect(linkedAfterDuplicate).toHaveLength(1);
-
-  const updateSalary = await request.put(`/api/sueldos/${salary.id}`, {
-    headers,
-    data: { monto: 500, moneda: 'USD', metodoPago: 'TRANSFERENCIA', version: salary.version }
-  });
-  expect(updateSalary.status()).toBe(200);
-
-  const movementsAfterUpdate = await request.get('/api/cajachica?limit=100', { headers: readHeaders });
-  expect(movementsAfterUpdate.status()).toBe(200);
-  const linkedAfterUpdate = (await movementsAfterUpdate.json()).data
-    .filter((movement: { pagoSueldoId: number | null }) => movement.pagoSueldoId === salary.id);
-  expect(linkedAfterUpdate).toHaveLength(1);
-  expect(linkedAfterUpdate[0]).toMatchObject({
-    tipo: 'EGRESO',
-    moneda: 'USD',
-    metodoPago: 'TRANSFERENCIA',
-    cuenta: 'BANCO'
-  });
-  expect(Number(linkedAfterUpdate[0].monto)).toBe(500);
-
-  const cashAfterUpdate = await getCashSummary();
-  expect(cashAfterUpdate.totalesPorMoneda.ARS.totalEgresos).toBe(cashBefore.totalesPorMoneda.ARS.totalEgresos);
-  expect(cashAfterUpdate.totalesPorMoneda.ARS.balanceCaja).toBe(cashBefore.totalesPorMoneda.ARS.balanceCaja);
-  expect(cashAfterUpdate.totalesPorMoneda.USD.totalEgresos).toBe(cashBefore.totalesPorMoneda.USD.totalEgresos + 500);
-  expect(cashAfterUpdate.totalesPorMoneda.USD.balanceBanco).toBe(cashBefore.totalesPorMoneda.USD.balanceBanco - 500);
-  const dashboardAfterUpdate = await getDashboard();
-  expect(dashboardAfterUpdate.finanzas.porMoneda.ARS.gastosAgencia)
-    .toBe(dashboardBefore.finanzas.porMoneda.ARS.gastosAgencia);
-  expect(dashboardAfterUpdate.finanzas.porMoneda.USD.gastosAgencia)
-    .toBe(dashboardBefore.finanzas.porMoneda.USD.gastosAgencia + 500);
-
-  expect((await request.delete(`/api/sueldos/${salary.id}`, { headers })).status()).toBe(200);
-  const movementsAfterDelete = await request.get('/api/cajachica?limit=100', { headers: readHeaders });
-  const linkedAfterDelete = (await movementsAfterDelete.json()).data
-    .filter((movement: { pagoSueldoId: number | null }) => movement.pagoSueldoId === salary.id);
-  expect(linkedAfterDelete).toHaveLength(0);
-  const cashAfterDelete = await getCashSummary();
-  expect(cashAfterDelete.totalesPorMoneda).toEqual(cashBefore.totalesPorMoneda);
-  const dashboardAfterDelete = await getDashboard();
-  expect(dashboardAfterDelete.finanzas.porMoneda).toEqual(dashboardBefore.finanzas.porMoneda);
 });
 
 test('stack real: ciclo de vida contractual y disponibilidad de propiedades', async ({ request }) => {
@@ -691,59 +599,4 @@ test('stack real: los medios de pago se limitan a efectivo, transferencia y cheq
     ]);
   }
 
-});
-
-test('stack real: la ficha de propiedad documenta servicios, llaves, notas y fotos', async ({ page, request }) => {
-  const { cookie, csrfToken } = await authenticateAdmin(request);
-  const headers = { cookie, 'x-csrf-token': csrfToken };
-  const unique = `PC026 UI ${Date.now()}`;
-  const creation = await request.post('/api/propiedades', {
-    headers,
-    data: {
-      direccion: unique,
-      tipo: 'DEPARTAMENTO',
-      estado: 'DISPONIBLE',
-      servicios: 'Luz medidor 4321 y gas cuenta 8765',
-      llaves: 'Juego principal en casillero 7',
-      observaciones: 'Acceso por portón lateral'
-    }
-  });
-  expect(creation.status()).toBe(201);
-  const property = await creation.json();
-
-  try {
-    await page.goto('/login');
-    await page.getByPlaceholder('ejemplo@correo.com').fill(admin.email);
-    await page.getByPlaceholder('••••••••').fill(admin.password);
-    await page.getByRole('button', { name: /Ingresar a mi cuenta/i }).click();
-    await expect(page).toHaveURL(/\/home$/);
-    await page.goto('/propiedades');
-    await page.getByPlaceholder(/Buscar por dirección, servicios/i).fill(unique);
-    await page.getByRole('button', { name: `Ver ficha de ${unique}` }).click();
-
-    const dialog = page.getByRole('dialog');
-    await expect(dialog.getByRole('heading', { name: unique })).toBeVisible();
-    await expect(dialog.getByText('Luz medidor 4321 y gas cuenta 8765')).toBeVisible();
-    await expect(dialog.getByText('Juego principal en casillero 7')).toBeVisible();
-    await expect(dialog.getByText('Sin contrato activo')).toBeVisible();
-
-    await dialog.getByPlaceholder(/Dejá una nota fechada/i).fill('Inspección visual realizada sin novedades.');
-    await dialog.getByRole('button', { name: 'Agregar nota' }).click();
-    await expect(dialog.getByText('Inspección visual realizada sin novedades.')).toBeVisible();
-
-    await dialog.locator('#property-attachment-file').setInputFiles({
-      name: 'frente.png',
-      mimeType: 'image/png',
-      buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0, 0, 0, 0, 0])
-    });
-    await dialog.getByLabel('Nombre descriptivo').fill('Frente del inmueble');
-    await dialog.getByRole('button', { name: 'Subir' }).click();
-    await expect(dialog.getByAltText('Frente del inmueble')).toBeVisible();
-
-    const accessibility = await new AxeBuilder({ page }).include('[role="dialog"]').withTags(['wcag2a', 'wcag2aa']).analyze();
-    expect(accessibility.violations, accessibility.violations.map(item => `${item.id}: ${item.help}`).join('\n')).toEqual([]);
-  } finally {
-    const deletion = await request.delete(`/api/propiedades/${property.id}`, { headers });
-    expect(deletion.status()).toBe(200);
-  }
 });

@@ -26,6 +26,11 @@ export interface Pago {
     liquidacionId: number;
     liquidacion?: Partial<Liquidacion>;
     creadoPor?: { id: number; nombreCompleto: string; email: string };
+    movimientoCaja?: {
+        cuenta: 'CAJA' | 'BANCO';
+        cuentaBancariaId?: number | null;
+        cuentaBancaria?: { id: number; banco: string; nombre: string; moneda: Moneda } | null;
+    } | null;
     auditLogs?: AuditLogItem[];
 }
 
@@ -62,11 +67,13 @@ export const buildPaymentHistoryQueryParams = (
     search?: string,
     filters: PaymentHistoryFilters = {}
 ): Record<string, string> => {
+    const bankAccountId = filters.cuenta?.match(/^BANCO:(\d+)$/)?.[1];
     const entries: Array<[string, string | undefined]> = [
         ['page', page.toString()],
         ['limit', limit.toString()],
         ['search', search?.trim() || undefined],
-        ...Object.entries(filters)
+        ...Object.entries(filters).map(([key, value]): [string, string | undefined] => [key, key === 'cuenta' && bankAccountId ? undefined : value]),
+        ['cuentaBancariaId', bankAccountId]
     ];
 
     return Object.fromEntries(entries.flatMap(([key, value]) => {
@@ -85,6 +92,7 @@ export const pagosService = {
         monto: number;
         fechaPago: string;
         metodoPago: MetodoPago;
+        cuentaBancariaId?: number;
         observaciones?: string;
     }) => {
         return api.post<{ pagos: Pago[], montoSobrante: number }>('/pagos', data);

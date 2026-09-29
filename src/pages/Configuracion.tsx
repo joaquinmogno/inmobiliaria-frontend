@@ -5,11 +5,13 @@ import { useAuth } from '../context/AuthContext';
 import AuditLogSettings from '../features/settings/AuditLogSettings';
 import BackupSettings from '../features/settings/BackupSettings';
 import InstallationProfileSettings from '../features/settings/InstallationProfileSettings';
+import BankAccountsSettings from '../features/settings/BankAccountsSettings';
 
-type ConfigTab = 'profile' | 'backups' | 'audit';
+type ConfigTab = 'profile' | 'bank-accounts' | 'backups' | 'audit';
 
 const ADMIN_TABS: Array<{ id: ConfigTab; label: string }> = [
     { id: 'profile', label: 'Inmobiliaria' },
+    { id: 'bank-accounts', label: 'Cuentas bancarias' },
     { id: 'backups', label: 'Backups' },
     { id: 'audit', label: 'Auditoría' }
 ];
@@ -60,6 +62,7 @@ export default function Configuracion() {
             </nav>
 
             {activeTab === 'profile' && <InstallationProfileSettings refreshToken={refreshToken} />}
+            {activeTab === 'bank-accounts' && <BankAccountsSettings refreshToken={refreshToken} />}
             {activeTab === 'backups' && <BackupSettings refreshToken={refreshToken} />}
             {activeTab === 'audit' && <AuditLogSettings refreshToken={refreshToken} />}
         </div>

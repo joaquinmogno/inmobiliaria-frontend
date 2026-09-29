@@ -6,6 +6,7 @@ interface Props {
   onQueryChange: (value: string) => void;
   onClear: () => void;
   resultCount?: number;
+  resultCountLabel?: { singular: string; plural: string };
   placeholder?: string;
   children?: ReactNode;
 }
@@ -19,7 +20,7 @@ export function persistFilter(key: string, value: string) {
   else sessionStorage.removeItem(`filters:${key}`);
 }
 
-export default function FilterBar({ query, onQueryChange, onClear, resultCount, placeholder = "Buscar...", children }: Props) {
+export default function FilterBar({ query, onQueryChange, onClear, resultCount, resultCountLabel, placeholder = "Buscar...", children }: Props) {
   const hasFilters = Boolean(query) || Boolean(children);
   return <section className="rounded-lg border border-gray-200 bg-white p-4" aria-label="Filtros del listado">
     <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -27,6 +28,6 @@ export default function FilterBar({ query, onQueryChange, onClear, resultCount, 
       {children && <div className="flex flex-wrap items-center gap-3">{children}</div>}
       {hasFilters && <button type="button" onClick={onClear} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold text-gray-700 hover:bg-gray-100"><XMarkIcon className="h-5 w-5" />Limpiar todo</button>}
     </div>
-    {resultCount !== undefined && <p className="mt-3 text-sm text-gray-600" aria-live="polite">{resultCount} {resultCount === 1 ? "resultado" : "resultados"}</p>}
+    {resultCount !== undefined && <p className="mt-3 text-sm text-gray-600" aria-live="polite">{resultCount} {resultCount === 1 ? (resultCountLabel?.singular || "resultado") : (resultCountLabel?.plural || "resultados")}</p>}
   </section>;
 }

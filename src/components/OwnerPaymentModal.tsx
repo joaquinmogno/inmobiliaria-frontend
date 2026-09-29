@@ -1,4 +1,4 @@
-import { useState, Fragment } from "react";
+import { useState, Fragment, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon, CalendarIcon, CreditCardIcon, ChatBubbleBottomCenterTextIcon } from "@heroicons/react/24/outline";
 import { PAYMENT_METHOD_OPTIONS, type MetodoPago } from "../services/pagos.service";
@@ -6,11 +6,12 @@ import { formatCurrency, type Moneda } from "../utils/currency";
 import AppSelect from "./AppSelect";
 import { todayDateInput } from "../utils/date";
 import { isValidBankAlias, isValidCbu, maskCbu, normalizeBankAlias } from "../utils/bankDetails";
+import { cuentasBancariasService, type CuentaBancaria } from "../services/cuentas-bancarias.service";
 
 interface OwnerPaymentModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (p: { monto: number, fechaPago: string, metodoPago: MetodoPago, propietarioId: number, comprobante?: string, observaciones?: string, motivoAdelanto?: string }) => void;
+    onSave: (p: { monto: number, fechaPago: string, metodoPago: MetodoPago, cuentaBancariaId?: number, propietarioId: number, comprobante?: string, observaciones?: string, motivoAdelanto?: string }) => void;
     suggestedAmount?: number;
     moneda?: Moneda;
     owner: {
@@ -33,6 +34,9 @@ export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAm
     const [observaciones, setObservaciones] = useState("");
     const [monto, setMonto] = useState<number | "">(suggestedAmount || "");
     const [motivoAdelanto, setMotivoAdelanto] = useState("");
+    const [cuentas, setCuentas] = useState<CuentaBancaria[]>([]);
+    const [cuentaBancariaId, setCuentaBancariaId] = useState("");
+    useEffect(() => { if (isOpen) cuentasBancariasService.getAll().then(setCuentas).catch(() => setCuentas([])); }, [isOpen]);
     const validCbu = isValidCbu(owner?.cbu);
     const validAlias = isValidBankAlias(owner?.aliasBancario);
     const bankDestinationReady = (validCbu || validAlias) && Boolean(owner?.titularidadBancariaVerificada);
@@ -42,10 +46,12 @@ export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAm
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!owner) return;
+        if (metodoPago !== 'EFECTIVO' && !cuentaBancariaId) return;
         onSave({
             monto: Number(monto),
             fechaPago,
             metodoPago,
+            cuentaBancariaId: cuentaBancariaId ? Number(cuentaBancariaId) : undefined,
             propietarioId: owner.id,
             comprobante: comprobante.trim() || undefined,
             observaciones: observaciones || undefined,
@@ -90,6 +96,11 @@ export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAm
                                         </Dialog.Title>
                                         <p className="text-content-muted text-sm mt-1 font-medium italic">Registrar entrega de dinero al dueño</p>
                                     </div>
+
+                                    {metodoPago !== 'EFECTIVO' && <div>
+                                        <label htmlFor="owner-payment-bank" className="block text-xs font-black text-gray-600 uppercase tracking-widest mb-2">Cuenta desde donde se paga *</label>
+                                        <AppSelect id="owner-payment-bank" required ariaLabel="Cuenta bancaria de origen" value={cuentaBancariaId} onChange={setCuentaBancariaId} options={[{ value: '', label: 'Seleccionar cuenta' }, ...cuentas.filter(c => c.moneda === moneda).map(c => ({ value: String(c.id), label: `${c.banco} — ${c.nombre}` }))]} buttonClassName="border-transparent bg-gray-50 font-bold" />
+                                    </div>}
                                     <button
                                         onClick={onClose}
                                         className="grid h-11 w-11 shrink-0 place-items-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all focus:outline-none"
@@ -220,7 +231,7 @@ export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAm
                                     <div className="sticky bottom-0 -mx-5 -mb-5 flex flex-col gap-3 border-t border-gray-100 bg-white p-5 sm:-mx-8 sm:-mb-8 sm:p-6">
                                         <button
                                             type="submit"
-                                            disabled={!owner || !monto || Number(monto) <= 0 || (adelantoEstimado > 0 && (!puedeAdelantar || motivoAdelanto.trim().length < 5)) || (metodoPago === 'TRANSFERENCIA' && !bankDestinationReady)}
+                                            disabled={!owner || !monto || Number(monto) <= 0 || (adelantoEstimado > 0 && (!puedeAdelantar || motivoAdelanto.trim().length < 5)) || (metodoPago === 'TRANSFERENCIA' && !bankDestinationReady) || (metodoPago !== 'EFECTIVO' && !cuentaBancariaId)}
                                             className="w-full py-4 text-base font-black text-white bg-orange-600 rounded-2xl hover:bg-orange-700 disabled:cursor-not-allowed disabled:bg-gray-400 transition-all shadow-xl shadow-orange-100 cursor-pointer flex items-center justify-center gap-2"
                                         >
                                             Confirmar Pago a Propietario

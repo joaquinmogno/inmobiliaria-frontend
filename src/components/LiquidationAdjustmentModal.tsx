@@ -1,8 +1,9 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import type { Moneda } from '../utils/currency';
 import { PAYMENT_METHOD_OPTIONS, type MetodoPago } from '../services/pagos.service';
 import { todayDateInput } from '../utils/date';
+import { cuentasBancariasService, type CuentaBancaria } from '../services/cuentas-bancarias.service';
 
 type CreditDestination = 'DEVOLUCION' | 'SALDO_A_FAVOR' | 'COMPENSACION';
 
@@ -16,6 +17,7 @@ type AdjustmentPayload = {
   liquidacionDestinoId?: number;
   fechaDevolucion?: string;
   metodoDevolucion?: MetodoPago;
+  cuentaBancariaIdDevolucion?: number;
   observacionesDevolucion?: string;
 };
 
@@ -40,6 +42,13 @@ export default function LiquidationAdjustmentModal({
   const [fechaDevolucion, setFechaDevolucion] = useState(() => todayDateInput());
   const [metodoDevolucion, setMetodoDevolucion] = useState<MetodoPago>('EFECTIVO');
   const [observacionesDevolucion, setObservacionesDevolucion] = useState('');
+  const [cuentaBancariaIdDevolucion, setCuentaBancariaIdDevolucion] = useState('');
+  const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    void cuentasBancariasService.getAll().then(setCuentasBancarias).catch(() => setCuentasBancarias([]));
+  }, [isOpen]);
 
   const tenantAmount = Number(montoInquilino) || 0;
   const ownerAmount = Number(montoPropietario) || 0;
@@ -52,7 +61,7 @@ export default function LiquidationAdjustmentModal({
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if ((tenantAmount <= 0 && ownerAmount <= 0) || !canCompensate) return;
+    if ((tenantAmount <= 0 && ownerAmount <= 0) || !canCompensate || (excess > 0 && destinoCredito === 'DEVOLUCION' && metodoDevolucion !== 'EFECTIVO' && !cuentaBancariaIdDevolucion)) return;
     const data: AdjustmentPayload = {
       tipo,
       concepto,
@@ -66,6 +75,7 @@ export default function LiquidationAdjustmentModal({
       if (destinoCredito === 'DEVOLUCION') {
         data.fechaDevolucion = fechaDevolucion;
         data.metodoDevolucion = metodoDevolucion;
+        if (metodoDevolucion !== 'EFECTIVO') data.cuentaBancariaIdDevolucion = Number(cuentaBancariaIdDevolucion);
         data.observacionesDevolucion = observacionesDevolucion || undefined;
       }
     }
@@ -130,11 +140,17 @@ export default function LiquidationAdjustmentModal({
                           <input required type="date" max={todayDateInput()} value={fechaDevolucion} onChange={event => setFechaDevolucion(event.target.value)} className="mt-1 w-full rounded-lg border bg-white p-2" />
                         </label>
                         <label className="block text-sm font-bold">Medio
-                          <select value={metodoDevolucion} onChange={event => setMetodoDevolucion(event.target.value as MetodoPago)} className="mt-1 w-full rounded-lg border bg-white p-2">
+                          <select value={metodoDevolucion} onChange={event => { setMetodoDevolucion(event.target.value as MetodoPago); if (event.target.value === 'EFECTIVO') setCuentaBancariaIdDevolucion(''); }} className="mt-1 w-full rounded-lg border bg-white p-2">
                             {PAYMENT_METHOD_OPTIONS.map(method => <option key={method.value} value={method.value}>{method.label}</option>)}
                           </select>
                         </label>
                       </div>
+                      {metodoDevolucion !== 'EFECTIVO' && <label className="block text-sm font-bold">Cuenta bancaria de origen
+                        <select required value={cuentaBancariaIdDevolucion} onChange={event => setCuentaBancariaIdDevolucion(event.target.value)} className="mt-1 w-full rounded-lg border bg-white p-2">
+                          <option value="">Seleccionar cuenta</option>
+                          {cuentasBancarias.filter(cuenta => cuenta.moneda === moneda).map(cuenta => <option key={cuenta.id} value={cuenta.id}>{cuenta.banco} — {cuenta.nombre}</option>)}
+                        </select>
+                      </label>}
                       <label className="block text-sm font-bold">Referencia u observación
                         <input maxLength={1000} value={observacionesDevolucion} onChange={event => setObservacionesDevolucion(event.target.value)} className="mt-1 w-full rounded-lg border bg-white p-2" />
                       </label>
@@ -143,7 +159,7 @@ export default function LiquidationAdjustmentModal({
                 )}
                 <div className="flex justify-end gap-3">
                   <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 font-bold">Cancelar</button>
-                  <button disabled={!canCompensate || (tenantAmount <= 0 && ownerAmount <= 0)} className="rounded-lg bg-indigo-600 px-4 py-2 font-bold text-white disabled:cursor-not-allowed disabled:bg-gray-400">Emitir ajuste</button>
+                  <button disabled={!canCompensate || (tenantAmount <= 0 && ownerAmount <= 0) || (excess > 0 && destinoCredito === 'DEVOLUCION' && metodoDevolucion !== 'EFECTIVO' && !cuentaBancariaIdDevolucion)} className="rounded-lg bg-indigo-600 px-4 py-2 font-bold text-white disabled:cursor-not-allowed disabled:bg-gray-400">Emitir ajuste</button>
                 </div>
               </form>
             </Dialog.Panel>

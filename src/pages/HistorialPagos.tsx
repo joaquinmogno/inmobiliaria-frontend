@@ -13,6 +13,7 @@ import { formatDate, formatDateTime, formatMonthYear } from "../utils/date";
 import AutocompleteSelector from "../components/AutocompleteSelector";
 import { personasService, type Persona } from "../services/personas.service";
 import ActiveFilterChips from "../components/ActiveFilterChips";
+import { cuentasBancariasService, type CuentaBancaria } from "../services/cuentas-bancarias.service";
 
 type PaymentFilters = {
     moneda: string;
@@ -68,8 +69,13 @@ export default function HistorialPagos() {
     const [cuentaFilter, setCuentaFilter] = useState(initialFilters.cuenta);
     const [selectedOwner, setSelectedOwner] = useState<Persona | null>(null);
     const [selectedTenant, setSelectedTenant] = useState<Persona | null>(null);
+    const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>([]);
 
     const itemsPerPage = 15;
+
+    useEffect(() => {
+        void cuentasBancariasService.getAll(true).then(setCuentasBancarias).catch(() => setCuentasBancarias([]));
+    }, []);
 
     useEffect(() => {
         persistFilter("pagos", searchTerm);
@@ -193,7 +199,7 @@ export default function HistorialPagos() {
         ...(searchTerm ? [{ key: 'q', label: `Búsqueda: ${searchTerm}`, onRemove: () => setSearchTerm('') }] : []),
         ...(monedaFilter ? [{ key: 'moneda', label: `Moneda: ${monedaFilter}`, onRemove: () => setMonedaFilter('') }] : []),
         ...(metodoFilter ? [{ key: 'metodoPago', label: `Medio: ${metodoFilter.toLowerCase()}`, onRemove: () => setMetodoFilter('') }] : []),
-        ...(cuentaFilter ? [{ key: 'cuenta', label: `Cuenta: ${cuentaFilter === 'CAJA' ? 'Caja' : 'Banco'}`, onRemove: () => setCuentaFilter('') }] : []),
+        ...(cuentaFilter ? [{ key: 'cuenta', label: `Cuenta: ${cuentaFilter === 'CAJA' ? 'Caja' : cuentaFilter === 'BANCO' ? 'Todos los bancos' : (() => { const cuenta = cuentasBancarias.find(item => `BANCO:${item.id}` === cuentaFilter); return cuenta ? `${cuenta.banco} — ${cuenta.nombre}` : 'Banco'; })()}`, onRemove: () => setCuentaFilter('') }] : []),
         ...(estadoFilter ? [{ key: 'estado', label: `Estado: ${estadoFilter === 'VIGENTE' ? 'Vigentes' : 'Anulados'}`, onRemove: () => setEstadoFilter('') }] : []),
         ...(selectedOwner ? [{ key: 'propietarioId', label: `Propietario: ${selectedOwner.nombreCompleto}`, onRemove: () => setPropietarioId('') }] : []),
         ...(selectedTenant ? [{ key: 'inquilinoId', label: `Inquilino: ${selectedTenant.nombreCompleto}`, onRemove: () => setInquilinoId('') }] : []),
@@ -215,23 +221,27 @@ export default function HistorialPagos() {
         return `${period.charAt(0).toUpperCase()}${period.slice(1)}`;
     };
 
+    const paymentAccountLabel = (pago: Pago) => pago.movimientoCaja?.cuenta === 'BANCO'
+        ? pago.movimientoCaja.cuentaBancaria ? `${pago.movimientoCaja.cuentaBancaria.banco} — ${pago.movimientoCaja.cuentaBancaria.nombre}` : 'Banco histórico'
+        : 'Caja';
+
     return (
         <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Historial de pagos</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">Cobros de inquilinos</h1>
                     <p className="text-sm text-content-muted">Registro histórico de todos los cobros recibidos</p>
                 </div>
             </div>
 
             <FilterBar query={searchTerm} onQueryChange={setSearchTerm} onClear={clearFilters} resultCount={totalItems} placeholder="Buscar por propiedad, inquilino u observaciones..." />
-            <div className="flex flex-wrap gap-2"><select aria-label="Filtrar moneda" value={monedaFilter} onChange={e => setMonedaFilter(e.target.value)} className="rounded-lg border px-3 py-2 text-sm"><option value="">Todas las monedas</option><option value="ARS">ARS</option><option value="USD">USD</option></select><select aria-label="Filtrar método" value={metodoFilter} onChange={e => setMetodoFilter(e.target.value)} className="rounded-lg border px-3 py-2 text-sm"><option value="">Todos los medios</option><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="CHEQUE">Cheque</option></select><select aria-label="Filtrar cuenta" value={cuentaFilter} onChange={e => setCuentaFilter(e.target.value)} className="rounded-lg border px-3 py-2 text-sm"><option value="">Caja y banco</option><option value="CAJA">Caja</option><option value="BANCO">Banco</option></select><select aria-label="Filtrar estado" value={estadoFilter} onChange={e => setEstadoFilter(e.target.value)} className="rounded-lg border px-3 py-2 text-sm"><option value="">Todos</option><option value="VIGENTE">Vigentes</option><option value="ANULADO">Anulados</option></select></div>
+            <div className="flex flex-wrap gap-2"><select aria-label="Filtrar moneda" value={monedaFilter} onChange={e => setMonedaFilter(e.target.value)} className="rounded-lg border px-3 py-2 text-sm"><option value="">Todas las monedas</option><option value="ARS">ARS</option><option value="USD">USD</option></select><select aria-label="Filtrar método" value={metodoFilter} onChange={e => setMetodoFilter(e.target.value)} className="rounded-lg border px-3 py-2 text-sm"><option value="">Todos los medios</option><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="CHEQUE">Cheque</option></select><select aria-label="Filtrar cuenta" value={cuentaFilter} onChange={e => setCuentaFilter(e.target.value)} className="rounded-lg border px-3 py-2 text-sm"><option value="">Todas las cuentas</option><option value="CAJA">Caja</option><option value="BANCO">Todos los bancos</option>{cuentasBancarias.map(cuenta => <option key={cuenta.id} value={`BANCO:${cuenta.id}`}>{cuenta.banco} — {cuenta.nombre}{cuenta.activa ? '' : ' (inactiva)'}</option>)}</select><select aria-label="Filtrar estado" value={estadoFilter} onChange={e => setEstadoFilter(e.target.value)} className="rounded-lg border px-3 py-2 text-sm"><option value="">Todos</option><option value="VIGENTE">Vigentes</option><option value="ANULADO">Anulados</option></select></div>
             <details className="rounded-xl border border-gray-200 bg-white"><summary className="cursor-pointer px-4 py-3 text-sm font-bold text-gray-800">Personas y período</summary><div className="grid gap-3 border-t border-gray-200 p-4 md:grid-cols-2 xl:grid-cols-4"><AutocompleteSelector<Persona> label="Propietario" placeholder="Buscar propietario..." value={selectedOwner} onSearch={personasService.search} onSelect={person => { setSelectedOwner(person); setPropietarioId(person ? String(person.id) : ''); }} renderItem={person => person.nombreCompleto} renderSelection={person => person.nombreCompleto} idField="id" /><AutocompleteSelector<Persona> label="Inquilino" placeholder="Buscar inquilino..." value={selectedTenant} onSearch={personasService.search} onSelect={person => { setSelectedTenant(person); setInquilinoId(person ? String(person.id) : ''); }} renderItem={person => person.nombreCompleto} renderSelection={person => person.nombreCompleto} idField="id" /><label className="text-sm font-semibold text-gray-800">Desde<input type="date" value={desdeFilter} onChange={event => setDesdeFilter(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-3" /></label><label className="text-sm font-semibold text-gray-800">Hasta<input type="date" value={hastaFilter} onChange={event => setHastaFilter(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-3" /></label></div></details>
             <ActiveFilterChips filters={activeFilters} onClearAll={clearFilters} />
 
             {loadError && (
                 <div role="alert" className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 sm:flex-row sm:items-center sm:justify-between">
-                    <p><span className="font-bold">No se pudo cargar el historial de pagos.</span> {loadError}</p>
+                    <p><span className="font-bold">No se pudieron cargar los cobros de inquilinos.</span> {loadError}</p>
                     <button type="button" onClick={() => void refreshData(currentPage, debouncedSearch)} className="min-h-9 shrink-0 rounded-lg border border-red-300 bg-white px-3 py-1.5 font-bold text-red-800 hover:bg-red-100">Reintentar</button>
                 </div>
             )}
@@ -266,6 +276,7 @@ export default function HistorialPagos() {
                                         <p className="mt-1 text-xs text-content-muted">
                                             Liq. #{pago.liquidacion?.id} · {formatPeriod(pago.liquidacion?.periodo)}
                                         </p>
+                                        <p className="mt-1 text-xs font-semibold text-blue-800">{paymentAccountLabel(pago)}</p>
                                     </div>
                                     <div className="flex shrink-0 items-start gap-1">
                                         <span className={`pt-2 text-sm font-black font-mono ${pago.anuladoEn ? "text-content-muted line-through" : "text-green-700"}`}>
@@ -351,6 +362,7 @@ export default function HistorialPagos() {
                                                 <span className="text-xs text-content-muted mt-1">
                                                     {pago.metodoPago}
                                                 </span>
+                                                <span className="text-xs font-semibold text-blue-800 mt-1">{paymentAccountLabel(pago)}</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">

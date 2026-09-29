@@ -47,7 +47,7 @@ test('la anulación de pagos queda en un menú contextual y exige un motivo', as
   });
 
   await page.goto('/pagos');
-  await expect(page.getByRole('heading', { name: 'Historial de pagos' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Cobros de inquilinos' })).toBeVisible();
 
   const actionMenu = page.getByRole('button', { name: /^Acciones del pago del / }).first();
   await expect(actionMenu).toBeVisible();

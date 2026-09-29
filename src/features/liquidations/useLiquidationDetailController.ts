@@ -125,7 +125,7 @@ export const useLiquidationDetailController = (id?: string) => {
         montoInquilino: number; montoPropietario: number;
         destinoCredito?: 'DEVOLUCION' | 'SALDO_A_FAVOR' | 'COMPENSACION';
         liquidacionDestinoId?: number; fechaDevolucion?: string;
-        metodoDevolucion?: MetodoPago; observacionesDevolucion?: string;
+        metodoDevolucion?: MetodoPago; cuentaBancariaIdDevolucion?: number; observacionesDevolucion?: string;
     }) => {
         try { await liquidacionesService.crearAjuste(liquidationId, data); toast.success('Ajuste emitido y registrado'); setIsAdjustmentModalOpen(false); await loadLiquidation(); }
         catch (error) { toast.error(error instanceof Error ? error.message : 'No se pudo emitir el ajuste'); }
@@ -142,7 +142,7 @@ export const useLiquidationDetailController = (id?: string) => {
         }
     };
 
-    const handleSaveOwnerPayment = async (payment: { monto: number; fechaPago: string; metodoPago: string; propietarioId: number; comprobante?: string; observaciones?: string; motivoAdelanto?: string }) => {
+    const handleSaveOwnerPayment = async (payment: { monto: number; fechaPago: string; metodoPago: string; cuentaBancariaId?: number; propietarioId: number; comprobante?: string; observaciones?: string; motivoAdelanto?: string }) => {
         if (!liquidacion) return;
         try {
             await liquidacionesService.pagarPropietario(liquidacion.id, { ...payment, expectedVersion: liquidacion.version });

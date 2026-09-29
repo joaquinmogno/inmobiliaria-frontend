@@ -349,6 +349,23 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                         </div>
                                     )}
 
+                                    {(selectedContract?.serviciosGastos || []).length > 0 && (
+                                        <section className="rounded-xl border border-sky-200 bg-sky-50 p-4">
+                                            <h4 className="text-sm font-bold text-sky-950">Servicios y gastos del contrato</h4>
+                                            <p className="mt-1 text-xs leading-relaxed text-sky-800">Referencia para esta liquidación. Cargá sólo los importes que correspondan este mes; no se agregan automáticamente.</p>
+                                            <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                                {selectedContract?.serviciosGastos?.map(serviceExpense => (
+                                                    <li key={serviceExpense.id ?? `${serviceExpense.concepto}-${serviceExpense.responsable}`} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-xs">
+                                                        <span className="font-semibold text-gray-900">{serviceExpense.concepto}</span>
+                                                        <span className={`shrink-0 font-bold ${serviceExpense.responsable === 'INQUILINO' ? 'text-emerald-700' : 'text-violet-700'}`}>
+                                                            {serviceExpense.responsable === 'INQUILINO' ? 'Inquilino' : 'Propietario'}
+                                                        </span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </section>
+                                    )}
+
                                     {/* Cuotas Selection */}
                                     {selectedContractId && (
                                         <div className="space-y-3">

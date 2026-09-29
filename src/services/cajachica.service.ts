@@ -1,8 +1,16 @@
 import api from './api';
 import type { Moneda } from '../utils/currency';
 import type { CashFinancialMetrics } from './reportes.service';
+import type { CuentaBancaria } from './cuentas-bancarias.service';
 
 export type CuentaCaja = 'CAJA' | 'BANCO';
+
+export interface AdjuntoMovimientoCaja {
+    id: number;
+    rutaArchivo: string;
+    nombreArchivo: string;
+    fechaCreacion: string;
+}
 
 export interface MovimientoCaja {
     id: number;
@@ -13,18 +21,21 @@ export interface MovimientoCaja {
     fecha: string;
     metodoPago: string;
     cuenta: CuentaCaja;
+    cuentaBancariaId?: number | null;
+    cuentaBancaria?: Pick<CuentaBancaria, 'id' | 'banco' | 'nombre' | 'moneda'> | null;
+    transferenciaInternaId?: number | null;
+    transferenciaInterna?: { id: number; concepto: string } | null;
     observaciones?: string;
     fechaCreacion: string;
     anuladoEn?: string | null;
     motivoAnulacion?: string | null;
     anuladoPorId?: number | null;
     pagoId?: number | null;
-    pagoSueldoId?: number | null;
     liquidacionId?: number | null;
     contratoId?: number | null;
     reversionDeId?: number | null;
     reversion?: { id: number; fechaCreacion: string } | null;
-    ajustePagoSueldoDe?: { id: number } | null;
+    adjuntos?: AdjuntoMovimientoCaja[];
     creadoPor?: { id: number; nombreCompleto: string };
     anuladoPor?: { id: number; nombreCompleto: string } | null;
     contrato?: {
@@ -57,7 +68,8 @@ export interface CajaChicaSummary {
         totalIngresos: number;
         totalEgresos: number;
         balanceCaja: number;
-	        balanceBanco: number;
+        balanceBanco: number;
+	        saldosBancarios?: Record<string, { id: number; banco: string; nombre: string; moneda: Moneda; activa: boolean; ingresos: number; egresos: number; saldo: number }>;
 	        totalIngresosARS: number;
 	        totalEgresosARS: number;
 	        balanceARS: number;
@@ -76,8 +88,7 @@ export interface CajaChicaSummary {
 	            gananciaBruta: number;
 	            resultadoNeto: number;
 	            fondosEnCustodia: number;
-	            pagosSueldos?: number;
-	            otrosIngresos?: number;
+            otrosIngresos?: number;
 	            otrosEgresos?: number;
 	        }>;
         totalCobrado: number;
@@ -105,6 +116,8 @@ export interface CierreCaja {
     version: number;
     periodo: string;
     cuenta: CuentaCaja;
+    cuentaBancariaId?: number | null;
+    cuentaBancaria?: Pick<CuentaBancaria, 'id' | 'banco' | 'nombre' | 'moneda' | 'activa' | 'esHistorica'> | null;
     moneda: Moneda;
     saldoSistema: number | string;
     saldoDeclarado: number | string;
@@ -120,13 +133,15 @@ export interface CierreCaja {
 }
 
 export const cajachicaService = {
-    getAll: async (page: number = 1, limit: number = 50, tipo?: string, cuenta?: string, search?: string, mes?: number, anio?: number) => {
+    getAll: async (page: number = 1, limit: number = 50, tipo?: string, cuenta?: string, search?: string, mes?: number, anio?: number, estado?: 'REVERSIONES') => {
         const params: any = { page, limit };
         if (tipo) params.tipo = tipo;
-        if (cuenta) params.cuenta = cuenta;
+        if (cuenta?.startsWith('BANCO:')) params.cuentaBancariaId = cuenta.slice('BANCO:'.length);
+        else if (cuenta) params.cuenta = cuenta;
         if (search) params.search = search;
         if (mes) params.mes = mes;
         if (anio) params.anio = anio;
+        if (estado) params.estado = estado;
         
         return api.get<CajaChicaResponse>('/cajachica', { params });
     },
@@ -141,9 +156,27 @@ export const cajachicaService = {
 	        moneda?: Moneda;
         fecha: string;
         metodoPago: string;
+        cuentaBancariaId?: number;
         observaciones?: string;
+        comprobantes?: File[];
     }) => {
-        return api.post<MovimientoCaja>('/cajachica', data);
+        const formData = new FormData();
+        formData.append('tipo', data.tipo);
+        formData.append('concepto', data.concepto);
+        formData.append('monto', String(data.monto));
+        formData.append('moneda', data.moneda || 'ARS');
+        formData.append('fecha', data.fecha);
+        formData.append('metodoPago', data.metodoPago);
+        if (data.cuentaBancariaId) formData.append('cuentaBancariaId', String(data.cuentaBancariaId));
+        if (data.observaciones) formData.append('observaciones', data.observaciones);
+        data.comprobantes?.forEach(file => formData.append('comprobantes', file));
+        return api.post<MovimientoCaja>('/cajachica', formData);
+    },
+
+    adjuntarComprobantes: (movimientoId: number, comprobantes: File[]) => {
+        const formData = new FormData();
+        comprobantes.forEach(file => formData.append('comprobantes', file));
+        return api.post<{ data: AdjuntoMovimientoCaja[] }>(`/cajachica/${movimientoId}/comprobantes`, formData);
     },
 
     anular: async (movimientoId: number, motivo: string) => {
@@ -154,7 +187,16 @@ export const cajachicaService = {
             reversion: MovimientoCaja;
         }>(`/cajachica/${movimientoId}/anular`, { motivo });
     },
+    transferirEntreCuentas: (data: {
+        fecha: string;
+        moneda: Moneda;
+        monto: number;
+        cuentaOrigenId: number;
+        cuentaDestinoId: number;
+        concepto: string;
+        observaciones?: string;
+    }) => api.post('/cajachica/transferencias', data),
     getCierres: () => api.get<CierreCaja[]>('/cajachica/cierres'),
-    cerrarPeriodo: (data: { periodo: string; cuenta: CuentaCaja; moneda: Moneda; saldoDeclarado: number; motivoDiferencia?: string }) => api.post('/cajachica/cierres', data),
+    cerrarPeriodo: (data: { periodo: string; cuenta: CuentaCaja; cuentaBancariaId?: number; moneda: Moneda; saldoDeclarado: number; motivoDiferencia?: string }) => api.post('/cajachica/cierres', data),
     reabrirPeriodo: (id: number, motivo: string) => api.post<CierreCaja>(`/cajachica/cierres/${id}/reabrir`, { motivo })
 };

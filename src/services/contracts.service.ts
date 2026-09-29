@@ -4,6 +4,7 @@ import type { PaginationMeta } from './api';
 import type { AuditLogItem } from '../components/AuditTrail';
 import type { Moneda } from '../utils/currency';
 import { getDaysFromToday } from '../utils/date';
+import type { ContractDraftData, ContractServiceExpense } from '../features/contracts/contract-form.model';
 
 export type EstadoContrato = 'PROGRAMADO' | 'ACTIVO' | 'PAPELERA' | 'FINALIZADO' | 'RESCINDIDO';
 export type PagadorHonorarios = 'INQUILINO' | 'PROPIETARIO';
@@ -65,6 +66,7 @@ export interface Contract {
     diaVencimiento: number;
     porcentajeActualizacion: number | null;
     tipoAjuste: string | null;
+    serviciosGastos?: ContractServiceExpense[];
     propiedad: {
         id: number;
         direccion: string;
@@ -116,6 +118,25 @@ export interface Contract {
     actualizadoPor?: { id: number; nombreCompleto: string; email: string };
 }
 
+export interface ContractDraftAttachment {
+    id: number;
+    rutaArchivo: string;
+    nombreArchivo: string;
+    tipo: TipoDocumentoContrato;
+    fechaCreacion: string;
+}
+
+export interface ContractDraft {
+    id: number;
+    version: number;
+    datos: ContractDraftData;
+    fechaCreacion: string;
+    fechaActualizacion: string;
+    creadoPor: { id: number; nombreCompleto: string };
+    adjuntos: ContractDraftAttachment[];
+    resumen: { direccion: string; propietario: string | null; inquilino: string | null };
+}
+
 export const getDaysLeft = (dateString: string) => {
     return getDaysFromToday(dateString);
 };
@@ -138,6 +159,27 @@ export const contractsService = {
     create: async (data: FormData) => {
         return api.post<Contract>('/contratos', data);
     },
+
+    getDrafts: async () => api.get<ContractDraft[]>('/contratos/borradores'),
+
+    getDraft: async (id: number) => api.get<ContractDraft>(`/contratos/borradores/${id}`),
+
+    createDraft: async (datos: ContractDraftData) => api.post<ContractDraft>('/contratos/borradores', { datos }),
+
+    updateDraft: async (id: number, datos: ContractDraftData, version: number) =>
+        api.put<ContractDraft>(`/contratos/borradores/${id}`, { datos, version }),
+
+    addDraftAttachment: async (draftId: number, file: File, tipo: TipoDocumentoContrato) => {
+        const formData = new FormData();
+        formData.append('archivo', file);
+        formData.append('tipo', tipo);
+        return api.post<ContractDraftAttachment>(`/contratos/borradores/${draftId}/adjuntos`, formData);
+    },
+
+    deleteDraftAttachment: async (draftId: number, attachmentId: number) =>
+        api.delete(`/contratos/borradores/${draftId}/adjuntos/${attachmentId}`),
+
+    deleteDraft: async (id: number) => api.delete(`/contratos/borradores/${id}`),
 
     update: async (id: number, data: FormData) => {
         return api.put<Contract>(`/contratos/${id}`, data);

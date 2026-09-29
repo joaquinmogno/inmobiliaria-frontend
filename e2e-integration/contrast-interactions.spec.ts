@@ -30,11 +30,9 @@ test('formularios y menús abiertos conservan contraste WCAG AA', async ({ page 
 
   const forms = [
     { route: '/personas', button: 'Nueva persona' },
-    { route: '/propiedades', button: 'Nueva propiedad' },
     { route: '/contratos', button: 'Nuevo contrato' },
     { route: '/liquidaciones', button: 'Crear individual' },
     { route: '/cajachica', button: 'Nuevo Movimiento' },
-    { route: '/sueldos', button: 'Registrar pago de sueldo' },
     { route: '/usuarios', button: 'Nuevo usuario' }
   ];
 

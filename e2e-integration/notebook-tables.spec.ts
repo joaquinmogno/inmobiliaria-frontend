@@ -15,12 +15,10 @@ test('liquidaciones usa tabla compacta y las demás vistas conservan su formato 
 
   for (const route of [
     '/contratos',
-    '/propiedades',
     '/personas',
     '/liquidaciones',
     '/pagos',
     '/cajachica',
-    '/sueldos',
     '/usuarios'
   ]) {
     await page.goto(route);

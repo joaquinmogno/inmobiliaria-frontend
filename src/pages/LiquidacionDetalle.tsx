@@ -294,6 +294,25 @@ export default function LiquidacionDetalle() {
                 </aside>
             )}
 
+            {(liquidacion.contrato?.serviciosGastos || []).length > 0 && (
+                <details className="rounded-2xl border border-sky-200 bg-sky-50 px-5 py-4">
+                    <summary className="cursor-pointer list-none font-black text-sky-950 marker:hidden">
+                        Servicios y gastos acordados <span className="ml-2 text-xs font-medium text-sky-800">Referencia del contrato</span>
+                    </summary>
+                    <p className="mt-2 text-sm text-sky-900">No modifica esta liquidación: cargá manualmente sólo los importes reales del período.</p>
+                    <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {liquidacion.contrato?.serviciosGastos?.map(serviceExpense => (
+                            <li key={serviceExpense.id ?? `${serviceExpense.concepto}-${serviceExpense.responsable}`} className="flex items-center justify-between gap-3 rounded-lg bg-white px-3 py-2 text-sm">
+                                <span className="font-semibold text-gray-900">{serviceExpense.concepto}</span>
+                                <span className={`shrink-0 text-xs font-bold ${serviceExpense.responsable === 'INQUILINO' ? 'text-emerald-700' : 'text-violet-700'}`}>
+                                    {serviceExpense.responsable === 'INQUILINO' ? 'Inquilino' : 'Propietario'}
+                                </span>
+                            </li>
+                        ))}
+                    </ul>
+                </details>
+            )}
+
             {/* Document Header Section */}
             <section data-testid="liquidation-document" className="relative min-w-0 overflow-hidden rounded-[2rem] border border-gray-100 bg-white shadow-xl shadow-gray-200/50">
                 <div className="p-8 sm:p-12 relative">

@@ -9,13 +9,6 @@ const basePermissions = [
   "reportes.morosidad.ver",
 ];
 
-const salaryPermissions = [
-  "sueldos.ver",
-  "sueldos.crear",
-  "sueldos.editar",
-  "sueldos.eliminar",
-];
-
 const sampleContract = {
   id: 101,
   fechaInicio: "2026-01-01",
@@ -59,6 +52,7 @@ function buildUser(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 async function mockApi(page: Page, user: ReturnType<typeof buildUser>) {
+  let contractDraft: any = null;
   await page.route("**/api/auth/login", async route => {
     await route.fulfill({
       status: 200,
@@ -99,6 +93,34 @@ async function mockApi(page: Page, user: ReturnType<typeof buildUser>) {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([sampleContract]) });
   });
 
+  await page.route("**/api/contratos/borradores", async route => {
+    if (route.request().method() === "GET") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(contractDraft ? [contractDraft] : []) });
+      return;
+    }
+    const body = route.request().postDataJSON() as { datos: any };
+    const datos = body.datos;
+    contractDraft = {
+      id: 501,
+      version: 1,
+      datos,
+      fechaCreacion: "2026-09-29T12:00:00.000Z",
+      fechaActualizacion: "2026-09-29T12:00:00.000Z",
+      creadoPor: { id: user.id, nombreCompleto: "Usuario Test" },
+      adjuntos: [],
+      resumen: {
+        direccion: datos.selectedProperty?.direccion || datos.form.address || "Contrato sin dirección",
+        propietario: datos.owners.find((owner: { nombreCompleto: string }) => owner.nombreCompleto.trim())?.nombreCompleto || null,
+        inquilino: datos.tenants.find((tenant: { nombreCompleto: string }) => tenant.nombreCompleto.trim())?.nombreCompleto || null,
+      },
+    };
+    await route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(contractDraft) });
+  });
+
+  await page.route("**/api/contratos/borradores/501", async route => {
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(contractDraft) });
+  });
+
   await page.route("**/api/contratos?**", async route => {
     await route.fulfill({
       status: 200,
@@ -124,28 +146,14 @@ async function login(page: Page) {
   await expect(page).toHaveURL(/\/home$/);
 }
 
-test("login sin sueldos.ver no muestra Sueldos en el menú", async ({ page }) => {
-  await mockApi(page, buildUser());
-  await login(page);
-
-  await expect(page.getByText("Sueldos", { exact: true })).toHaveCount(0);
-});
-
-test("acceso manual a /sueldos muestra acceso denegado sin sueldos.ver", async ({ page }) => {
-  await mockApi(page, buildUser());
-  await login(page);
-
-  await page.goto("/sueldos");
-  await expect(page.getByRole("heading", { name: "Acceso denegado" })).toBeVisible();
-});
-
 test("botones internos desaparecen según permisos del usuario", async ({ page }) => {
   await mockApi(page, buildUser());
   await login(page);
 
   await page.goto("/contratos");
-  await expect(page.getByText("Av. Test 123").first()).toBeVisible();
-  await page.locator("tbody td:last-child button").first().click();
+  const contractActions = page.locator('button[aria-label="Acciones del contrato"]:visible').first();
+  await expect(contractActions).toBeVisible();
+  await contractActions.click();
 
   await expect(page.getByRole("menuitem", { name: /Ver detalles/i })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: /Ver contrato/i })).toHaveCount(0);
@@ -155,7 +163,7 @@ test("botones internos desaparecen según permisos del usuario", async ({ page }
 
 test("el rol asignado se muestra sin permisos individuales", async ({ page }) => {
   const user = buildUser({
-    permissions: [...basePermissions, ...salaryPermissions],
+    permissions: basePermissions,
   });
 
   await mockApi(page, user);
@@ -166,7 +174,7 @@ test("el rol asignado se muestra sin permisos individuales", async ({ page }) =>
   await expect(page.getByText(/Directo|denegado|heredado/i)).toHaveCount(0);
 });
 
-test("nuevo contrato usa el selector visual de PropControl para la moneda", async ({ page }) => {
+test("nuevo contrato permite elegir la moneda del alquiler y del honorario de alta", async ({ page }) => {
   await mockApi(page, buildUser({ permissions: [...basePermissions, "contratos.crear"] }));
   await login(page);
 
@@ -179,7 +187,91 @@ test("nuevo contrato usa el selector visual de PropControl para la moneda", asyn
   await expect(page.getByRole("listbox")).toBeVisible();
   await page.getByRole("option", { name: /USD.*Dólares estadounidenses/i }).click();
   await expect(currency).toContainText("USD");
+
+  const initialFeeCurrency = page.getByRole("button", { name: "Moneda del honorario de alta" });
+  await expect(initialFeeCurrency).toContainText("ARS");
+  await initialFeeCurrency.click();
+  await page.getByRole("option", { name: /USD.*Dólares estadounidenses/i }).click();
+  await expect(initialFeeCurrency).toContainText("USD");
   await expect(page.locator("select")).toHaveCount(0);
+});
+
+test("nuevo contrato permite definir responsables de servicios y gastos", async ({ page }) => {
+  await mockApi(page, buildUser({ permissions: [...basePermissions, "contratos.crear"] }));
+  await login(page);
+
+  await page.goto("/contratos");
+  await page.getByRole("button", { name: "Nuevo contrato" }).click();
+  const dialog = page.getByRole("dialog");
+
+  await dialog.getByRole("button", { name: "Agregar concepto" }).click();
+  const concept = dialog.getByRole("button", { name: /Servicio o gasto 1/ });
+  await concept.click();
+  await page.getByRole("option", { name: "LUZ", exact: true }).click();
+
+  const responsible = dialog.getByRole("button", { name: /Responsable de LUZ/ });
+  await expect(responsible).toContainText("Inquilino");
+  await responsible.click();
+  await page.getByRole("option", { name: "Propietario", exact: true }).click();
+  await expect(responsible).toContainText("Propietario");
+});
+
+test("un contrato incompleto se puede guardar y retomar como borrador", async ({ page }) => {
+  await mockApi(page, buildUser({ permissions: [...basePermissions, "contratos.crear"] }));
+  await login(page);
+
+  await page.goto("/contratos");
+  await page.getByRole("button", { name: "Nuevo contrato" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.locator("#contract-property-address").fill("Av. Borrador 123");
+  await dialog.getByRole("button", { name: "Guardar borrador" }).click();
+  await expect(dialog.getByRole("button", { name: "Guardar borrador" })).toHaveText("Guardar borrador");
+
+  await dialog.getByRole("button", { name: "Cancelar" }).click();
+  await page.getByRole("button", { name: /Borradores \(1\)/ }).click();
+  const drafts = page.getByLabel("Borradores de contratos");
+  await expect(drafts.getByText("Av. Borrador 123")).toBeVisible();
+  await expect(drafts.getByRole("button", { name: "Continuar" })).toBeVisible();
+});
+
+test("un movimiento permite adjuntar comprobantes antes de guardarlo", async ({ page }) => {
+  await mockApi(page, buildUser({ permissions: [...basePermissions, "caja_chica.ver", "caja_chica.crear"] }));
+  await page.route("**/api/cajachica?**", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 1 } })
+  }));
+  await page.route("**/api/cajachica/resumen?**", route => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({
+      balanceGeneral: 0, totalIngresos: 0, totalEgresos: 0, balanceCaja: 0, balanceBanco: 0,
+      totalCobrado: 0, totalPagadoPropietarios: 0, gastosGenerales: 0, gananciaBruta: 0,
+      resultadoNeto: 0, fondosEnCustodia: 0, totalIngresosARS: 0, totalEgresosARS: 0,
+      balanceARS: 0, totalIngresosUSD: 0, totalEgresosUSD: 0, balanceUSD: 0,
+      totalesPorMoneda: {
+        ARS: { totalIngresos: 0, totalEgresos: 0, balance: 0, balanceCaja: 0, balanceBanco: 0, totalCobrado: 0, totalPagadoPropietarios: 0, gastosGenerales: 0, gananciaBruta: 0, resultadoNeto: 0, fondosEnCustodia: 0 },
+        USD: { totalIngresos: 0, totalEgresos: 0, balance: 0, balanceCaja: 0, balanceBanco: 0, totalCobrado: 0, totalPagadoPropietarios: 0, gastosGenerales: 0, gananciaBruta: 0, resultadoNeto: 0, fondosEnCustodia: 0 }
+      }
+    })
+  }));
+  await login(page);
+
+  await page.goto("/cajachica");
+  await page.getByRole("button", { name: "Nuevo Movimiento" }).click();
+  await expect(page.getByText("Comprobantes (opcional)", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /Método de pago/ }).click();
+  await expect(page.getByRole("option", { name: "Cheque", exact: true })).toHaveCount(0);
+  await page.getByRole("option", { name: "Efectivo", exact: true }).click();
+
+  const picker = page.locator("#cash-movement-attachments");
+  await picker.setInputFiles({
+    name: "factura-pintureria.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.7 factura")
+  });
+  await expect(page.getByLabel("Comprobantes seleccionados")).toContainText("factura-pintureria.pdf");
+  await expect(page.getByLabel("Quitar factura-pintureria.pdf")).toBeVisible();
 });
 
 test("elegir personas existentes reemplaza las fichas vacías de propietario e inquilino", async ({ page }) => {

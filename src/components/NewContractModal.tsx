@@ -5,7 +5,7 @@ import NumericInput from "./NumericInput";
 import AutocompleteSelector from "./AutocompleteSelector";
 import { propertiesService, type Property } from "../services/properties.service";
 import type { Persona } from "../services/personas.service";
-import { type Contract } from "../services/contracts.service";
+import { type Contract, type ContractDraft } from "../services/contracts.service";
 import { toast } from "react-hot-toast";
 import { MONEDA_LABELS, type Moneda } from "../utils/currency";
 import {
@@ -23,15 +23,20 @@ import { PAYMENT_METHOD_OPTIONS } from "../services/pagos.service";
 import { addMonthsToDateInput } from "../utils/date";
 import {
     buildContractPayload,
+    buildContractDraftData,
     createContractFormFromContract,
+    createContractFormFromDraft,
     createEmptyContractForm,
     createRenewalContractForm,
+    CONTRACT_SERVICE_EXPENSE_SUGGESTIONS,
     emptyContractParty,
     getContractFormError,
     selectExistingParty,
-    type ContractParty
+    type ContractParty,
+    type ContractServiceExpense
 } from "../features/contracts/contract-form.model";
 import ContractPartyFields from "../features/contracts/ContractPartyFields";
+import { cuentasBancariasService, type CuentaBancaria } from "../services/cuentas-bancarias.service";
 
 interface NewContractModalProps {
     isOpen: boolean;
@@ -39,6 +44,14 @@ interface NewContractModalProps {
     onSave: (data: any) => void | Promise<void>;
     editingContract?: Contract | null;
     renewingContract?: Contract | null;
+    draft?: ContractDraft | null;
+    onSaveDraft?: (data: {
+        datos: ReturnType<typeof buildContractDraftData>;
+        principalFile: File | null;
+        additionalFiles: File[];
+        additionalFilesType: 'ADENDA' | 'ADJUNTO';
+    }, draft: ContractDraft | null) => Promise<ContractDraft>;
+    onDeleteDraftAttachment?: (attachmentId: number) => Promise<void>;
 }
 
 export default function NewContractModal({
@@ -46,7 +59,10 @@ export default function NewContractModal({
     onClose,
     onSave,
     editingContract,
-    renewingContract
+    renewingContract,
+    draft = null,
+    onSaveDraft,
+    onDeleteDraftAttachment
 }: NewContractModalProps) {
     const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
     // false = manual entry (default); true = searching existing
@@ -59,6 +75,12 @@ export default function NewContractModal({
     const [owners, setOwners] = useState<ContractParty[]>([emptyContractParty()]);
     const [tenants, setTenants] = useState<ContractParty[]>([emptyContractParty()]);
     const [formData, setFormData] = useState(createEmptyContractForm);
+    const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>([]);
+
+    useEffect(() => {
+        if (!isOpen || editingContract) return;
+        void cuentasBancariasService.getAll().then(setCuentasBancarias).catch(() => setCuentasBancarias([]));
+    }, [isOpen, editingContract]);
 
     // Effect to populate form when editing
     useEffect(() => {
@@ -92,6 +114,15 @@ export default function NewContractModal({
             setSearchingExistingProperty(false);
             setSearchingExistingOwner(false);
             setSearchingExistingTenant(false);
+        } else if (isOpen && draft) {
+            const restored = createContractFormFromDraft(draft.datos);
+            setFormData(restored.form);
+            setSelectedProperty(restored.selectedProperty);
+            setOwners(restored.owners);
+            setTenants(restored.tenants);
+            setSearchingExistingProperty(false);
+            setSearchingExistingOwner(false);
+            setSearchingExistingTenant(false);
         } else if (isOpen && !editingContract) {
             setFormData(createEmptyContractForm());
             setSelectedProperty(null);
@@ -101,7 +132,7 @@ export default function NewContractModal({
             setSearchingExistingOwner(false);
             setSearchingExistingTenant(false);
         }
-    }, [isOpen, editingContract, renewingContract]);
+    }, [isOpen, editingContract, renewingContract, draft]);
 
     // Cálculo automático de fecha de actualización
     useEffect(() => {
@@ -207,6 +238,32 @@ export default function NewContractModal({
         }));
     };
 
+    const isSuggestedServiceExpense = (concepto: string) =>
+        CONTRACT_SERVICE_EXPENSE_SUGGESTIONS.includes(concepto.trim().toLocaleUpperCase('es-AR') as typeof CONTRACT_SERVICE_EXPENSE_SUGGESTIONS[number]);
+
+    const addServiceExpense = () => {
+        setFormData(prev => ({
+            ...prev,
+            serviciosGastos: [...prev.serviciosGastos, { concepto: '', responsable: 'INQUILINO' }]
+        }));
+    };
+
+    const updateServiceExpense = (index: number, changes: Partial<ContractServiceExpense>) => {
+        setFormData(prev => ({
+            ...prev,
+            serviciosGastos: prev.serviciosGastos.map((serviceExpense, currentIndex) =>
+                currentIndex === index ? { ...serviceExpense, ...changes } : serviceExpense
+            )
+        }));
+    };
+
+    const removeServiceExpense = (index: number) => {
+        setFormData(prev => ({
+            ...prev,
+            serviciosGastos: prev.serviciosGastos.filter((_, currentIndex) => currentIndex !== index)
+        }));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (isSubmitting) return;
@@ -220,7 +277,8 @@ export default function NewContractModal({
 
         const dataToSave = {
             ...buildContractPayload(formData, selectedProperty, owners, tenants),
-            ...(renewingContract ? { contratoAnteriorId: renewingContract.id } : {})
+            ...(renewingContract ? { contratoAnteriorId: renewingContract.id } : {}),
+            ...(draft ? { borradorId: draft.id } : {})
         };
 
         setIsSubmitting(true);
@@ -232,6 +290,26 @@ export default function NewContractModal({
             onClose();
         } catch (error) {
             reportError(error, "No se pudo guardar el contrato");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleSaveDraft = async () => {
+        if (isSubmitting || !onSaveDraft || editingContract || renewingContract) return;
+        setFormError("");
+        setIsSubmitting(true);
+        try {
+            await onSaveDraft({
+                datos: buildContractDraftData(formData, selectedProperty, owners, tenants),
+                principalFile: formData.file,
+                additionalFiles: formData.additionalFiles,
+                additionalFilesType: formData.tipoArchivosAdicionales
+            }, draft);
+            setFormData(prev => ({ ...prev, file: null, additionalFiles: [], observacionDocumento: '' }));
+            toast.success('Borrador guardado. Podés retomarlo cuando quieras.');
+        } catch (error) {
+            reportError(error, 'No se pudo guardar el borrador');
         } finally {
             setIsSubmitting(false);
         }
@@ -270,7 +348,7 @@ export default function NewContractModal({
                                         as="h3"
                                         className="text-xl font-bold leading-6 text-gray-900"
                                     >
-                                        {editingContract ? 'Editar contrato' : renewingContract ? `Renovar contrato #${renewingContract.id}` : 'Nuevo contrato'}
+                                        {editingContract ? 'Editar contrato' : renewingContract ? `Renovar contrato #${renewingContract.id}` : draft ? 'Continuar borrador' : 'Nuevo contrato'}
                                     </Dialog.Title>
                                     <button
                                         onClick={() => !isSubmitting && onClose()}
@@ -445,6 +523,82 @@ export default function NewContractModal({
                                         </div>
                                     </div>
 
+                                    {/* ─── Servicios y gastos ─── */}
+                                    <section className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
+                                        <div className="flex flex-wrap items-start justify-between gap-3">
+                                            <div>
+                                                <h4 className="text-sm font-semibold uppercase tracking-wide text-indigo-900">Servicios y gastos</h4>
+                                                <p className="mt-1 text-xs text-indigo-800">Indicá a quién corresponde cada concepto según el contrato. Es sólo una referencia: no genera importes ni movimientos.</p>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={addServiceExpense}
+                                                className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-lg border border-indigo-200 bg-white px-3 text-xs font-semibold text-indigo-700 hover:bg-indigo-50"
+                                            >
+                                                <PlusCircleIcon className="h-4 w-4" />
+                                                Agregar concepto
+                                            </button>
+                                        </div>
+
+                                        {formData.serviciosGastos.length > 0 && (
+                                            <div className="mt-4 space-y-3">
+                                                {formData.serviciosGastos.map((serviceExpense, index) => {
+                                                    const isSuggested = isSuggestedServiceExpense(serviceExpense.concepto);
+                                                    return (
+                                                        <div key={index} className="grid grid-cols-1 gap-3 rounded-lg border border-indigo-100 bg-white p-3 sm:grid-cols-[minmax(0,1fr)_minmax(10rem,0.7fr)_auto] sm:items-start">
+                                                            <div>
+                                                                <label htmlFor={`contract-service-expense-${index}`} className="sr-only">Servicio o gasto</label>
+                                                                <AppSelect
+                                                                    id={`contract-service-expense-${index}`}
+                                                                    ariaLabel={`Servicio o gasto ${index + 1}`}
+                                                                    value={isSuggested ? serviceExpense.concepto.trim().toLocaleUpperCase('es-AR') : '__OTRO__'}
+                                                                    onChange={value => updateServiceExpense(index, { concepto: value === '__OTRO__' ? '' : value })}
+                                                                    options={[
+                                                                        ...CONTRACT_SERVICE_EXPENSE_SUGGESTIONS.map(concepto => ({ value: concepto, label: concepto })),
+                                                                        { value: '__OTRO__', label: 'Otro concepto…' }
+                                                                    ]}
+                                                                    buttonClassName="border-gray-300 bg-white font-medium"
+                                                                />
+                                                                {!isSuggested && (
+                                                                    <input
+                                                                        aria-label={`Otro servicio o gasto ${index + 1}`}
+                                                                        value={serviceExpense.concepto}
+                                                                        onChange={event => updateServiceExpense(index, { concepto: event.target.value })}
+                                                                        maxLength={120}
+                                                                        placeholder="Ej.: mantenimiento de pileta"
+                                                                        className="mt-2 min-h-11 w-full rounded-lg border border-gray-300 px-3 text-sm text-gray-900 focus:border-indigo-500 focus:ring-indigo-500"
+                                                                    />
+                                                                )}
+                                                            </div>
+                                                            <div>
+                                                                <label htmlFor={`contract-service-expense-owner-${index}`} className="sr-only">Responsable</label>
+                                                                <AppSelect
+                                                                    id={`contract-service-expense-owner-${index}`}
+                                                                    ariaLabel={`Responsable de ${serviceExpense.concepto || 'servicio o gasto'}`}
+                                                                    value={serviceExpense.responsable}
+                                                                    onChange={value => updateServiceExpense(index, { responsable: value as ContractServiceExpense['responsable'] })}
+                                                                    options={[
+                                                                        { value: 'INQUILINO', label: 'Inquilino' },
+                                                                        { value: 'PROPIETARIO', label: 'Propietario' }
+                                                                    ]}
+                                                                    buttonClassName="border-gray-300 bg-white font-medium"
+                                                                />
+                                                            </div>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => removeServiceExpense(index)}
+                                                                className="flex min-h-11 items-center justify-center rounded-lg border border-red-200 px-3 text-sm font-medium text-red-700 hover:bg-red-50"
+                                                                aria-label={`Quitar ${serviceExpense.concepto || 'servicio o gasto'}`}
+                                                            >
+                                                                <XMarkIcon className="h-4 w-4" />
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </section>
+
                                     {/* ─── Honorarios por Alta de Contrato ─── */}
                                     {!editingContract && (
                                         <div className="bg-green-50 p-4 rounded-xl border border-green-100">
@@ -454,7 +608,7 @@ export default function NewContractModal({
                                             <p className="text-xs text-green-700 mb-3">
                                                 Si se cobra un honorario único por firmar este contrato, regístralo aquí. Se sumará automáticamente a Gestión financiera.
                                             </p>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                                 <div>
                                                     <label htmlFor="contract-initial-fee" className="block text-xs font-medium text-green-800 mb-1">
                                                         Monto Honorario de Alta
@@ -466,7 +620,24 @@ export default function NewContractModal({
                                                         placeholder="Monto a cobrar hoy..."
                                                         value={formData.honorarioInicial}
                                                         onChange={(val) => setFormData(prev => ({ ...prev, honorarioInicial: val.toString() }))}
-                                                        icon={<BanknotesIcon className="w-5 h-5 text-green-400" />}
+                                                        icon={<span className="text-sm font-semibold text-green-700">{formData.monedaHonorarioInicial === 'USD' ? 'US$' : '$'}</span>}
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label htmlFor="contract-initial-fee-currency" className="block text-xs font-medium text-green-800 mb-1">
+                                                        Moneda del honorario
+                                                    </label>
+                                                    <AppSelect
+                                                        id="contract-initial-fee-currency"
+                                                        name="monedaHonorarioInicial"
+                                                        ariaLabel="Moneda del honorario de alta"
+                                                        value={formData.monedaHonorarioInicial}
+                                                        onChange={(value) => setFormData(prev => ({ ...prev, monedaHonorarioInicial: value as Moneda, honorarioInicialCuentaBancariaId: '' }))}
+                                                        options={[
+                                                            { value: 'ARS', label: `ARS — ${MONEDA_LABELS.ARS}` },
+                                                            { value: 'USD', label: `USD — ${MONEDA_LABELS.USD}` }
+                                                        ]}
+                                                        buttonClassName="border-green-300 focus-visible:border-green-500 focus-visible:ring-green-100 data-open:border-green-500 data-open:ring-green-100"
                                                     />
                                                 </div>
                                                 <div>
@@ -479,7 +650,7 @@ export default function NewContractModal({
                                                         required
                                                         ariaLabel="Método de pago del honorario inicial"
                                                         value={formData.honorarioInicialMetodoPago}
-                                                        onChange={(value) => setFormData(prev => ({ ...prev, honorarioInicialMetodoPago: value }))}
+                                                        onChange={(value) => setFormData(prev => ({ ...prev, honorarioInicialMetodoPago: value, honorarioInicialCuentaBancariaId: value === 'EFECTIVO' ? '' : prev.honorarioInicialCuentaBancariaId }))}
                                                         options={[
                                                             { value: "", label: "Seleccionar un método…", disabled: true },
                                                             ...PAYMENT_METHOD_OPTIONS
@@ -488,6 +659,18 @@ export default function NewContractModal({
                                                     />
                                                 </div>
                                             </div>
+                                            {formData.honorarioInicialMetodoPago && formData.honorarioInicialMetodoPago !== 'EFECTIVO' && <div className="mt-4">
+                                                <label htmlFor="contract-initial-fee-bank" className="block text-xs font-medium text-green-800 mb-1">Banco / cuenta donde ingresó *</label>
+                                                <AppSelect
+                                                    id="contract-initial-fee-bank"
+                                                    ariaLabel="Cuenta bancaria del honorario inicial"
+                                                    required
+                                                    value={formData.honorarioInicialCuentaBancariaId}
+                                                    onChange={value => setFormData(prev => ({ ...prev, honorarioInicialCuentaBancariaId: value }))}
+                                                    options={[{ value: '', label: cuentasBancarias.some(cuenta => cuenta.moneda === formData.monedaHonorarioInicial) ? 'Seleccionar cuenta' : 'No hay cuentas activas para esta moneda' }, ...cuentasBancarias.filter(cuenta => cuenta.moneda === formData.monedaHonorarioInicial).map(cuenta => ({ value: String(cuenta.id), label: `${cuenta.banco} — ${cuenta.nombre}` }))]}
+                                                    buttonClassName="border-green-300 focus-visible:border-green-500 focus-visible:ring-green-100"
+                                                />
+                                            </div>}
                                         </div>
                                     )}
 
@@ -742,6 +925,28 @@ export default function NewContractModal({
                                         </div>
                                     )}
 
+                                    {draft && draft.adjuntos.length > 0 && (
+                                        <div className="rounded-lg border border-indigo-100 bg-indigo-50 p-3" aria-label="Documentos guardados en el borrador">
+                                            <p className="text-xs font-semibold text-indigo-900">Documentos guardados en el borrador</p>
+                                            <p className="mt-1 text-xs text-indigo-800">Se incorporarán al contrato al finalizarlo.</p>
+                                            <ul className="mt-2 space-y-2">
+                                                {draft.adjuntos.map(attachment => (
+                                                    <li key={attachment.id} className="flex items-center justify-between gap-3 rounded bg-white px-3 py-2 text-sm text-gray-700">
+                                                        <span className="min-w-0 truncate">{attachment.nombreArchivo} <span className="text-xs text-gray-500">({attachment.tipo === 'CONTRATO_PRINCIPAL' ? 'principal' : attachment.tipo.toLowerCase()})</span></span>
+                                                        <button
+                                                            type="button"
+                                                            disabled={isSubmitting}
+                                                            onClick={() => void onDeleteDraftAttachment?.(attachment.id)}
+                                                            className="shrink-0 text-xs font-semibold text-red-600 hover:text-red-800 disabled:opacity-50"
+                                                        >
+                                                            Quitar
+                                                        </button>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
                                     {/* ─── Footer Actions ─── */}
                                     <div className="sticky bottom-0 -mx-4 -mb-4 flex justify-end gap-3 border-t border-gray-100 bg-white p-4 sm:-mx-6 sm:-mb-6 sm:p-6">
                                         <button
@@ -752,6 +957,16 @@ export default function NewContractModal({
                                         >
                                             Cancelar
                                         </button>
+                                        {!editingContract && !renewingContract && onSaveDraft && (
+                                            <button
+                                                type="button"
+                                                onClick={handleSaveDraft}
+                                                disabled={isSubmitting}
+                                                className="min-h-11 flex-1 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 sm:flex-none"
+                                            >
+                                                {isSubmitting ? 'Guardando...' : 'Guardar borrador'}
+                                            </button>
+                                        )}
                                         <button
                                             type="submit"
                                             disabled={isSubmitting}

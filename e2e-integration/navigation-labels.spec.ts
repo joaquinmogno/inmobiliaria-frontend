@@ -14,7 +14,7 @@ test('los nombres de navegación describen el contenido real de cada módulo', a
 
   const navigation = page.getByRole('navigation', { name: 'Navegación principal' });
   const financesLink = navigation.getByRole('link', { name: 'Gestión financiera', exact: true });
-  const paymentsLink = navigation.getByRole('link', { name: 'Historial de pagos', exact: true });
+  const paymentsLink = navigation.getByRole('link', { name: 'Cobros de inquilinos', exact: true });
 
   await expect(financesLink).toBeVisible();
   await expect(paymentsLink).toBeVisible();
@@ -27,7 +27,7 @@ test('los nombres de navegación describen el contenido real de cada módulo', a
 
   await paymentsLink.click();
   await expect(page).toHaveURL(/\/pagos$/);
-  await expect(page.getByRole('heading', { name: 'Historial de pagos', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Cobros de inquilinos', exact: true })).toBeVisible();
 
   const userMenu = page.getByRole('button', { name: 'Menú de usuario' });
   await userMenu.click();

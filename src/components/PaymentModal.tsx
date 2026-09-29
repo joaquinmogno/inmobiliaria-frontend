@@ -7,11 +7,12 @@ import { formatCurrency, type Moneda } from "../utils/currency";
 import FormError, { useFormError } from "./FormError";
 import AppSelect from "./AppSelect";
 import { todayDateInput } from "../utils/date";
+import { cuentasBancariasService, type CuentaBancaria } from "../services/cuentas-bancarias.service";
 
 interface PaymentModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (p: { monto: number, fechaPago: string, metodoPago: MetodoPago, observaciones?: string }) => void;
+    onSave: (p: { monto: number, fechaPago: string, metodoPago: MetodoPago, cuentaBancariaId?: number, observaciones?: string }) => void;
     suggestedAmount?: number;
     moneda?: Moneda;
     targetLabel?: string;
@@ -24,12 +25,15 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
     const [fechaPago, setFechaPago] = useState(() => todayDateInput());
     const [metodoPago, setMetodoPago] = useState<MetodoPago>("EFECTIVO");
     const [observaciones, setObservaciones] = useState("");
+    const [cuentas, setCuentas] = useState<CuentaBancaria[]>([]);
+    const [cuentaBancariaId, setCuentaBancariaId] = useState("");
 
     useEffect(() => {
         if (isOpen && suggestedAmount) {
             setMonto(suggestedAmount.toString());
         }
     }, [isOpen, suggestedAmount]);
+    useEffect(() => { if (isOpen) cuentasBancariasService.getAll().then(setCuentas).catch(() => setCuentas([])); }, [isOpen]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -37,10 +41,12 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
         setFormError("");
         if (!Number.isFinite(amount) || amount <= 0) return setFormError("El monto debe ser mayor a cero.");
         if (suggestedAmount !== undefined && amount > suggestedAmount) return setFormError(`El monto no puede superar ${formatCurrency(suggestedAmount, moneda)}.`);
+        if (metodoPago !== 'EFECTIVO' && !cuentaBancariaId) return setFormError('Seleccioná la cuenta bancaria donde ingresó el pago.');
         onSave({
             monto: amount,
             fechaPago,
             metodoPago,
+            cuentaBancariaId: cuentaBancariaId ? Number(cuentaBancariaId) : undefined,
             observaciones: observaciones || undefined
         });
         // Reset
@@ -82,6 +88,10 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
                                         </Dialog.Title>
                                         <p className="text-content-muted text-sm mt-1 font-medium italic">Cobro del inquilino</p>
                                     </div>
+                                    {metodoPago !== 'EFECTIVO' && <div>
+                                        <label htmlFor="tenant-payment-bank" className="block text-xs font-black text-gray-600 uppercase tracking-widest mb-2">Cuenta donde ingresó *</label>
+                                        <AppSelect id="tenant-payment-bank" required ariaLabel="Cuenta bancaria" value={cuentaBancariaId} onChange={setCuentaBancariaId} options={[{ value: '', label: 'Seleccionar cuenta' }, ...cuentas.filter(c => c.moneda === moneda).map(c => ({ value: String(c.id), label: `${c.banco} — ${c.nombre}` }))]} buttonClassName="border-transparent bg-gray-50 font-bold" />
+                                    </div>}
                                     <button
                                         onClick={onClose}
                                         className="flex h-11 w-11 items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all focus:outline-none"

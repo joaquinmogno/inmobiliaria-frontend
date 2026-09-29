@@ -34,11 +34,9 @@ test('stack real: las diez pantallas autenticadas cumplen contraste WCAG AA con 
 
   for (const route of [
     '/contratos',
-    '/propiedades',
     '/personas',
     '/pagos',
     '/cajachica',
-    '/sueldos',
     '/usuarios',
     '/mi-acceso'
   ]) await expectRouteContrast(route);

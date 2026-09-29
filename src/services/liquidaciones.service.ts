@@ -321,7 +321,7 @@ export const liquidacionesService = {
         return api.patch<Liquidacion>(`/liquidaciones/${id}/confirmar`, { expectedVersion });
     },
 
-    pagarPropietario: async (id: number, data: { monto: number, fechaPago: string, metodoPago: string, propietarioId: number, comprobante?: string, observaciones?: string, motivoAdelanto?: string, expectedVersion?: number }) => {
+    pagarPropietario: async (id: number, data: { monto: number, fechaPago: string, metodoPago: string, cuentaBancariaId?: number, propietarioId: number, comprobante?: string, observaciones?: string, motivoAdelanto?: string, expectedVersion?: number }) => {
         return api.patch<Liquidacion>(`/liquidaciones/${id}/pagar-propietario`, data);
     },
     crearAjuste: async (id: number, data: {
@@ -331,6 +331,7 @@ export const liquidacionesService = {
         liquidacionDestinoId?: number;
         fechaDevolucion?: string;
         metodoDevolucion?: string;
+        cuentaBancariaIdDevolucion?: number;
         observacionesDevolucion?: string;
     }) => api.post(`/liquidaciones/${id}/ajustes`, data),
     aplicarCreditoInquilino: async (creditId: number, data: { liquidacionDestinoId: number; monto: number }) =>

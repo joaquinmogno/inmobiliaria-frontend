@@ -46,10 +46,10 @@ test('la navegación global se puede completar usando solamente el teclado', asy
   await expect(contractsMenuButton).toHaveAttribute('aria-expanded', 'false');
   await expect(contractsMenuButton).toBeFocused();
 
-  const propertiesLink = page.getByRole('link', { name: 'Propiedades', exact: true });
-  await propertiesLink.focus();
+  const liquidationsLink = page.getByRole('link', { name: 'Liquidaciones', exact: true });
+  await liquidationsLink.focus();
   await page.keyboard.press('Enter');
-  await expect(page).toHaveURL(/\/propiedades$/);
+  await expect(page).toHaveURL(/\/liquidaciones$/);
   await expect(main).toBeFocused();
 
   await page.setViewportSize({ width: 390, height: 844 });

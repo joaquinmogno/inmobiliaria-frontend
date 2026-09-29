@@ -24,10 +24,10 @@ export interface CashFinancialMetrics {
     saldo: number;
     cobrosInquilinos: number;
     pagosPropietarios: number;
-    pagosSueldos: number;
     otrosIngresos: number;
     otrosEgresos: number;
     cuentas: Record<'CAJA' | 'BANCO', { ingresos: number; egresos: number; saldo: number }>;
+    cuentasBancarias?: Record<string, { ingresos: number; egresos: number; saldo: number }>;
 }
 
 export interface AccruedFinancialReport {

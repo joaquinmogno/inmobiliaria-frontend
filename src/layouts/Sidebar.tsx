@@ -3,7 +3,6 @@ import { forwardRef, useRef, useState } from "react";
 import {
   HomeIcon,
   DocumentTextIcon,
-  HomeModernIcon,
   TrashIcon,
   CalculatorIcon,
   BanknotesIcon,
@@ -36,7 +35,6 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
     localStorage.setItem("sidebar-expanded", String(!current));
     return !current;
   });
-  const canViewProperties = hasPermission(user, "propiedades.ver");
   const canViewPeople = hasPermission(user, "personas.ver");
   const canViewContracts = hasPermission(user, "contratos.ver");
   const canCreateContracts = hasPermission(user, "contratos.crear");
@@ -45,7 +43,6 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
   const canViewLiquidations = hasPermission(user, "liquidaciones.ver");
   const canViewCash = hasPermission(user, "caja_chica.ver");
   const canViewPayments = hasPermission(user, "pagos.ver");
-  const canViewSalaries = hasPermission(user, "sueldos.ver");
   const canViewConfiguration = user?.tipo === "ADMIN";
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -114,29 +111,6 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
             Inicio
           </span>
         </NavLink>
-
-
-        {/* Propiedades */}
-        {canViewProperties && <NavLink to="/propiedades" className={linkClass}>
-          <HomeModernIcon className="w-6 h-6 min-w-[24px]" />
-          <span
-            className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
-              }`}
-          >
-            Propiedades
-          </span>
-        </NavLink>}
-
-        {/* Personas */}
-        {canViewPeople && <NavLink to="/personas" className={linkClass}>
-          <UserGroupIcon className="w-6 h-6 min-w-[24px]" />
-          <span
-            className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
-              }`}
-          >
-            Personas
-          </span>
-        </NavLink>}
 
         {/* Contratos (con submenú Papelera) */}
         {canViewContracts && <div>
@@ -209,21 +183,20 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
             className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
               }`}
           >
-            Historial de pagos
+            Cobros de inquilinos
           </span>
         </NavLink>}
 
-        {canViewSalaries && (
-          <NavLink to="/sueldos" className={linkClass}>
-            <BanknotesIcon className="w-6 h-6 min-w-[24px]" />
-            <span
-              className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
-                }`}
-            >
-              Sueldos
-            </span>
-          </NavLink>
-        )}
+        {/* Personas */}
+        {canViewPeople && <NavLink to="/personas" className={linkClass}>
+          <UserGroupIcon className="w-6 h-6 min-w-[24px]" />
+          <span
+            className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
+              }`}
+          >
+            Personas
+          </span>
+        </NavLink>}
 
         <hr className="my-1 border-indigo-600/50" />
 
