@@ -25,10 +25,11 @@ type HistoryFilters = {
   vencidas: boolean;
   pendientePropietario: boolean;
   adelantos: boolean;
+  conCuotas: boolean;
 };
 
 const PAGE_SIZE = 12;
-const FILTER_KEYS: Array<keyof HistoryFilters> = ['periodo', 'estado', 'propiedadId', 'inquilinoId', 'propietarioId', 'moneda', 'soloDeuda', 'vencidas', 'pendientePropietario', 'adelantos'];
+const FILTER_KEYS: Array<keyof HistoryFilters> = ['periodo', 'estado', 'propiedadId', 'inquilinoId', 'propietarioId', 'moneda', 'soloDeuda', 'vencidas', 'pendientePropietario', 'adelantos', 'conCuotas'];
 
 const filtersFromSearchParams = (searchParams: URLSearchParams): HistoryFilters => ({
   periodo: searchParams.get('periodo') || '',
@@ -40,7 +41,8 @@ const filtersFromSearchParams = (searchParams: URLSearchParams): HistoryFilters 
   soloDeuda: searchParams.get('soloDeuda') === 'true',
   vencidas: searchParams.get('vencidas') === 'true',
   pendientePropietario: searchParams.get('pendientePropietario') === 'true',
-  adelantos: searchParams.get('adelantos') === 'true'
+  adelantos: searchParams.get('adelantos') === 'true',
+  conCuotas: searchParams.get('conCuotas') === 'true'
 });
 
 const hasTenantCollectionPending = (liquidation: Liquidacion) => ['PENDIENTE', 'PARCIAL'].includes(liquidation.estadoCobroInquilino);
@@ -169,9 +171,9 @@ export default function LiquidationHistory() {
   }, { replace: true });
 
   const activeFilters: ActiveFilterChip[] = (() => {
-    const stateLabel = ({ BORRADOR: 'Borradores', CONFIRMADA: 'Confirmadas', ANULADA: 'Anuladas' } as Record<string, string>)[filters.estado] || filters.estado;
+    const stateLabel = ({ BORRADOR: 'Borradores', CONFIRMADA: 'Confirmadas', ANULADA: 'Anuladas', PENDIENTE_COBRO: 'Pendientes de cobro', EN_MORA: 'En mora', PENDIENTE_PAGO_PROPIETARIO: 'Pendientes de pago al propietario', FINALIZADA: 'Finalizadas' } as Record<string, string>)[filters.estado] || filters.estado;
     const booleanFilters: Array<[keyof HistoryFilters, string]> = [
-      ['soloDeuda', 'Con deuda'], ['vencidas', 'Vencidas'], ['pendientePropietario', 'Pendientes de pago al propietario'], ['adelantos', 'Adelantos a recuperar']
+      ['soloDeuda', 'Con deuda'], ['vencidas', 'Vencidas'], ['pendientePropietario', 'Pendientes de pago al propietario'], ['adelantos', 'Adelantos a recuperar'], ['conCuotas', 'Con cuotas o acuerdos']
     ];
     return [
       ...(search ? [{ key: 'q', label: `Búsqueda: ${search}`, onRemove: () => updateSearch('') }] : []),
@@ -191,9 +193,9 @@ export default function LiquidationHistory() {
       <p className="mt-1 text-sm text-gray-700">Consultá períodos anteriores y encontrá operaciones por persona, propiedad, moneda o estado.</p>
     </div>
     <FilterBar query={search} onQueryChange={updateSearch} onClear={clear} resultCount={meta.total} placeholder="Propiedad, inquilino o propietario…">
-      <AppSelect ariaLabel="Período" value={filters.periodo} onChange={value => updateFilter('periodo', value)} options={[{ value: '', label: 'Todos los períodos' }, ...options.periodos.map(value => ({ value: value.slice(0, 10), label: formatMonthYear(value) }))]} className="w-full sm:w-48" />
+      <label className="text-xs font-bold text-gray-700">Período (cualquier mes)<input aria-label="Período" type="month" value={filters.periodo.slice(0, 7)} onChange={event => updateFilter('periodo', event.target.value ? `${event.target.value}-01` : '')} className="mt-1 min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm sm:w-48" /></label>
       <AppSelect ariaLabel="Estado" value={filters.estado} onChange={value => updateFilter('estado', value)} options={[
-        { value: '', label: 'Todos los documentos' }, { value: 'BORRADOR', label: 'Borrador' }, { value: 'CONFIRMADA', label: 'Confirmada' }, { value: 'ANULADA', label: 'Anulada' }
+        { value: '', label: 'Todos los documentos' }, { value: 'BORRADOR', label: 'Borrador' }, { value: 'PENDIENTE_COBRO', label: 'Pendiente de cobro' }, { value: 'EN_MORA', label: 'En mora' }, { value: 'PENDIENTE_PAGO_PROPIETARIO', label: 'Pendiente de pago al propietario' }, { value: 'FINALIZADA', label: 'Finalizada' }, { value: 'ANULADA', label: 'Anulada' }
       ]} className="w-full sm:w-56" />
       <AppSelect ariaLabel="Moneda" value={filters.moneda} onChange={value => updateFilter('moneda', value)} options={[{ value: '', label: 'Todas las monedas' }, ...options.monedas.map(value => ({ value, label: value }))]} className="w-full sm:w-44" />
       <details className="w-full rounded-xl border border-gray-300 bg-white sm:w-auto">
@@ -229,7 +231,7 @@ export default function LiquidationHistory() {
             renderSelection={item => item.nombreCompleto}
             idField="id"
           />
-          {([['soloDeuda', 'Con deuda'], ['vencidas', 'Vencidas'], ['pendientePropietario', 'Pendientes de pago al propietario'], ['adelantos', 'Adelantos a recuperar']] as const).map(([key, label]) => <label key={key} className="flex min-h-11 items-center gap-3 rounded-lg px-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"><input type="checkbox" checked={filters[key]} onChange={event => updateFilter(key, event.target.checked)} className="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />{label}</label>)}
+          {([['soloDeuda', 'Con deuda'], ['vencidas', 'Vencidas'], ['pendientePropietario', 'Pendientes de pago al propietario'], ['adelantos', 'Adelantos a recuperar'], ['conCuotas', 'Con cuotas o acuerdos']] as const).map(([key, label]) => <label key={key} className="flex min-h-11 items-center gap-3 rounded-lg px-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"><input type="checkbox" checked={filters[key]} onChange={event => updateFilter(key, event.target.checked)} className="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />{label}</label>)}
         </div>
       </details>
     </FilterBar>
@@ -266,7 +268,7 @@ export default function LiquidationHistory() {
                   <td className="px-3 py-3.5 text-right"><button type="button" onClick={() => navigate(`/liquidaciones/${row.id}`)} className="min-h-11 w-full rounded-xl bg-indigo-600 px-3 text-sm font-bold leading-4 text-white hover:bg-indigo-700 xl:w-auto">{nextAction(row)}</button></td>
                 </tr>;
               })}
-              {!rows.length && <tr><td colSpan={7} className="p-10 text-center text-sm font-semibold text-gray-700">No se encontraron liquidaciones con esos filtros.</td></tr>}
+              {!rows.length && <tr><td colSpan={7} className="p-10 text-center text-sm font-semibold text-gray-700">{filters.periodo ? 'No hay liquidaciones en este período' : 'No se encontraron liquidaciones con esos filtros.'}</td></tr>}
             </tbody>
           </table>
         </div>
@@ -288,7 +290,7 @@ export default function LiquidationHistory() {
             </div>
           </article>;
         })}
-        {!rows.length && <p className="p-10 text-center text-sm font-semibold text-gray-700">No se encontraron liquidaciones con esos filtros.</p>}
+        {!rows.length && <p className="p-10 text-center text-sm font-semibold text-gray-700">{filters.periodo ? 'No hay liquidaciones en este período' : 'No se encontraron liquidaciones con esos filtros.'}</p>}
         </div>
       </>}
       <ServerPagination page={page} totalPages={meta.totalPages} total={meta.total} pageSize={PAGE_SIZE} currentCount={rows.length} onPageChange={setPage} />

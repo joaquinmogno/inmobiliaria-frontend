@@ -270,9 +270,9 @@ test('stack real: ciclo de vida contractual y disponibilidad de propiedades', as
   const dashboardCurrent = await dashboardCurrentResponse.json();
   expect(dashboardCurrent.contratos.activos).toBe(dashboardBefore.contratos.activos + 1);
 
-  const rescind = await request.patch(`/api/contratos/${current.contract.id}/estado`, {
+  const rescind = await request.post(`/api/contratos/${current.contract.id}/rescindir`, {
     headers,
-    data: { estado: 'RESCINDIDO', version: current.contract.version }
+    data: { motivo: 'Fin anticipado acordado por las partes', version: current.contract.version }
   });
   expect(rescind.status()).toBe(200);
   const rescindedContract = await request.get(`/api/contratos/${current.contract.id}`, { headers: readHeaders });
@@ -322,9 +322,9 @@ test('stack real: cada listado contractual queda aislado por estado', async ({ r
   const rescinded = await createContract('Rescindido', -5, 30);
   const trashed = await createContract('Papelera', -5, 30);
 
-  expect((await request.patch(`/api/contratos/${rescinded.id}/estado`, {
+  expect((await request.post(`/api/contratos/${rescinded.id}/rescindir`, {
     headers,
-    data: { estado: 'RESCINDIDO', version: rescinded.version }
+    data: { motivo: 'Fin anticipado acordado por las partes', version: rescinded.version }
   })).status()).toBe(200);
   expect((await request.delete(`/api/contratos/${trashed.id}`, { headers })).status()).toBe(200);
 
@@ -361,7 +361,7 @@ test('stack real: cada listado contractual queda aislado por estado', async ({ r
   expect((await invalidStatus.json()).code).toBe('INVALID_CONTRACT_STATUS');
 });
 
-test('stack real: un plan sólo ofrece y permite liquidar las cuotas vencidas del período', async ({ request }) => {
+test('stack real: las cuotas futuras no se sugieren, pero pueden incorporarse por acuerdo expreso', async ({ request }) => {
   const { cookie, csrfToken } = await authenticateAdmin(request);
   const headers = { cookie, 'x-csrf-token': csrfToken };
   const readHeaders = { cookie };
@@ -428,7 +428,7 @@ test('stack real: un plan sólo ofrece y permite liquidar las cuotas vencidas de
   expect(dueNow).toHaveLength(1);
   expect(dueNow[0]).toMatchObject({ numeroCuota: 1, correspondeAlPeriodo: true, vencida: false });
 
-  const prematureLiquidation = await request.post('/api/liquidaciones', {
+  const agreedLiquidation = await request.post('/api/liquidaciones', {
     headers,
     data: {
       contratoId: contract.id,
@@ -437,48 +437,22 @@ test('stack real: un plan sólo ofrece y permite liquidar las cuotas vencidas de
       cuotasIds: plan.cuotas.map((cuota: { id: number }) => cuota.id)
     }
   });
-  expect(prematureLiquidation.status()).toBe(409);
-  expect((await prematureLiquidation.json()).code).toBe('INSTALLMENT_NOT_DUE');
+  expect(agreedLiquidation.status()).toBe(201);
+  const agreedBody = await agreedLiquidation.json();
+  expect(agreedBody.movimientos.filter((movement: { concepto: string }) => movement.concepto.includes('Cuota'))).toHaveLength(3);
 
-  const dueAfterRollback = await request.get(
+  const availableAfterAgreement = await request.get(
     `/api/planes-cuotas/contrato/${contract.id}/pendientes?periodo=${currentPeriod}`,
     { headers: readHeaders }
   );
-  expect((await dueAfterRollback.json()).map((cuota: { id: number }) => cuota.id)).toEqual([plan.cuotas[0].id]);
-
-  const currentLiquidation = await request.post('/api/liquidaciones', {
-    headers,
-    data: {
-      contratoId: contract.id,
-      periodo: currentPeriod,
-      montoHonorarios: 0,
-      cuotasIds: [plan.cuotas[0].id]
-    }
-  });
-  expect(currentLiquidation.status()).toBe(201);
-  const currentLiquidationBody = await currentLiquidation.json();
-  expect(currentLiquidationBody.movimientos.filter((movement: { concepto: string }) => movement.concepto.includes('Cuota')))
-    .toHaveLength(1);
+  expect(await availableAfterAgreement.json()).toEqual([]);
 
   const dueNextResponse = await request.get(
     `/api/planes-cuotas/contrato/${contract.id}/pendientes?periodo=${nextPeriod}`,
     { headers: readHeaders }
   );
   const dueNext = await dueNextResponse.json();
-  expect(dueNext).toHaveLength(1);
-  expect(dueNext[0]).toMatchObject({ numeroCuota: 2, correspondeAlPeriodo: true, vencida: false });
-
-  const futureInstallmentResponse = await request.post('/api/liquidaciones', {
-    headers,
-    data: {
-      contratoId: contract.id,
-      periodo: nextPeriod,
-      montoHonorarios: 0,
-      cuotasIds: [plan.cuotas[2].id]
-    }
-  });
-  expect(futureInstallmentResponse.status()).toBe(409);
-  expect((await futureInstallmentResponse.json()).code).toBe('INSTALLMENT_NOT_DUE');
+  expect(dueNext).toEqual([]);
 });
 
 test('stack real: el prorrateo conserva exactamente el total del plan', async ({ request }) => {
@@ -544,6 +518,12 @@ test('stack real: los medios de pago se limitan a efectivo, transferencia y cheq
   const headers = { cookie, 'x-csrf-token': csrfToken };
   const readHeaders = { cookie };
   const unique = `PC010-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+  const accountResponse = await request.post('/api/cuentas-bancarias', {
+    headers,
+    data: { nombre: `Cuenta ${unique}`, banco: 'Banco de pruebas', moneda: 'ARS' }
+  });
+  expect(accountResponse.status()).toBe(201);
+  const account = await accountResponse.json();
   const dateAtOffset = (days: number) => {
     const date = new Date();
     date.setUTCDate(date.getUTCDate() + days);
@@ -570,7 +550,8 @@ test('stack real: los medios de pago se limitan a efectivo, transferencia y cheq
           administrado: true,
           requiereActualizacion: false,
           honorarioInicial: 500,
-          honorarioInicialMetodoPago: method
+          honorarioInicialMetodoPago: method,
+          honorarioInicialCuentaBancariaId: method === 'DEPOSITO' ? undefined : account.id
         }
       })
     };

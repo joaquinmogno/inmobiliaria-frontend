@@ -12,7 +12,7 @@ export const useLiquidationDetailController = (id?: string) => {
     const [isLoadingAudit, setIsLoadingAudit] = useState(false);
     const [deudaResumen, setDeudaResumen] = useState<DeudaResumen | null>(null);
     const [isMovimientoModalOpen, setIsMovimientoModalOpen] = useState(false);
-    const [isLiquidarModalOpen, setIsLiquidarModalOpen] = useState(false);
+    const [confirmError, setConfirmError] = useState<string | null>(null);
     const [movimientoAEliminar, setMovimientoAEliminar] = useState<number | null>(null);
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isOwnerPaymentModalOpen, setIsOwnerPaymentModalOpen] = useState(false);
@@ -23,9 +23,9 @@ export const useLiquidationDetailController = (id?: string) => {
     const [creditToApply, setCreditToApply] = useState<{ id: number; saldo: number } | null>(null);
     const [tenantPaymentToReverse, setTenantPaymentToReverse] = useState<number | null>(null);
 
-    const loadLiquidation = useCallback(async () => {
+    const loadLiquidation = useCallback(async (showLoading = true) => {
         if (!id || !Number.isInteger(liquidationId)) return;
-        setIsLoading(true);
+        if (showLoading) setIsLoading(true);
         try {
             const data = await liquidacionesService.getById(liquidationId);
             setLiquidacion(data);
@@ -36,7 +36,7 @@ export const useLiquidationDetailController = (id?: string) => {
             toast.error('Error al cargar la liquidación');
             navigate('/liquidaciones');
         } finally {
-            setIsLoading(false);
+            if (showLoading) setIsLoading(false);
         }
     }, [id, liquidationId, navigate]);
 
@@ -55,12 +55,13 @@ export const useLiquidationDetailController = (id?: string) => {
         }
     };
 
-    const handleAddMovimiento = async (movement: { tipo: TipoMovimiento; concepto: string; monto: number; observaciones?: string }) => {
+    const handleAddMovimiento = async (movement: { tipo: TipoMovimiento; concepto: string; monto: number; observaciones?: string; esParaInmobiliaria?: boolean }) => {
         try {
-            setLiquidacion(await liquidacionesService.addMovimiento(liquidationId, {
+            await liquidacionesService.addMovimiento(liquidationId, {
                 ...movement,
                 expectedVersion: liquidacion?.version
-            }));
+            });
+            await loadLiquidation(false);
             toast.success('Movimiento agregado');
             setIsMovimientoModalOpen(false);
         } catch (error) {
@@ -70,7 +71,8 @@ export const useLiquidationDetailController = (id?: string) => {
 
     const handleDeleteMovimiento = async (movementId: number) => {
         try {
-            setLiquidacion(await liquidacionesService.deleteMovimiento(movementId));
+            await liquidacionesService.deleteMovimiento(movementId);
+            await loadLiquidation(false);
             toast.success('Movimiento eliminado');
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Error al eliminar movimiento');
@@ -79,6 +81,7 @@ export const useLiquidationDetailController = (id?: string) => {
 
     const handleConfirmar = async () => {
         try {
+            setConfirmError(null);
             const confirmed = await liquidacionesService.confirmar(liquidationId, liquidacion?.version);
             // La confirmación devuelve el resumen operativo, pero no necesita
             // volver a descargar el contrato, auditoría ni datos auxiliares que
@@ -87,11 +90,11 @@ export const useLiquidationDetailController = (id?: string) => {
             setLiquidacion(current => current ? { ...current, ...confirmed } : confirmed);
             toast.success('Liquidación confirmada y pasada a pendiente de pago');
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : 'Error al confirmar liquidación');
+            setConfirmError(error instanceof Error ? error.message : 'Error al confirmar liquidación');
         }
     };
 
-    const handleSavePayment = async (payment: { monto: number; fechaPago: string; metodoPago: MetodoPago; observaciones?: string }) => {
+    const handleSavePayment = async (payment: { monto: number; fechaPago: string; metodoPago: MetodoPago; cuentaBancariaId?: number; comprobante?: string; observaciones?: string; cuotasImputadas?: Array<{ cuotaId: number; monto: number }> }) => {
         if (!liquidacion?.contratoId) return;
         try {
             await pagosService.registrarPago({
@@ -102,7 +105,7 @@ export const useLiquidationDetailController = (id?: string) => {
             });
             toast.success('Pago registrado correctamente');
             setIsPaymentModalOpen(false);
-            await loadLiquidation();
+            await loadLiquidation(false);
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Error al registrar el pago');
         }
@@ -110,10 +113,11 @@ export const useLiquidationDetailController = (id?: string) => {
 
     const handleUpdateHonorarios = async (data: { montoHonorarios: number; porcentajeHonorarios?: number }) => {
         try {
-            setLiquidacion(await liquidacionesService.updateHonorarios(liquidationId, {
+            await liquidacionesService.updateHonorarios(liquidationId, {
                 ...data,
                 expectedVersion: liquidacion?.version
-            }));
+            });
+            await loadLiquidation();
             toast.success('Honorarios actualizados');
             setIsHonorariosModalOpen(false);
         } catch (error) {
@@ -191,7 +195,7 @@ export const useLiquidationDetailController = (id?: string) => {
     return {
         liquidacion, isLoading, isLoadingAudit, deudaResumen,
         isMovimientoModalOpen, setIsMovimientoModalOpen,
-        isLiquidarModalOpen, setIsLiquidarModalOpen,
+        confirmError,
         movimientoAEliminar, setMovimientoAEliminar,
         isPaymentModalOpen, setIsPaymentModalOpen,
         isOwnerPaymentModalOpen, setIsOwnerPaymentModalOpen,

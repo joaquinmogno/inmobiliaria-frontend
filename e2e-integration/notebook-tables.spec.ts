@@ -5,7 +5,7 @@ const admin = {
   password: 'ProdTest!2026_Strong'
 };
 
-test('liquidaciones usa tabla compacta y las demás vistas conservan su formato seguro en notebooks', async ({ page }) => {
+test('la bandeja de liquidaciones y las demás vistas no desbordan en notebooks', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto('/login');
   await page.getByPlaceholder('ejemplo@correo.com').fill(admin.email);
@@ -23,7 +23,7 @@ test('liquidaciones usa tabla compacta y las demás vistas conservan su formato 
   ]) {
     await page.goto(route);
     await expect(page.locator('main')).toBeVisible();
-    await expect(page.locator('table:visible')).toHaveCount(route === '/liquidaciones' ? 1 : 0);
+    await expect(page.locator('table:visible')).toHaveCount(0);
 
     const dimensions = await page.locator('main').evaluate(element => ({
       clientWidth: element.clientWidth,

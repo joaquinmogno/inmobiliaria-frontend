@@ -37,6 +37,9 @@ export type ContractFormData = {
     porcentajeActualizacion: string;
     pagaHonorarios: string;
     diaVencimiento: string;
+    modalidadCobroInquilino: string;
+    modalidadPagoPropietario: string;
+    cuentaCobroAcordadaId: string;
     tipoAjuste: string;
     file: File | null;
     observacionDocumento: string;
@@ -78,6 +81,7 @@ export const createEmptyContractForm = (): ContractFormData => ({
     address: '', floor: '', unit: '', startDate: '', endDate: '', updateDate: '',
     montoAlquiler: '', moneda: 'ARS', montoHonorarios: '', porcentajeHonorarios: '',
     porcentajeActualizacion: '', pagaHonorarios: 'INQUILINO', diaVencimiento: '10',
+    modalidadCobroInquilino: '', modalidadPagoPropietario: '', cuentaCobroAcordadaId: '',
     tipoAjuste: '', file: null, observacionDocumento: '', observations: '', additionalFiles: [],
     serviciosGastos: [],
     tipoArchivosAdicionales: 'ADJUNTO', administrado: true,
@@ -99,6 +103,9 @@ export const createContractFormFromContract = (contract: Contract): ContractForm
     porcentajeActualizacion: contract.porcentajeActualizacion?.toString() || '',
     pagaHonorarios: contract.pagaHonorarios as string,
     diaVencimiento: contract.diaVencimiento.toString(),
+    modalidadCobroInquilino: contract.modalidadCobroInquilino || '',
+    modalidadPagoPropietario: contract.modalidadPagoPropietario || '',
+    cuentaCobroAcordadaId: contract.cuentaCobroAcordadaId?.toString() || '',
     tipoAjuste: contract.tipoAjuste || '',
     file: null,
     observacionDocumento: '',
@@ -180,6 +187,9 @@ export const getContractFormError = (
     }
     if (form.honorarioInicial && !form.honorarioInicialMetodoPago) {
         return 'Seleccioná un método de pago para el honorario inicial.';
+    }
+    if (form.modalidadCobroInquilino === 'TRANSFERENCIA' && !form.cuentaCobroAcordadaId) {
+        return 'Seleccioná la cuenta acordada para cobrar las transferencias del inquilino.';
     }
     if (Number(form.honorarioInicial) > 0 && form.honorarioInicialMetodoPago && form.honorarioInicialMetodoPago !== 'EFECTIVO' && !form.honorarioInicialCuentaBancariaId) {
         return 'Seleccioná la cuenta bancaria donde ingresó el honorario inicial.';

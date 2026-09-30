@@ -64,6 +64,10 @@ export interface Contract {
     porcentajeHonorarios: number | null;
     pagaHonorarios: PagadorHonorarios;
     diaVencimiento: number;
+    modalidadCobroInquilino: 'EFECTIVO' | 'TRANSFERENCIA' | 'CHEQUE' | null;
+    modalidadPagoPropietario: 'EFECTIVO' | 'TRANSFERENCIA' | 'CHEQUE' | null;
+    cuentaCobroAcordadaId: number | null;
+    cuentaCobroAcordada?: { id: number; banco: string; nombre: string } | null;
     porcentajeActualizacion: number | null;
     tipoAjuste: string | null;
     serviciosGastos?: ContractServiceExpense[];

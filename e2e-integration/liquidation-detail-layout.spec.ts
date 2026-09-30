@@ -14,7 +14,7 @@ test('el detalle separa el ciclo de la deuda y contiene textos largos sin colisi
 
   await page.goto('/liquidaciones');
   await page.getByRole('button', { name: 'Historial', exact: true }).click();
-  const firstHistoryAction = page.locator('article').first().getByRole('button');
+  const firstHistoryAction = page.getByRole('table', { name: 'Historial de liquidaciones' }).getByRole('row').nth(1).getByRole('button');
   await expect(firstHistoryAction).toBeVisible();
   await firstHistoryAction.click();
   await expect(page).toHaveURL(/\/liquidaciones\/\d+$/);
@@ -24,7 +24,8 @@ test('el detalle separa el ciclo de la deuda y contiene textos largos sin colisi
   await page.route(`**/api/liquidaciones/${liquidationId}*`, async route => {
     const response = await route.fetch();
     const body = await response.json();
-    body.estado = 'PENDIENTE_PAGO';
+    body.estado = 'CONFIRMADA';
+    body.estadoCobroInquilino = 'PENDIENTE';
     body.netoACobrar = '999999999999999.99';
     body.montoHonorarios = '123456789012345.67';
     body.totalIngresos = '999999999999999.99';
@@ -59,6 +60,7 @@ test('el detalle separa el ciclo de la deuda y contiene textos largos sin colisi
   const lifecycle = page.getByTestId('liquidation-lifecycle');
   const document = page.getByTestId('liquidation-document');
   await expect(lifecycle.getByRole('heading', { name: 'Estado de la liquidación' })).toBeVisible();
+  await expect(lifecycle.getByText('Cobro inquilino · pendiente')).toBeVisible();
   await expect(document.getByText('Pendiente de cobro', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Edición parcial', { exact: true })).toHaveCount(0);
 
@@ -79,9 +81,9 @@ test('el detalle separa el ciclo de la deuda y contiene textos largos sin colisi
     expect(overflows, `Se detectó texto desbordado a ${width}px`).toEqual([]);
 
     if (width < 768) {
-      await expect(lifecycle.getByText('Pendiente de cobro', { exact: true }).first()).toBeVisible();
+      await expect(lifecycle.getByText('Confirmada', { exact: true }).first()).toBeVisible();
     } else {
-      await expect(lifecycle.locator('[aria-current="step"]')).toContainText('Pendiente de cobro');
+      await expect(lifecycle.locator('[aria-current="step"]')).toContainText('Confirmada');
     }
   }
 

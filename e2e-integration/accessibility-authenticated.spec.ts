@@ -26,7 +26,7 @@ test('stack real: las diez pantallas autenticadas cumplen contraste WCAG AA con 
 
   await expectRouteContrast('/liquidaciones');
   await page.getByRole('button', { name: 'Historial', exact: true }).click();
-  const firstRowAction = page.locator('article').first().getByRole('button');
+  const firstRowAction = page.getByRole('table', { name: 'Historial de liquidaciones' }).getByRole('row').nth(1).getByRole('button');
   await expect(firstRowAction).toBeVisible();
   await firstRowAction.click();
   await expect(page).toHaveURL(/\/liquidaciones\/\d+$/);

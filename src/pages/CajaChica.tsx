@@ -471,10 +471,10 @@ export default function CajaChica() {
                                 ? 'border-amber-200 bg-amber-50 text-amber-950'
                                 : 'border-gray-200 bg-gray-50 text-gray-800';
                         const saldoSistema = getLedgerBalance(target);
-                        return <article key={`${target.cuenta}-${target.cuentaBancariaId || 'caja'}-${target.moneda}`} className={`rounded-xl border p-4 ${stateTone}`}>
+                        return <article key={`${target.cuenta}-${target.cuentaBancariaId || 'caja'}-${target.moneda}`} className={`min-w-0 rounded-xl border p-4 ${stateTone}`}>
                             <div className="flex items-start justify-between gap-2">
-                                <div>
-                                    <h3 className="font-black">{target.label}</h3>
+                                <div className="min-w-0">
+                                    <h3 className="break-words font-black">{target.label}</h3>
                                     <p className="mt-1 text-xs font-bold uppercase tracking-wide">{stateLabel}</p>
                                 </div>
                                 {isClosed ? <span className="rounded-full bg-white/70 px-2 py-1 text-[10px] font-black uppercase">Bloqueado</span> : <span className="rounded-full bg-white/70 px-2 py-1 text-[10px] font-black uppercase">Operable</span>}

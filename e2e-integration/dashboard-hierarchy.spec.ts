@@ -31,10 +31,10 @@ test('el dashboard evita métricas repetidas y reserva los acentos para estados'
 
   for (let index = 0; index < currencyCount; index += 1) {
     const card = currencyCards.nth(index);
+    await expect(card.getByText('Facturado', { exact: true })).toHaveCount(1);
+    await expect(card.getByText('Pendiente de inquilinos', { exact: true })).toHaveCount(1);
     await expect(card.getByText('Cobrado a inquilinos', { exact: true })).toHaveCount(1);
-    await expect(card.getByText('Honorarios', { exact: true })).toHaveCount(1);
-    await expect(card.getByText('Gastos de la inmobiliaria', { exact: true })).toHaveCount(1);
-    await expect(card.getByText('Fondos pendientes de entregar', { exact: true })).toHaveCount(1);
-    await expect(card.getByText('Resultado neto de la inmobiliaria', { exact: true })).toHaveCount(1);
+    await expect(card.getByText('Saldo al cierre', { exact: true })).toHaveCount(1);
+    await expect(card.getByText('Honorarios devengados / gastos por caja', { exact: true })).toHaveCount(1);
   }
 });

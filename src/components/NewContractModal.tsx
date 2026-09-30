@@ -78,9 +78,9 @@ export default function NewContractModal({
     const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>([]);
 
     useEffect(() => {
-        if (!isOpen || editingContract) return;
+        if (!isOpen) return;
         void cuentasBancariasService.getAll().then(setCuentasBancarias).catch(() => setCuentasBancarias([]));
-    }, [isOpen, editingContract]);
+    }, [isOpen]);
 
     // Effect to populate form when editing
     useEffect(() => {
@@ -149,6 +149,7 @@ export default function NewContractModal({
         setFormData(prev => ({
             ...prev,
             moneda,
+            cuentaCobroAcordadaId: moneda === prev.moneda ? prev.cuentaCobroAcordadaId : '',
             ...(!editingContract && moneda === "USD" ? {
                 requiereActualizacion: false,
                 updateDate: "",
@@ -522,6 +523,19 @@ export default function NewContractModal({
                                             </div>
                                         </div>
                                     </div>
+
+                                    <section className="rounded-xl border border-gray-200 bg-white p-4">
+                                        <h4 className="text-sm font-semibold uppercase tracking-wide text-indigo-900">Pago del alquiler y entrega al propietario</h4>
+                                        <p className="mt-1 text-xs text-gray-600">Estas modalidades son las acordadas. Cada cobro y entrega conservará el medio realmente utilizado.</p>
+                                        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                                            <label className="text-sm font-medium text-gray-800">Día de vencimiento
+                                                <NumericInput min="1" max="31" value={formData.diaVencimiento} onChange={value => setFormData(current => ({ ...current, diaVencimiento: String(value) }))} className="mt-1 w-full rounded-lg border-gray-300" />
+                                            </label>
+                                            <div><label className="text-sm font-medium text-gray-800">Cobro acordado con inquilino</label><AppSelect ariaLabel="Cobro acordado con inquilino" value={formData.modalidadCobroInquilino} onChange={value => setFormData(current => ({ ...current, modalidadCobroInquilino: value, cuentaCobroAcordadaId: value === 'TRANSFERENCIA' ? current.cuentaCobroAcordadaId : '' }))} options={[{ value: '', label: 'Sin acordar' }, ...PAYMENT_METHOD_OPTIONS]} className="mt-1" /></div>
+                                            <div><label className="text-sm font-medium text-gray-800">Pago acordado con propietario</label><AppSelect ariaLabel="Pago acordado con propietario" value={formData.modalidadPagoPropietario} onChange={value => setFormData(current => ({ ...current, modalidadPagoPropietario: value }))} options={[{ value: '', label: 'Sin acordar' }, ...PAYMENT_METHOD_OPTIONS]} className="mt-1" /></div>
+                                        </div>
+                                        {formData.modalidadCobroInquilino === 'TRANSFERENCIA' && <div className="mt-3"><label className="text-sm font-medium text-gray-800">Cuenta acordada para recibir la transferencia</label><AppSelect ariaLabel="Cuenta acordada para recibir la transferencia" value={formData.cuentaCobroAcordadaId} onChange={value => setFormData(current => ({ ...current, cuentaCobroAcordadaId: value }))} options={[{ value: '', label: 'Seleccionar cuenta bancaria' }, ...cuentasBancarias.filter(account => account.activa && account.moneda === formData.moneda).map(account => ({ value: String(account.id), label: `${account.banco} · ${account.nombre}` }))]} className="mt-1" /><p className="mt-1 text-xs text-gray-600">Se mostrará por nombre y banco en la liquidación y el comprobante.</p></div>}
+                                    </section>
 
                                     {/* ─── Servicios y gastos ─── */}
                                     <section className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">

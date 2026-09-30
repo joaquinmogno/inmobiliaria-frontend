@@ -12,6 +12,7 @@ const Usuarios = lazy(() => import("../pages/Usuarios"));
 const Personas = lazy(() => import("../pages/Personas"));
 const Liquidaciones = lazy(() => import("../pages/Liquidaciones"));
 const LiquidacionDetalle = lazy(() => import("../pages/LiquidacionDetalle"));
+const ContratoLiquidaciones = lazy(() => import("../pages/ContratoLiquidaciones"));
 const HistorialPagos = lazy(() => import("../pages/HistorialPagos"));
 const Configuracion = lazy(() => import("../pages/Configuracion"));
 const CajaChica = lazy(() => import("../pages/CajaChica"));
@@ -36,6 +37,7 @@ export default function AppRouter() {
           <Route path="/contratos/papelera" element={<PermissionGuard permissions={["contratos.restaurar", "contratos.eliminar"]}><Papelera /></PermissionGuard>} />
           <Route path="/usuarios" element={<PermissionGuard adminOnly><Usuarios /></PermissionGuard>} />
           <Route path="/liquidaciones" element={<PermissionGuard permission="liquidaciones.ver"><Liquidaciones /></PermissionGuard>} />
+          <Route path="/liquidaciones/contrato/:contratoId" element={<PermissionGuard permission="liquidaciones.ver"><ContratoLiquidaciones /></PermissionGuard>} />
           <Route path="/liquidaciones/:id" element={<PermissionGuard permission="liquidaciones.ver"><LiquidacionDetalle /></PermissionGuard>} />
           <Route path="/pagos" element={<PermissionGuard permission="pagos.ver"><HistorialPagos /></PermissionGuard>} />
           <Route path="/cajachica" element={<PermissionGuard permission="caja_chica.ver"><CajaChica /></PermissionGuard>} />

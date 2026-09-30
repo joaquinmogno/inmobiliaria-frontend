@@ -73,6 +73,17 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
         aria-hidden={!isDesktop && !mobileOpen ? true : undefined}
         inert={!isDesktop && !mobileOpen ? true : undefined}
         onKeyDown={(event) => {
+          if (event.key === 'Tab' && mobileOpen && !isDesktop) {
+            const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+              .filter(element => element.getClientRects().length > 0 && !element.closest('[inert]'));
+            if (focusable.length) {
+              const first = focusable[0];
+              const last = focusable[focusable.length - 1];
+              if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+              else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+            }
+            return;
+          }
           if (event.key !== "Escape" || !isContratosOpen) return;
           event.preventDefault();
           event.stopPropagation();

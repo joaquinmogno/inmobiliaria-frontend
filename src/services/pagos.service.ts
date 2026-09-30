@@ -17,6 +17,8 @@ export interface Pago {
 	    moneda: Moneda;
     fechaPago: string;
     metodoPago: MetodoPago;
+    comprobante?: string | null;
+    imputacionesCuotas?: Array<{ cuotaId: number; monto: number; cuota: { id: number; numeroCuota: number; plan: { concepto: string } } }>;
     observaciones: string | null;
     fechaCreacion: string;
     anuladoEn?: string | null;
@@ -93,7 +95,9 @@ export const pagosService = {
         fechaPago: string;
         metodoPago: MetodoPago;
         cuentaBancariaId?: number;
+        comprobante?: string;
         observaciones?: string;
+        cuotasImputadas?: Array<{ cuotaId: number; monto: number }>;
     }) => {
         return api.post<{ pagos: Pago[], montoSobrante: number }>('/pagos', data);
     },

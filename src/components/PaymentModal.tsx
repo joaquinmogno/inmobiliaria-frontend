@@ -12,19 +12,23 @@ import { cuentasBancariasService, type CuentaBancaria } from "../services/cuenta
 interface PaymentModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (p: { monto: number, fechaPago: string, metodoPago: MetodoPago, cuentaBancariaId?: number, observaciones?: string }) => void;
+    onSave: (p: { monto: number, fechaPago: string, metodoPago: MetodoPago, cuentaBancariaId?: number, comprobante?: string, observaciones?: string, cuotasImputadas?: Array<{ cuotaId: number; monto: number }> }) => void;
     suggestedAmount?: number;
     moneda?: Moneda;
     targetLabel?: string;
     otherDebtAmount?: number;
+    agreedMethod?: MetodoPago | null;
+    installments?: Array<{ id: number; numeroCuota: number; concepto: string; saldo: number; total: number }>;
 }
 
-export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount, moneda = "ARS", targetLabel, otherDebtAmount = 0 }: PaymentModalProps) {
+export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount, moneda = "ARS", targetLabel, otherDebtAmount = 0, agreedMethod, installments = [] }: PaymentModalProps) {
     const { error: formError, setError: setFormError, formRef } = useFormError();
     const [monto, setMonto] = useState("");
     const [fechaPago, setFechaPago] = useState(() => todayDateInput());
     const [metodoPago, setMetodoPago] = useState<MetodoPago>("EFECTIVO");
     const [observaciones, setObservaciones] = useState("");
+    const [comprobante, setComprobante] = useState("");
+    const [quotaAmounts, setQuotaAmounts] = useState<Record<number, string>>({});
     const [cuentas, setCuentas] = useState<CuentaBancaria[]>([]);
     const [cuentaBancariaId, setCuentaBancariaId] = useState("");
 
@@ -33,6 +37,7 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
             setMonto(suggestedAmount.toString());
         }
     }, [isOpen, suggestedAmount]);
+    useEffect(() => { if (isOpen && agreedMethod) setMetodoPago(agreedMethod); }, [isOpen, agreedMethod]);
     useEffect(() => { if (isOpen) cuentasBancariasService.getAll().then(setCuentas).catch(() => setCuentas([])); }, [isOpen]);
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -42,16 +47,23 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
         if (!Number.isFinite(amount) || amount <= 0) return setFormError("El monto debe ser mayor a cero.");
         if (suggestedAmount !== undefined && amount > suggestedAmount) return setFormError(`El monto no puede superar ${formatCurrency(suggestedAmount, moneda)}.`);
         if (metodoPago !== 'EFECTIVO' && !cuentaBancariaId) return setFormError('Seleccioná la cuenta bancaria donde ingresó el pago.');
+        const cuotasImputadas = Object.entries(quotaAmounts).filter(([, value]) => Number(value) > 0).map(([cuotaId, value]) => ({ cuotaId: Number(cuotaId), monto: Number(value) }));
+        if (cuotasImputadas.reduce((total, item) => total + item.monto, 0) > amount + 0.001) return setFormError('La suma asignada a cuotas supera el importe recibido.');
+        if (cuotasImputadas.some(item => item.monto > (installments.find(cuota => cuota.id === item.cuotaId)?.saldo || 0))) return setFormError('Una cuota supera su saldo pendiente.');
         onSave({
             monto: amount,
             fechaPago,
             metodoPago,
             cuentaBancariaId: cuentaBancariaId ? Number(cuentaBancariaId) : undefined,
+            comprobante: comprobante.trim() || undefined,
+            cuotasImputadas,
             observaciones: observaciones || undefined
         });
         // Reset
         setMonto("");
         setObservaciones("");
+        setComprobante("");
+        setQuotaAmounts({});
     };
 
     return (
@@ -175,8 +187,12 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
                                         </div>
                                     </div>
 
+                                    {installments.length > 0 && <div className="rounded-xl border border-blue-200 bg-blue-50 p-4"><p className="font-bold text-blue-950">Imputar a cuotas</p><p className="mt-1 text-xs text-blue-900">Indicá cuánto del cobro corresponde a cada cuota. El resto queda aplicado a los demás conceptos de la liquidación.</p><div className="mt-3 space-y-2">{installments.filter(cuota => cuota.saldo > 0).map(cuota => <label key={cuota.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white p-2 text-sm"><span>{cuota.concepto} · cuota {cuota.numeroCuota} · saldo {formatCurrency(cuota.saldo, moneda)}</span><input type="number" min="0" max={cuota.saldo} step="0.01" aria-label={`Importe para cuota ${cuota.numeroCuota} de ${cuota.concepto}`} value={quotaAmounts[cuota.id] || ''} onChange={event => setQuotaAmounts(current => ({ ...current, [cuota.id]: event.target.value }))} className="w-28 rounded-lg border border-gray-300 px-2 py-1 text-right" placeholder="0,00" /></label>)}</div></div>}
+
                                     {/* Observations */}
                                     <div>
+                                        <label htmlFor="tenant-payment-reference" className="block text-xs font-black text-gray-600 uppercase tracking-widest mb-2">Referencia o comprobante</label>
+                                        <input id="tenant-payment-reference" value={comprobante} maxLength={120} onChange={event => setComprobante(event.target.value)} className="mb-3 min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm" placeholder="N.º de transferencia, cheque o recibo" />
                                         <label htmlFor="tenant-payment-observations" className="block text-xs font-black text-gray-600 uppercase tracking-widest mb-2">
                                             Observaciones (opcional)
                                         </label>

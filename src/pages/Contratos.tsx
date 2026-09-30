@@ -211,6 +211,9 @@ export default function Contratos() {
       formData.append('porcentajeHonorarios', data.porcentajeHonorarios || '');
       formData.append('pagaHonorarios', data.pagaHonorarios || 'INQUILINO');
       formData.append('diaVencimiento', data.diaVencimiento || '10');
+      formData.append('modalidadCobroInquilino', data.modalidadCobroInquilino || '');
+      formData.append('modalidadPagoPropietario', data.modalidadPagoPropietario || '');
+      formData.append('cuentaCobroAcordadaId', data.modalidadCobroInquilino === 'TRANSFERENCIA' ? data.cuentaCobroAcordadaId || '' : '');
       formData.append('porcentajeActualizacion', data.porcentajeActualizacion || '');
       formData.append('tipoAjuste', data.tipoAjuste || '');
       formData.append('administrado', data.administrado.toString());

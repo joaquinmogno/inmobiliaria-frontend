@@ -1,54 +1,19 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { toast } from 'react-hot-toast';
-import NewLiquidationModal from '../components/NewLiquidationModal';
-import { useAuth } from '../context/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 import LiquidationHistory from '../features/liquidations/LiquidationHistory';
 import MonthlyLiquidationWorkspace from '../features/liquidations/MonthlyLiquidationWorkspace';
-import { contractsService, type Contract } from '../services/contracts.service';
-import { liquidacionesService } from '../services/liquidaciones.service';
-import { hasPermission } from '../utils/permissions';
 
 export default function Liquidaciones() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useAuth();
-  const canCreate = hasPermission(user, 'liquidaciones.crear');
-  const [view, setView] = useState<'MES' | 'HISTORIAL'>(() => searchParams.get('view') === 'HISTORIAL' ? 'HISTORIAL' : 'MES');
-  const [contracts, setContracts] = useState<Contract[]>([]);
-  const [individualOpen, setIndividualOpen] = useState(false);
-
-  useEffect(() => {
-    if (!canCreate) return;
-    contractsService.getAll({ limit: 100, status: 'ACTIVO' })
-      .then(response => setContracts(response.data.filter(contract => contract.administrado)))
-      .catch(() => toast.error('No se pudieron cargar los contratos activos'));
-  }, [canCreate]);
-
-  useEffect(() => {
-    if (searchParams.get('view') === 'HISTORIAL') setView('HISTORIAL');
-  }, [searchParams]);
+  const view = searchParams.get('view') === 'HISTORIAL' ? 'HISTORIAL' : 'MES';
 
   const selectView = (nextView: 'MES' | 'HISTORIAL') => {
     const nextParams = new URLSearchParams(searchParams);
     if (nextView === 'HISTORIAL') {
       nextParams.set('view', 'HISTORIAL');
     } else {
-      ['view', 'q', 'periodo', 'estado', 'propiedadId', 'inquilinoId', 'propietarioId', 'moneda', 'vencidas', 'soloDeuda', 'pendientePropietario', 'adelantos'].forEach(key => nextParams.delete(key));
+      ['view', 'q', 'periodo', 'estado', 'propiedadId', 'inquilinoId', 'propietarioId', 'moneda', 'vencidas', 'soloDeuda', 'pendientePropietario', 'adelantos', 'conCuotas'].forEach(key => nextParams.delete(key));
     }
     setSearchParams(nextParams);
-    setView(nextView);
-  };
-
-  const createIndividual = async (contratoId: number, periodo: string, montoHonorarios?: number, porcentajeHonorarios?: number, cuotasIds?: number[]) => {
-    try {
-      const created = await liquidacionesService.create(contratoId, periodo, montoHonorarios, porcentajeHonorarios, cuotasIds);
-      toast.success('Borrador creado');
-      setIndividualOpen(false);
-      navigate(`/liquidaciones/${created.id}`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'No se pudo crear la liquidación');
-    }
   };
 
   return <div className="mx-auto max-w-7xl space-y-6">
@@ -63,9 +28,7 @@ export default function Liquidaciones() {
     </nav>
 
     {view === 'MES'
-      ? <MonthlyLiquidationWorkspace canCreate={canCreate} onOpenIndividual={() => setIndividualOpen(true)} />
+      ? <MonthlyLiquidationWorkspace />
       : <LiquidationHistory />}
-
-    <NewLiquidationModal isOpen={individualOpen} onClose={() => setIndividualOpen(false)} onSave={createIndividual} contracts={contracts} />
   </div>;
 }

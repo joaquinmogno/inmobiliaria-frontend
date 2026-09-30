@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { liquidacionesService, settlementStatusLabel } from "../services/liquidaciones.service";
+import { liquidacionesService, settlementStatusLabel, type ContractLiquidationTimeline } from "../services/liquidaciones.service";
 import {
     ChevronLeftIcon,
     PlusIcon,
@@ -33,7 +33,7 @@ import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
 import AuditTrail from "../components/AuditTrail";
 import { formatCurrency as formatMoney } from "../utils/currency";
-import { formatDate, formatDateTime, formatMonthYear } from "../utils/date";
+import { formatDate, formatDateTime, formatMonthYear, todayDateInput } from "../utils/date";
 import {
     getLiquidationStatusLabel,
     getOwnerNetAmount,
@@ -52,6 +52,7 @@ const ownerMovementStatus = {
 } as const;
 
 export default function LiquidacionDetalle() {
+    const navigate = useNavigate();
     const { user } = useAuth();
     const canEditLiquidations = hasPermission(user, "liquidaciones.editar");
     const canConfirmLiquidations = hasPermission(user, "liquidaciones.confirmar");
@@ -64,10 +65,11 @@ export default function LiquidacionDetalle() {
     const canReverseTenantPayments = hasPermission(user, "pagos.eliminar");
     const { id } = useParams<{ id: string }>();
     const [ownerPaymentTab, setOwnerPaymentTab] = useState<'RESUMEN' | 'MOVIMIENTOS'>('RESUMEN');
+    const [timeline, setTimeline] = useState<ContractLiquidationTimeline | null>(null);
     const {
         liquidacion, isLoading, isLoadingAudit, deudaResumen,
         isMovimientoModalOpen, setIsMovimientoModalOpen,
-        isLiquidarModalOpen, setIsLiquidarModalOpen,
+        confirmError,
         movimientoAEliminar, setMovimientoAEliminar,
         isPaymentModalOpen, setIsPaymentModalOpen,
         isOwnerPaymentModalOpen, setIsOwnerPaymentModalOpen,
@@ -80,6 +82,13 @@ export default function LiquidacionDetalle() {
         loadAuditPage, handleAddMovimiento, handleDeleteMovimiento, handleConfirmar,
         handleSavePayment, handleUpdateHonorarios, handleCreateAdjustment, handleApplyTenantCredit, handleSaveOwnerPayment, handleReverseOwnerPayment, handleReverseTenantPayment, handleDelete, goToList
     } = useLiquidationDetailController(id);
+
+    useEffect(() => {
+        if (!liquidacion?.contratoId) return;
+        let active = true;
+        void liquidacionesService.getContractTimeline(liquidacion.contratoId).then(value => { if (active) setTimeline(value); }).catch(() => {});
+        return () => { active = false; };
+    }, [liquidacion?.contratoId]);
 
     const formatCurrency = (monto: number) => formatMoney(monto, liquidacion?.moneda || "ARS");
 
@@ -117,6 +126,14 @@ export default function LiquidacionDetalle() {
     const ownerRemaining = Math.max(0, ownerTotal - ownerPaid);
     const tenantCollectionPending = ['PENDIENTE', 'PARCIAL'].includes(liquidacion.estadoCobroInquilino);
     const ownerPaymentPending = ['PENDIENTE', 'PARCIAL'].includes(liquidacion.estadoPagoPropietario);
+    const earlierPeriods = timeline?.periodos.filter(item => item.periodo < liquidacion.periodo && item.liquidacionId).reverse() || [];
+    const confirmIssues = [
+        !liquidacion.contrato?.inquilinos.find(item => item.esPrincipal) ? 'Falta definir un inquilino principal.' : null,
+        !liquidacion.contrato?.propietarios.find(item => item.esPrincipal) ? 'Falta definir un propietario principal.' : null,
+        Number(liquidacion.montoAlquilerBase) <= 0 ? 'El alquiler debe ser mayor que cero.' : null,
+        Number(liquidacion.netoACobrar) <= 0 ? 'El total a cobrar debe ser mayor que cero.' : null,
+        Number(liquidacion.montoPropietario) < 0 ? 'El total del propietario no puede ser negativo.' : null
+    ].filter((message): message is string => Boolean(message));
 
     // Los importes quedan congelados al confirmar; luego sólo avanza el flujo de cobro/pago.
     const esEditable = isLiquidationEditable(liquidacion.estado);
@@ -138,13 +155,14 @@ export default function LiquidacionDetalle() {
                 <div data-testid="liquidation-primary-actions" className="grid min-w-0 grid-cols-1 gap-2 min-[480px]:grid-cols-2 lg:ml-auto lg:flex lg:flex-wrap lg:items-center lg:justify-end lg:gap-3">
                     {canConfirmLiquidations && liquidacion.estado === 'BORRADOR' && (
                         <button
-                            onClick={() => setIsLiquidarModalOpen(true)}
+                            onClick={() => void handleConfirmar()}
                             className="flex min-h-11 items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 font-bold text-sm cursor-pointer"
                         >
                             <CheckIcon className="w-5 h-5" />
                             Confirmar liquidación
                         </button>
                     )}
+                    {liquidacion.estado === 'BORRADOR' && <button type="button" onClick={() => { toast.success('Borrador guardado'); navigate(`/liquidaciones/contrato/${liquidacion.contratoId}?periodo=${liquidacion.periodo.slice(0, 7)}`); }} className="min-h-11 rounded-xl border border-indigo-300 bg-white px-4 text-sm font-bold text-indigo-800">Guardar borrador</button>}
                     {canCreatePayments && liquidacion.estado === 'CONFIRMADA' && tenantCollectionPending && (
                         <button
                             onClick={() => setIsPaymentModalOpen(true)}
@@ -191,6 +209,12 @@ export default function LiquidacionDetalle() {
                 </div>
             </div>
 
+            {liquidacion.estado === 'BORRADOR' && (confirmIssues.length > 0 || confirmError) && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900"><p className="font-black">Revisá antes de confirmar</p>{confirmIssues.map(message => <p key={message}>• {message}</p>)}{confirmError && <p>• {confirmError}</p>}</div>}
+
+            <section className="rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm" aria-label="Historial de este contrato"><div className="flex flex-wrap items-center justify-between gap-2"><div><h2 className="font-black text-gray-950">Meses anteriores de esta propiedad</h2><p className="text-xs text-gray-600">Consultá pagos, cuotas, saldos y correcciones mientras armás esta liquidación.</p></div><button type="button" onClick={() => navigate(`/liquidaciones/contrato/${liquidacion.contratoId}?periodo=${liquidacion.periodo.slice(0, 7)}`)} className="text-sm font-bold text-indigo-700">Ver todos los meses →</button></div><div className="mt-3 flex gap-2 overflow-x-auto">{earlierPeriods.length ? earlierPeriods.slice(0, 8).map(item => <button key={item.periodo} type="button" onClick={() => navigate(`/liquidaciones/${item.liquidacionId}`)} className="min-w-40 rounded-lg border border-gray-200 p-2 text-left text-xs hover:bg-indigo-50"><span className="block font-bold capitalize">{formatMonthYear(item.periodo)}</span><span className="block">{item.estado === 'EN_MORA' ? 'En mora' : item.estado.toLowerCase().replaceAll('_', ' ')}</span><span className="block">Saldo {formatMoney(item.saldoInquilino, liquidacion.moneda)}</span><span className="block">{item.ajustes.length} ajuste(s) · {item.cuotas.length} cuota(s)</span></button>) : <p className="text-sm text-gray-600">No hay liquidaciones anteriores.</p>}</div></section>
+
+            {deudaResumen && deudaResumen.totalDeuda > 0 && <section className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><h2 className="font-black text-amber-950">Saldo pendiente de otros períodos: {formatMoney(deudaResumen.totalDeuda, deudaResumen.moneda)}</h2><p className="mt-1 text-sm text-amber-900">Se muestra como referencia para decidir cómo cobrarlo. No se agrega dos veces a esta liquidación.</p><div className="mt-3 flex flex-wrap gap-2">{deudaResumen.detalle.map(item => <button key={item.id} type="button" onClick={() => navigate(`/liquidaciones/${item.id}`)} className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-left text-xs font-bold text-amber-950">{formatMonthYear(item.periodo)} · debe {formatMoney(item.deuda, item.moneda)} →</button>)}</div></section>}
+
             {liquidacion.comprobantes && liquidacion.comprobantes.length > 0 && (
                 <section data-testid="liquidation-vouchers" className="rounded-3xl border border-indigo-100 bg-indigo-50/40 p-5 shadow-sm sm:p-6" aria-labelledby="liquidation-vouchers-title">
                     <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
@@ -210,7 +234,7 @@ export default function LiquidacionDetalle() {
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <h3 className="font-black text-gray-900">Versión {comprobante.version}</h3>
                                                 <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${tieneAjustes ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                                                    {tieneAjustes ? `Corregida · ${comprobante.ajustes.length} ajuste${comprobante.ajustes.length === 1 ? '' : 's'}` : 'Original confirmada'}
+                                                    {comprobante.evento === 'AJUSTE' ? `Corregida · ${comprobante.ajustes.length} ajuste${comprobante.ajustes.length === 1 ? '' : 's'}` : comprobante.evento === 'COBRO_INQUILINO' ? 'Cobro registrado' : comprobante.evento === 'PAGO_PROPIETARIO' ? 'Pago al propietario' : comprobante.evento === 'ANULACION_COBRO' ? 'Cobro anulado' : comprobante.evento === 'ANULACION_PAGO_PROPIETARIO' ? 'Entrega anulada' : 'Original confirmada'}
                                                 </span>
                                             </div>
                                             <p className="mt-1 text-xs text-content-muted">Emitida el {formatDateTime(comprobante.fechaEmision)} por {comprobante.creadoPor.nombreCompleto}</p>
@@ -313,6 +337,13 @@ export default function LiquidacionDetalle() {
                 </details>
             )}
 
+            {esEditable && canEditLiquidations && <section className="rounded-2xl border border-indigo-200 bg-white p-5 shadow-sm"><h2 className="text-lg font-black text-indigo-950">Editar conceptos de esta liquidación</h2><p className="mt-1 text-sm text-gray-600">Los importes se recalculan al guardar cada cambio. Podés seguir en esta pantalla y confirmar al terminar.</p><div className="mt-4 grid gap-5 lg:grid-cols-2">
+                <form onSubmit={event => { event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); const monto = Number(data.get('monto')); if (!Number.isFinite(monto) || monto <= 0) return; void handleAddMovimiento({ tipo: String(data.get('tipo')) as 'INGRESO' | 'DESCUENTO', concepto: String(data.get('concepto')).trim(), monto, esParaInmobiliaria: data.get('esParaInmobiliaria') === 'on', observaciones: String(data.get('observaciones') || '').trim() || undefined }); form.reset(); }} className="space-y-3 rounded-xl border border-gray-200 p-4"><h3 className="font-black text-gray-900">Agregar concepto</h3><div className="grid gap-2 sm:grid-cols-2"><label className="text-sm font-bold">Tipo<select name="tipo" className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-2"><option value="INGRESO">Ingreso</option><option value="DESCUENTO">Descuento o gasto</option></select></label><label className="text-sm font-bold">Importe<input name="monto" required type="number" min="0.01" step="0.01" className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-2" /></label></div><label className="block text-sm font-bold">Concepto<input name="concepto" required maxLength={255} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-2" placeholder="Ej.: reparación, saldo acordado" /></label><label className="block text-sm font-bold">Detalle opcional<input name="observaciones" maxLength={1000} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-2" /></label><label className="flex items-center gap-2 text-sm text-gray-800"><input type="checkbox" name="esParaInmobiliaria" className="h-5 w-5" />Corresponde a la inmobiliaria</label><button type="submit" className="min-h-11 rounded-lg bg-indigo-600 px-4 text-sm font-bold text-white">Agregar y recalcular</button></form>
+                <form key={`honorarios-${liquidacion.version}`} onSubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget); const amount = Number(data.get('honorarios')); if (Number.isFinite(amount) && amount >= 0) void handleUpdateHonorarios({ montoHonorarios: amount, porcentajeHonorarios: 0 }); }} className="space-y-3 rounded-xl border border-gray-200 p-4"><h3 className="font-black text-gray-900">Honorarios de la inmobiliaria</h3><p className="text-xs text-gray-600">Pagador: {liquidacion.pagaHonorarios === 'PROPIETARIO' ? 'propietario' : 'inquilino'}. Al guardar un importe manual, se deja de usar el porcentaje.</p><label className="block text-sm font-bold">Importe<input name="honorarios" required type="number" min="0" step="0.01" defaultValue={Number(liquidacion.montoHonorarios)} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-2" /></label><button type="submit" className="min-h-11 rounded-lg border border-indigo-300 px-4 text-sm font-bold text-indigo-800">Actualizar honorarios</button></form>
+            </div></section>}
+
+            {liquidacion.cuotas && liquidacion.cuotas.length > 0 && <section className="rounded-2xl border border-blue-200 bg-blue-50 p-4"><h2 className="font-black text-blue-950">Cuotas incorporadas</h2><div className="mt-2 grid gap-2 sm:grid-cols-2">{liquidacion.cuotas.map(cuota => <div key={cuota.id} className="rounded-lg bg-white p-3 text-sm"><p className="font-bold">{cuota.plan.concepto} · cuota {cuota.numeroCuota}/{cuota.plan._count.cuotas}</p><p>{formatCurrency(Number(cuota.monto))} · {cuota.estado.toLowerCase()}</p><p>Saldo propio: {formatCurrency(Math.max(0, Number(cuota.monto) - cuota.imputacionesPago.reduce((sum, item) => sum + Number(item.monto), 0)))}</p></div>)}</div></section>}
+
             {/* Document Header Section */}
             <section data-testid="liquidation-document" className="relative min-w-0 overflow-hidden rounded-[2rem] border border-gray-100 bg-white shadow-xl shadow-gray-200/50">
                 <div className="p-8 sm:p-12 relative">
@@ -324,6 +355,16 @@ export default function LiquidacionDetalle() {
                             <p className="text-content-muted font-medium">Comprobante de movimientos mensuales del contrato</p>
                         </div>
                     </div>
+
+                    <dl className="mb-8 grid gap-3 rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                        <div><dt className="font-bold text-gray-600">Próxima actualización</dt><dd className="font-black text-gray-950">{liquidacion.contrato?.requiereActualizacion ? formatDate(liquidacion.contrato.fechaProximaActualizacion) : 'No programada'}</dd></div>
+                        <div><dt className="font-bold text-gray-600">Fin de contrato</dt><dd className="font-black text-gray-950">{formatDate(liquidacion.contrato?.fechaFin)}</dd></div>
+                        <div><dt className="font-bold text-gray-600">Fecha de hoy</dt><dd className="font-black text-gray-950">{formatDate(todayDateInput())}</dd></div>
+                        <div><dt className="font-bold text-gray-600">Vencimiento de pago</dt><dd className="font-black text-gray-950">{formatDate(liquidacion.fechaVencimiento)}</dd></div>
+                        <div><dt className="font-bold text-gray-600">Cobro acordado con inquilino</dt><dd className="font-black text-gray-950">{liquidacion.contrato?.modalidadCobroInquilino || 'Sin acordar'}{liquidacion.contrato?.modalidadCobroInquilino === 'TRANSFERENCIA' ? ` · ${liquidacion.contrato.cuentaCobroAcordada ? `${liquidacion.contrato.cuentaCobroAcordada.banco} · ${liquidacion.contrato.cuentaCobroAcordada.nombre}` : 'Cuenta no definida'}` : ''}</dd></div>
+                        <div><dt className="font-bold text-gray-600">Pago acordado con propietario</dt><dd className="font-black text-gray-950">{liquidacion.contrato?.modalidadPagoPropietario || 'Sin acordar'}{liquidacion.contrato?.modalidadPagoPropietario === 'TRANSFERENCIA' && liquidacion.propietarioPago?.aliasBancario ? ` · ${liquidacion.propietarioPago.aliasBancario}` : ''}</dd></div>
+                        <div><dt className="font-bold text-gray-600">Total pagado por inquilino</dt><dd className="font-black text-gray-950">{formatCurrency(getTenantPaidTotal(liquidacion))}</dd></div>
+                    </dl>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                         {/* CARD: TOTAL INQUILINO */}
@@ -729,7 +770,7 @@ export default function LiquidacionDetalle() {
                         Pagos Registrados
                     </h3>
                     <div className="space-y-2 lg:hidden">
-                        {liquidacion.pagos?.map(p => <article key={p.id} className="rounded-2xl border border-gray-200 bg-white p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-bold text-gray-950">{formatDate(p.fechaPago)} · {p.metodoPago.toLocaleLowerCase()}</p><p className="mt-1 break-words text-sm text-gray-700">{p.observaciones || 'Sin observaciones'} · registró {p.creadoPor?.nombreCompleto || 'Sistema'}</p></div><p className="shrink-0 font-black text-green-800">{formatCurrency(Number(p.monto))}</p></div>{canReverseTenantPayments && liquidacion.estado === 'CONFIRMADA' && <button type="button" data-danger-trigger="true" onClick={() => setTenantPaymentToReverse(p.id)} className="mt-3 min-h-11 rounded-xl border border-red-300 px-3 text-sm font-bold text-red-800">Anular cobro</button>}</article>)}
+                        {liquidacion.pagos?.map(p => <article key={p.id} className="rounded-2xl border border-gray-200 bg-white p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-bold text-gray-950">{formatDate(p.fechaPago)} · {p.metodoPago.toLocaleLowerCase()}</p><p className="mt-1 break-words text-sm text-gray-700">{p.comprobante || p.observaciones || 'Sin referencia'} · {p.movimientoCaja?.cuentaBancaria ? `${p.movimientoCaja.cuentaBancaria.banco} · ${p.movimientoCaja.cuentaBancaria.nombre}` : p.movimientoCaja?.cuenta || 'Caja'} · registró {p.creadoPor?.nombreCompleto || 'Sistema'}</p>{p.imputacionesCuotas?.map(item => <p key={item.cuotaId} className="text-xs text-blue-800">{item.cuota.plan.concepto} · cuota {item.cuota.numeroCuota}: {formatCurrency(Number(item.monto))}</p>)}</div><p className="shrink-0 font-black text-green-800">{formatCurrency(Number(p.monto))}</p></div>{canReverseTenantPayments && liquidacion.estado === 'CONFIRMADA' && <button type="button" data-danger-trigger="true" onClick={() => setTenantPaymentToReverse(p.id)} className="mt-3 min-h-11 rounded-xl border border-red-300 px-3 text-sm font-bold text-red-800">Anular cobro</button>}</article>)}
                     </div>
                     <div className="hidden overflow-x-auto rounded-3xl border border-gray-100 bg-white shadow-sm lg:block">
                         <table className="w-full min-w-[48rem]">
@@ -754,7 +795,9 @@ export default function LiquidacionDetalle() {
                                             </span>
                                         </td>
                                         <td className="break-words py-4 px-6 text-sm font-medium text-content-muted [overflow-wrap:anywhere]">
-                                            {p.observaciones || "-"}
+                                            <p>{p.comprobante || p.observaciones || 'Sin referencia'}</p>
+                                            <p className="mt-1 text-xs text-gray-600">{p.movimientoCaja?.cuentaBancaria ? `${p.movimientoCaja.cuentaBancaria.banco} · ${p.movimientoCaja.cuentaBancaria.nombre}` : p.movimientoCaja?.cuenta || 'Caja'}</p>
+                                            {p.imputacionesCuotas?.map(item => <p key={item.cuotaId} className="mt-1 text-xs text-blue-800">{item.cuota.plan.concepto} · cuota {item.cuota.numeroCuota}: {formatCurrency(Number(item.monto))}</p>)}
                                             {canReverseTenantPayments && liquidacion.estado === 'CONFIRMADA' && <button type="button" data-danger-trigger="true" onClick={() => setTenantPaymentToReverse(p.id)} className="mt-2 block rounded-lg border border-red-300 px-3 py-2 text-xs font-bold text-red-800 hover:bg-red-50">Anular cobro</button>}
                                         </td>
                                         <td className="break-words py-4 px-6 text-sm font-medium text-content-muted [overflow-wrap:anywhere]">
@@ -903,16 +946,6 @@ export default function LiquidacionDetalle() {
             />
 
             <ConfirmationModal
-                isOpen={isLiquidarModalOpen}
-                onClose={() => setIsLiquidarModalOpen(false)}
-                onConfirm={handleConfirmar}
-                title="Confirmar liquidación"
-                message="¿Confirmás esta liquidación? Pasará a pendiente de pago y sus importes ya no podrán editarse."
-                confirmText="Confirmar"
-                type="info"
-            />
-
-            <ConfirmationModal
                 isOpen={movimientoAEliminar !== null}
                 onClose={() => setMovimientoAEliminar(null)}
                 onConfirm={() => movimientoAEliminar !== null && void handleDeleteMovimiento(movimientoAEliminar)}
@@ -929,7 +962,9 @@ export default function LiquidacionDetalle() {
 	                suggestedAmount={getTenantRemainingBalance(liquidacion)}
 	                moneda={liquidacion.moneda}
 	                targetLabel={`la liquidación de ${formatPeriod(liquidacion.periodo)}`}
-	                otherDebtAmount={deudaResumen?.totalDeuda || 0}
+                otherDebtAmount={deudaResumen?.totalDeuda || 0}
+                agreedMethod={liquidacion.contrato?.modalidadCobroInquilino || null}
+                installments={liquidacion.cuotas?.map(cuota => ({ id: cuota.id, numeroCuota: cuota.numeroCuota, concepto: cuota.plan.concepto, total: Number(cuota.monto), saldo: Math.max(0, Number(cuota.monto) - cuota.imputacionesPago.reduce((sum, item) => sum + Number(item.monto), 0)) })) || []}
 	            />
 
             <HonorariosModal
@@ -951,6 +986,7 @@ export default function LiquidacionDetalle() {
 	                disponibleCobrado={Math.max(0, Number(liquidacion.resumenOperativo?.cobradoInquilino || 0) - ownerPaid)}
 	                capitalPropioExpuesto={Number(liquidacion.resumenOperativo?.capitalPropioExpuesto || 0)}
 	                puedeAdelantar={canAdvanceOwnerFunds}
+	                agreedMethod={liquidacion.contrato?.modalidadPagoPropietario || null}
 	            />
             <ReversalModal
                 isOpen={ownerPaymentToReverse !== null}

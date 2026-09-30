@@ -26,7 +26,7 @@ test('los nombres de navegación describen el contenido real de cada módulo', a
   await expect(page.getByRole('heading', { name: 'Gestión Financiera', exact: true })).toBeVisible();
 
   await paymentsLink.click();
-  await expect(page).toHaveURL(/\/pagos$/);
+  await expect(page).toHaveURL(/\/pagos(?:\?.*)?$/);
   await expect(page.getByRole('heading', { name: 'Cobros de inquilinos', exact: true })).toBeVisible();
 
   const userMenu = page.getByRole('button', { name: 'Menú de usuario' });

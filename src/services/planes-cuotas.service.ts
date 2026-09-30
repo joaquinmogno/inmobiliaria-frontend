@@ -19,6 +19,7 @@ export interface PlanCuotas {
     planesReprogramados?: Array<{ id: number; estado: PlanCuotas['estado'] }>;
     cerradoPor?: { id: number; nombreCompleto: string } | null;
     cuotas?: CuotaPlan[];
+    _count?: { cuotas: number };
 }
 
 export interface CuotaPlan {
@@ -58,9 +59,9 @@ export const planesCuotasService = {
         return api.get<PlanCuotas[]>(`/planes-cuotas/contrato/${contratoId}`);
     },
 
-    async getPendientes(contratoId: number, periodo: string) {
+    async getPendientes(contratoId: number, periodo: string, incluirFuturas = false) {
         return api.get<CuotaPlan[]>(`/planes-cuotas/contrato/${contratoId}/pendientes`, {
-            params: { periodo }
+            params: { periodo, ...(incluirFuturas ? { incluirFuturas: 'true' } : {}) }
         });
     },
 

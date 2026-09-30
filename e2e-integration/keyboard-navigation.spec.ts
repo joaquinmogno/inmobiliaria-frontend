@@ -64,7 +64,7 @@ test('la navegación global se puede completar usando solamente el teclado', asy
   await expect(page.getByRole('dialog', { name: 'Menú principal' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Inicio', exact: true })).toBeFocused();
   expect(await main.evaluate(element => (element as HTMLElement).inert)).toBe(true);
-  expect(await page.locator('header').evaluate(element => (element as HTMLElement).inert)).toBe(true);
+  expect(await page.locator('header').first().evaluate(element => (element as HTMLElement).inert)).toBe(true);
 
   for (let index = 0; index < 8; index += 1) {
     await page.keyboard.press('Tab');

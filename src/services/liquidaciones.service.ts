@@ -128,9 +128,11 @@ export interface Liquidacion {
         creditoInquilino: { ajusteLiquidacion: { id: number; concepto: string } };
     }>;
     pagos?: Pago[];
+    cuotas?: Array<{ id: number; numeroCuota: number; monto: number; estado: string; plan: { concepto: string; _count: { cuotas: number } }; imputacionesPago: Array<{ monto: number }> }>;
     comprobantes?: Array<{
         id: number;
         version: number;
+        evento?: 'CONFIRMACION' | 'AJUSTE' | 'COBRO_INQUILINO' | 'ANULACION_COBRO' | 'PAGO_PROPIETARIO' | 'ANULACION_PAGO_PROPIETARIO';
         fechaEmision: string;
         creadoPor: { id: number; nombreCompleto: string };
         moneda: Moneda;
@@ -194,6 +196,7 @@ export interface LiquidationPreparationRow {
     pagado: string;
     pendiente: string;
     vencida: boolean;
+    moraHoy: boolean;
     cuotasPeriodo: Array<{
         id: number;
         numeroCuota: number;
@@ -222,6 +225,7 @@ export interface MonthlyLiquidationPreparation {
     periodo: string;
     resumen: {
         total: number;
+        moraHoy: number;
         pendientesGenerar: number;
         borradores: number;
         pendientesCobro: number;
@@ -235,8 +239,30 @@ export interface MonthlyLiquidationPreparation {
     data: LiquidationPreparationRow[];
 }
 
+export interface ContractLiquidationTimeline {
+    contrato: {
+        id: number; version: number; estado: string; moneda: Moneda; fechaInicio: string; fechaFin: string;
+        fechaProximaActualizacion: string | null; requiereActualizacion: boolean; diaVencimiento: number;
+        modalidadCobroInquilino: string | null; modalidadPagoPropietario: string | null;
+        cuentaCobroAcordada: { id: number; banco: string; nombre: string } | null;
+        propiedad: { direccion: string; piso: string | null; departamento: string | null };
+        inquilino: { nombreCompleto: string } | null;
+        propietario: { nombreCompleto: string; cbu?: string | null; aliasBancario?: string | null } | null;
+    };
+    defaultPeriod: string;
+    periodos: Array<{
+        periodo: string; estado: 'PENDIENTE_LIQUIDAR' | 'BORRADOR' | 'PENDIENTE_COBRO' | 'EN_MORA' | 'PENDIENTE_PAGO_PROPIETARIO' | 'FINALIZADA' | 'REQUIERE_REVISION' | 'OMITIDA' | 'ANULADA';
+        liquidacionId: number | null; total: number | null; cobrado: number; saldoInquilino: number; pagadoPropietario: number; saldoPropietario: number;
+        fechaVencimiento: string | null; pagos: Array<{ monto: number; fechaPago: string; metodoPago: string }>;
+        pagosPropietario: Array<{ monto: number; fechaPago: string; metodoPago: string }>;
+        cuotas: Array<{ id: number; concepto: string; numeroCuota: number; cantidadCuotas: number; monto: number; estado: string; saldo: number }>;
+        ajustes: Array<{ id: number; tipo: string; concepto: string; motivo: string; fechaCreacion: string }>;
+        observacion: string | null; observaciones: string[];
+    }>;
+}
+
 export const liquidacionesService = {
-    getAll: async (contratoId?: number, page: number = 1, limit: number = 50, search?: string, filters: { estado?: string; periodo?: string; propietarioId?: string; inquilinoId?: string; propiedadId?: string; moneda?: string; soloDeuda?: boolean; vencidas?: boolean; pendientePropietario?: boolean; adelantos?: boolean } = {}) => {
+    getAll: async (contratoId?: number, page: number = 1, limit: number = 50, search?: string, filters: { estado?: string; periodo?: string; propietarioId?: string; inquilinoId?: string; propiedadId?: string; moneda?: string; soloDeuda?: boolean; vencidas?: boolean; pendientePropietario?: boolean; adelantos?: boolean; conCuotas?: boolean } = {}) => {
         return api.get<PaginatedResponse<Liquidacion>>('/liquidaciones', {
             params: { 
                 ...(contratoId ? { contratoId: contratoId.toString() } : {}),
@@ -252,7 +278,8 @@ export const liquidacionesService = {
                 ...(filters.soloDeuda ? { soloDeuda: 'true' } : {}),
                 ...(filters.vencidas ? { vencidas: 'true' } : {}),
                 ...(filters.pendientePropietario ? { pendientePropietario: 'true' } : {}),
-                ...(filters.adelantos ? { adelantos: 'true' } : {})
+                ...(filters.adelantos ? { adelantos: 'true' } : {}),
+                ...(filters.conCuotas ? { conCuotas: 'true' } : {})
             }
         });
     },
@@ -271,6 +298,7 @@ export const liquidacionesService = {
     }),
 
     getPreparation: async (periodo: string) => api.get<MonthlyLiquidationPreparation>('/liquidaciones/preparacion', { params: { periodo } }),
+    getContractTimeline: async (contratoId: number, periodo?: string) => api.get<ContractLiquidationTimeline>(`/liquidaciones/contrato/${contratoId}/periodos`, { params: periodo ? { periodo } : {} }),
 
     generatePeriod: async (periodo: string, contratoIds?: number[], selecciones?: Array<{
         contratoId: number;
@@ -304,6 +332,7 @@ export const liquidacionesService = {
         concepto: string;
         monto: number;
         observaciones?: string;
+        esParaInmobiliaria?: boolean;
         expectedVersion?: number;
     }) => {
         return api.post<Liquidacion>(`/liquidaciones/${liquidacionId}/movimientos`, data);

@@ -25,9 +25,10 @@ interface OwnerPaymentModalProps {
     disponibleCobrado?: number;
     capitalPropioExpuesto?: number;
     puedeAdelantar?: boolean;
+    agreedMethod?: MetodoPago | null;
 }
 
-export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAmount, moneda = "ARS", owner, disponibleCobrado = 0, capitalPropioExpuesto = 0, puedeAdelantar = false }: OwnerPaymentModalProps) {
+export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAmount, moneda = "ARS", owner, disponibleCobrado = 0, capitalPropioExpuesto = 0, puedeAdelantar = false, agreedMethod }: OwnerPaymentModalProps) {
     const [fechaPago, setFechaPago] = useState(() => todayDateInput());
     const [metodoPago, setMetodoPago] = useState<MetodoPago>("EFECTIVO");
     const [comprobante, setComprobante] = useState("");
@@ -37,6 +38,7 @@ export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAm
     const [cuentas, setCuentas] = useState<CuentaBancaria[]>([]);
     const [cuentaBancariaId, setCuentaBancariaId] = useState("");
     useEffect(() => { if (isOpen) cuentasBancariasService.getAll().then(setCuentas).catch(() => setCuentas([])); }, [isOpen]);
+    useEffect(() => { if (isOpen && agreedMethod) setMetodoPago(agreedMethod); }, [isOpen, agreedMethod]);
     const validCbu = isValidCbu(owner?.cbu);
     const validAlias = isValidBankAlias(owner?.aliasBancario);
     const bankDestinationReady = (validCbu || validAlias) && Boolean(owner?.titularidadBancariaVerificada);
