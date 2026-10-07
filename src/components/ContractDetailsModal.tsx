@@ -520,12 +520,20 @@ export default function ContractDetailsModal({
                                                             <div key={actualizacion.id} className="bg-white p-3 rounded-lg border border-amber-100 shadow-sm">
                                                                 <div className="flex justify-between items-start mb-2">
                                                                     <p className="text-xs font-bold text-status-warning uppercase">
-                                                                        {formatDate(actualizacion.fechaActualizacion)}
+                                                                        {actualizacion.fechaVigencia
+                                                                            ? `Vigente desde ${formatDate(actualizacion.fechaVigencia)}`
+                                                                            : formatDate(actualizacion.fechaActualizacion)}
                                                                     </p>
                                                                     <span className="text-xs font-bold text-content-muted bg-gray-100 px-1.5 py-0.5 rounded uppercase font-display">
                                                                         Por: {actualizacion.usuario?.nombreCompleto || 'Sistema'}
                                                                     </span>
                                                                 </div>
+                                                                {actualizacion.fechaVigencia && (
+                                                                    <p className="mb-2 text-xs text-gray-600">
+                                                                        Registrada el {formatDate(actualizacion.fechaActualizacion)}
+                                                                        {actualizacion.porcentajeAplicado != null ? ` · Variación informada: ${Number(actualizacion.porcentajeAplicado)}%` : ''}
+                                                                    </p>
+                                                                )}
                                                                 <div className="grid grid-cols-2 gap-4 text-sm">
                                                                     <div>
                                                                         <p className="text-xs text-gray-600 font-bold uppercase mb-0.5 font-display">Monto Alquiler</p>

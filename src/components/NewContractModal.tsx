@@ -522,6 +522,22 @@ export default function NewContractModal({
                                                 />
                                             </div>
                                         </div>
+                                        <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 p-4">
+                                            <label htmlFor="contract-management-fee-rate" className="block text-sm font-bold text-indigo-950">Honorarios mensuales de gestión (%)</label>
+                                            <p className="mt-1 text-xs text-indigo-900">Los abona siempre el propietario. Se calculan únicamente sobre el alquiler mensual vigente y se descuentan de su liquidación.</p>
+                                            <input
+                                                id="contract-management-fee-rate"
+                                                name="porcentajeHonorarios"
+                                                type="number"
+                                                required
+                                                min="0"
+                                                max="100"
+                                                step="0.01"
+                                                value={formData.porcentajeHonorarios}
+                                                onChange={event => setFormData(current => ({ ...current, porcentajeHonorarios: event.target.value, pagaHonorarios: 'PROPIETARIO' }))}
+                                                className="mt-3 min-h-11 w-full max-w-40 rounded-lg border border-indigo-200 bg-white px-3 text-sm font-bold text-gray-900"
+                                            />
+                                        </div>
                                     </div>
 
                                     <section className="rounded-xl border border-gray-200 bg-white p-4">

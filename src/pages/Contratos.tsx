@@ -209,7 +209,7 @@ export default function Contratos() {
       formData.append('moneda', data.moneda || 'ARS');
       formData.append('montoHonorarios', data.montoHonorarios || '0');
       formData.append('porcentajeHonorarios', data.porcentajeHonorarios || '');
-      formData.append('pagaHonorarios', data.pagaHonorarios || 'INQUILINO');
+      formData.append('pagaHonorarios', 'PROPIETARIO');
       formData.append('diaVencimiento', data.diaVencimiento || '10');
       formData.append('modalidadCobroInquilino', data.modalidadCobroInquilino || '');
       formData.append('modalidadPagoPropietario', data.modalidadPagoPropietario || '');

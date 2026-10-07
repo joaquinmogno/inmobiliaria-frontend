@@ -79,8 +79,8 @@ export const selectExistingParty = (parties: ContractParty[], person: Persona): 
 
 export const createEmptyContractForm = (): ContractFormData => ({
     address: '', floor: '', unit: '', startDate: '', endDate: '', updateDate: '',
-    montoAlquiler: '', moneda: 'ARS', montoHonorarios: '', porcentajeHonorarios: '',
-    porcentajeActualizacion: '', pagaHonorarios: 'INQUILINO', diaVencimiento: '10',
+    montoAlquiler: '', moneda: 'ARS', montoHonorarios: '', porcentajeHonorarios: '5',
+    porcentajeActualizacion: '', pagaHonorarios: 'PROPIETARIO', diaVencimiento: '10',
     modalidadCobroInquilino: '', modalidadPagoPropietario: '', cuentaCobroAcordadaId: '',
     tipoAjuste: '', file: null, observacionDocumento: '', observations: '', additionalFiles: [],
     serviciosGastos: [],
@@ -99,9 +99,9 @@ export const createContractFormFromContract = (contract: Contract): ContractForm
     montoAlquiler: contract.montoAlquiler.toString(),
     moneda: contract.moneda || 'ARS',
     montoHonorarios: contract.montoHonorarios.toString(),
-    porcentajeHonorarios: contract.porcentajeHonorarios?.toString() || '',
+    porcentajeHonorarios: contract.porcentajeHonorarios?.toString() ?? '5',
     porcentajeActualizacion: contract.porcentajeActualizacion?.toString() || '',
-    pagaHonorarios: contract.pagaHonorarios as string,
+    pagaHonorarios: 'PROPIETARIO',
     diaVencimiento: contract.diaVencimiento.toString(),
     modalidadCobroInquilino: contract.modalidadCobroInquilino || '',
     modalidadPagoPropietario: contract.modalidadPagoPropietario || '',
@@ -172,6 +172,9 @@ export const getContractFormError = (
         return 'Una persona no puede ser a la vez propietario e inquilino del mismo contrato.';
     }
     if (!form.startDate || !form.endDate) return 'Las fechas de inicio y fin son obligatorias.';
+    if (form.porcentajeHonorarios === '' || !Number.isFinite(Number(form.porcentajeHonorarios)) || Number(form.porcentajeHonorarios) < 0 || Number(form.porcentajeHonorarios) > 100) {
+        return 'Indicá un porcentaje de honorarios entre 0 y 100.';
+    }
     if (form.requiereActualizacion && !form.updateDate) {
         return 'La próxima actualización es obligatoria si el contrato tiene actualización programada.';
     }

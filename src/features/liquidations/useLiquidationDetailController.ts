@@ -17,7 +17,6 @@ export const useLiquidationDetailController = (id?: string) => {
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [isOwnerPaymentModalOpen, setIsOwnerPaymentModalOpen] = useState(false);
     const [ownerPaymentToReverse, setOwnerPaymentToReverse] = useState<number | null>(null);
-    const [isHonorariosModalOpen, setIsHonorariosModalOpen] = useState(false);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isAdjustmentModalOpen, setIsAdjustmentModalOpen] = useState(false);
     const [creditToApply, setCreditToApply] = useState<{ id: number; saldo: number } | null>(null);
@@ -111,7 +110,7 @@ export const useLiquidationDetailController = (id?: string) => {
         }
     };
 
-    const handleUpdateHonorarios = async (data: { montoHonorarios: number; porcentajeHonorarios?: number }) => {
+    const handleUpdateHonorarios = async (data: { montoHonorarios?: number; porcentajeHonorarios?: number; motivo: string }) => {
         try {
             await liquidacionesService.updateHonorarios(liquidationId, {
                 ...data,
@@ -119,9 +118,30 @@ export const useLiquidationDetailController = (id?: string) => {
             });
             await loadLiquidation();
             toast.success('Honorarios actualizados');
-            setIsHonorariosModalOpen(false);
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Error al actualizar honorarios');
+        }
+    };
+    const handleUpdateAlquiler = async (data: {
+        montoNuevo: number;
+        alcance: 'SOLO_PERIODO' | 'DESDE_PERIODO';
+        motivo: string;
+        fechaProximaNueva?: string;
+        porcentajeAplicado?: number;
+    }) => {
+        if (!liquidacion) return;
+        try {
+            const result = await liquidacionesService.updateAlquiler(liquidationId, {
+                ...data,
+                expectedVersion: liquidacion.version,
+                expectedContractVersion: data.alcance === 'DESDE_PERIODO' ? liquidacion.contrato?.version : undefined
+            });
+            await loadLiquidation(false);
+            toast.success(data.alcance === 'DESDE_PERIODO'
+                ? `Alquiler actualizado; ${result.borradoresActualizados} borrador(es) recalculado(s)`
+                : 'Alquiler excepcional guardado para este período');
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'No se pudo actualizar el alquiler');
         }
     };
     const handleCreateAdjustment = async (data: {
@@ -200,13 +220,12 @@ export const useLiquidationDetailController = (id?: string) => {
         isPaymentModalOpen, setIsPaymentModalOpen,
         isOwnerPaymentModalOpen, setIsOwnerPaymentModalOpen,
         ownerPaymentToReverse, setOwnerPaymentToReverse,
-        isHonorariosModalOpen, setIsHonorariosModalOpen,
         isDeleteModalOpen, setIsDeleteModalOpen,
         isAdjustmentModalOpen, setIsAdjustmentModalOpen,
         creditToApply, setCreditToApply,
         tenantPaymentToReverse, setTenantPaymentToReverse,
         loadAuditPage, handleAddMovimiento, handleDeleteMovimiento, handleConfirmar,
-        handleSavePayment, handleUpdateHonorarios, handleCreateAdjustment, handleApplyTenantCredit, handleSaveOwnerPayment, handleReverseOwnerPayment, handleReverseTenantPayment, handleDelete,
+        handleSavePayment, handleUpdateHonorarios, handleUpdateAlquiler, handleCreateAdjustment, handleApplyTenantCredit, handleSaveOwnerPayment, handleReverseOwnerPayment, handleReverseTenantPayment, handleDelete,
         goToList: () => navigate('/liquidaciones')
     };
 };

@@ -63,6 +63,8 @@ export interface Liquidacion {
     porcentajeHonorarios: number | null;
     montoHonorarios: number;
     montoAlquilerBase: number;
+    alquilerExcepcional?: boolean;
+    motivoCambioAlquiler?: string | null;
     montoPropietario: number;
     montoPagadoPropietario?: number;
     pagaHonorarios: 'INQUILINO' | 'PROPIETARIO';
@@ -342,9 +344,19 @@ export const liquidacionesService = {
         return api.delete<Liquidacion>(`/liquidaciones/movimientos/${movimientoId}`);
     },
 
-    updateHonorarios: async (id: number, data: { montoHonorarios?: number, porcentajeHonorarios?: number, expectedVersion?: number }) => {
+    updateHonorarios: async (id: number, data: { montoHonorarios?: number, porcentajeHonorarios?: number, motivo: string, expectedVersion?: number }) => {
         return api.patch<Liquidacion>(`/liquidaciones/${id}/honorarios`, data);
     },
+
+    updateAlquiler: async (id: number, data: {
+        montoNuevo: number;
+        alcance: 'SOLO_PERIODO' | 'DESDE_PERIODO';
+        motivo: string;
+        fechaProximaNueva?: string;
+        porcentajeAplicado?: number;
+        expectedVersion: number;
+        expectedContractVersion?: number;
+    }) => api.patch<{ liquidacion: Liquidacion; borradoresActualizados: number; contratoVersion: number }>(`/liquidaciones/${id}/alquiler`, data),
 
     confirmar: async (id: number, expectedVersion?: number) => {
         return api.patch<Liquidacion>(`/liquidaciones/${id}/confirmar`, { expectedVersion });

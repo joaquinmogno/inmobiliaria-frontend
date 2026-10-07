@@ -13,8 +13,10 @@ export type TipoDocumentoContrato = 'CONTRATO_PRINCIPAL' | 'ADENDA' | 'ADJUNTO';
 export interface ContractUpdateHistory {
     id: number;
     fechaActualizacion: string;
+    fechaVigencia?: string | null;
     montoAnterior: number;
     montoNuevo: number;
+    porcentajeAplicado?: number | null;
     moneda: Moneda;
     fechaProximaAnterior: string | null;
     fechaProximaNueva: string;

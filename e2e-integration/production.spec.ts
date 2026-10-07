@@ -216,7 +216,7 @@ test('stack real: ciclo de vida contractual y disponibilidad de propiedades', as
         montoAlquiler: 100000,
         montoHonorarios: 0,
         moneda: 'ARS',
-        pagaHonorarios: 'INQUILINO',
+        pagaHonorarios: 'PROPIETARIO',
         diaVencimiento: 10,
         administrado: true,
         requiereActualizacion: false
@@ -306,7 +306,7 @@ test('stack real: cada listado contractual queda aislado por estado', async ({ r
         montoAlquiler: 100000,
         montoHonorarios: 0,
         moneda: 'ARS',
-        pagaHonorarios: 'INQUILINO',
+        pagaHonorarios: 'PROPIETARIO',
         diaVencimiento: 10,
         administrado: true,
         requiereActualizacion: false
@@ -387,7 +387,7 @@ test('stack real: las cuotas futuras no se sugieren, pero pueden incorporarse po
       montoAlquiler: 100000,
       montoHonorarios: 0,
       moneda: 'ARS',
-      pagaHonorarios: 'INQUILINO',
+      pagaHonorarios: 'PROPIETARIO',
       diaVencimiento: 10,
       administrado: true,
       requiereActualizacion: false
@@ -479,7 +479,7 @@ test('stack real: el prorrateo conserva exactamente el total del plan', async ({
       montoAlquiler: 1000,
       montoHonorarios: 0,
       moneda: 'USD',
-      pagaHonorarios: 'INQUILINO',
+      pagaHonorarios: 'PROPIETARIO',
       diaVencimiento: 10,
       administrado: true,
       requiereActualizacion: false
@@ -545,7 +545,7 @@ test('stack real: los medios de pago se limitan a efectivo, transferencia y cheq
           montoAlquiler: 100000,
           montoHonorarios: 0,
           moneda: 'ARS',
-          pagaHonorarios: 'INQUILINO',
+          pagaHonorarios: 'PROPIETARIO',
           diaVencimiento: 10,
           administrado: true,
           requiereActualizacion: false,

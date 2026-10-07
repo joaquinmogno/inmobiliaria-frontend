@@ -15,7 +15,6 @@ import {
     DocumentChartBarIcon,
     BuildingOfficeIcon,
     CurrencyDollarIcon,
-    PencilSquareIcon,
     BriefcaseIcon,
     TagIcon,
     HomeModernIcon,
@@ -24,7 +23,6 @@ import {
 import MovimientoModal from "../components/MovimientoModal";
 import ConfirmationModal from "../components/ConfirmationModal";
 import PaymentModal from "../components/PaymentModal";
-import HonorariosModal from "../components/HonorariosModal";
 import OwnerPaymentModal from "../components/OwnerPaymentModal";
 import ReversalModal from "../components/ReversalModal";
 import LiquidationAdjustmentModal from "../components/LiquidationAdjustmentModal";
@@ -55,6 +53,7 @@ export default function LiquidacionDetalle() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const canEditLiquidations = hasPermission(user, "liquidaciones.editar");
+    const canEditContracts = hasPermission(user, "contratos.editar");
     const canConfirmLiquidations = hasPermission(user, "liquidaciones.confirmar");
     const canPayOwners = hasPermission(user, "liquidaciones.pagar_propietario");
     const canAdvanceOwnerFunds = hasPermission(user, "liquidaciones.adelantar_propietario");
@@ -65,6 +64,7 @@ export default function LiquidacionDetalle() {
     const canReverseTenantPayments = hasPermission(user, "pagos.eliminar");
     const { id } = useParams<{ id: string }>();
     const [ownerPaymentTab, setOwnerPaymentTab] = useState<'RESUMEN' | 'MOVIMIENTOS'>('RESUMEN');
+    const [rentScope, setRentScope] = useState<'SOLO_PERIODO' | 'DESDE_PERIODO'>(canEditContracts ? 'DESDE_PERIODO' : 'SOLO_PERIODO');
     const [timeline, setTimeline] = useState<ContractLiquidationTimeline | null>(null);
     const {
         liquidacion, isLoading, isLoadingAudit, deudaResumen,
@@ -74,13 +74,12 @@ export default function LiquidacionDetalle() {
         isPaymentModalOpen, setIsPaymentModalOpen,
         isOwnerPaymentModalOpen, setIsOwnerPaymentModalOpen,
         ownerPaymentToReverse, setOwnerPaymentToReverse,
-        isHonorariosModalOpen, setIsHonorariosModalOpen,
         isDeleteModalOpen, setIsDeleteModalOpen,
         isAdjustmentModalOpen, setIsAdjustmentModalOpen,
         creditToApply, setCreditToApply,
         tenantPaymentToReverse, setTenantPaymentToReverse,
         loadAuditPage, handleAddMovimiento, handleDeleteMovimiento, handleConfirmar,
-        handleSavePayment, handleUpdateHonorarios, handleCreateAdjustment, handleApplyTenantCredit, handleSaveOwnerPayment, handleReverseOwnerPayment, handleReverseTenantPayment, handleDelete, goToList
+        handleSavePayment, handleUpdateHonorarios, handleUpdateAlquiler, handleCreateAdjustment, handleApplyTenantCredit, handleSaveOwnerPayment, handleReverseOwnerPayment, handleReverseTenantPayment, handleDelete, goToList
     } = useLiquidationDetailController(id);
 
     useEffect(() => {
@@ -127,10 +126,18 @@ export default function LiquidacionDetalle() {
     const tenantCollectionPending = ['PENDIENTE', 'PARCIAL'].includes(liquidacion.estadoCobroInquilino);
     const ownerPaymentPending = ['PENDIENTE', 'PARCIAL'].includes(liquidacion.estadoPagoPropietario);
     const earlierPeriods = timeline?.periodos.filter(item => item.periodo < liquidacion.periodo && item.liquidacionId).reverse() || [];
+    const rentUpdateDue = Boolean(liquidacion.contrato?.requiereActualizacion
+        && liquidacion.contrato.fechaProximaActualizacion
+        && liquidacion.contrato.fechaProximaActualizacion.slice(0, 7) <= liquidacion.periodo.slice(0, 7));
+    const effectiveRentScope = rentUpdateDue && canEditContracts ? 'DESDE_PERIODO' : rentScope;
     const confirmIssues = [
         !liquidacion.contrato?.inquilinos.find(item => item.esPrincipal) ? 'Falta definir un inquilino principal.' : null,
         !liquidacion.contrato?.propietarios.find(item => item.esPrincipal) ? 'Falta definir un propietario principal.' : null,
         Number(liquidacion.montoAlquilerBase) <= 0 ? 'El alquiler debe ser mayor que cero.' : null,
+        liquidacion.contrato?.requiereActualizacion && !liquidacion.contrato.fechaProximaActualizacion ? 'Falta definir la fecha de próxima actualización del alquiler.' : null,
+        rentUpdateDue ? canEditContracts
+            ? 'La actualización del alquiler está pendiente: cargá el nuevo importe y guardalo para los próximos meses antes de confirmar.'
+            : 'La actualización del alquiler está pendiente: necesitás que alguien con permiso de edición de contratos cargue el nuevo importe antes de confirmar.' : null,
         Number(liquidacion.netoACobrar) <= 0 ? 'El total a cobrar debe ser mayor que cero.' : null,
         Number(liquidacion.montoPropietario) < 0 ? 'El total del propietario no puede ser negativo.' : null
     ].filter((message): message is string => Boolean(message));
@@ -337,9 +344,36 @@ export default function LiquidacionDetalle() {
                 </details>
             )}
 
-            {esEditable && canEditLiquidations && <section className="rounded-2xl border border-indigo-200 bg-white p-5 shadow-sm"><h2 className="text-lg font-black text-indigo-950">Editar conceptos de esta liquidación</h2><p className="mt-1 text-sm text-gray-600">Los importes se recalculan al guardar cada cambio. Podés seguir en esta pantalla y confirmar al terminar.</p><div className="mt-4 grid gap-5 lg:grid-cols-2">
+            {esEditable && canEditLiquidations && <section className="rounded-2xl border border-indigo-200 bg-white p-5 shadow-sm"><h2 className="text-lg font-black text-indigo-950">Editar conceptos de esta liquidación</h2><p className="mt-1 text-sm text-gray-600">Los importes se recalculan al guardar cada cambio. Podés seguir en esta pantalla y confirmar al terminar.</p>
+                {rentUpdateDue && <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-950">Actualización del alquiler pendiente desde {formatDate(liquidacion.contrato?.fechaProximaActualizacion)}. Ingresá el importe nuevo antes de confirmar; quedará predeterminado para los meses siguientes.</p>}
+                {(!rentUpdateDue || canEditContracts) && <form key={`alquiler-${liquidacion.version}`} onSubmit={event => {
+                    event.preventDefault();
+                    const data = new FormData(event.currentTarget);
+                    const amount = Number(data.get('montoNuevo'));
+                    const reason = String(data.get('motivo') || '').trim();
+                    const nextDate = String(data.get('fechaProximaNueva') || '');
+                    const percentage = String(data.get('porcentajeAplicado') || '');
+                    if (!Number.isFinite(amount) || amount <= 0 || reason.length < 5 || (effectiveRentScope === 'DESDE_PERIODO' && !nextDate)) return;
+                    void handleUpdateAlquiler({
+                        montoNuevo: amount,
+                        alcance: effectiveRentScope,
+                        motivo: reason,
+                        ...(effectiveRentScope === 'DESDE_PERIODO' ? {
+                            fechaProximaNueva: nextDate,
+                            ...(percentage ? { porcentajeAplicado: Number(percentage) } : {})
+                        } : {})
+                    });
+                }} className="mt-4 space-y-4 rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
+                    <div><h3 className="font-black text-indigo-950">Alquiler mensual</h3><p className="mt-1 text-sm text-indigo-900">Valor actual de este borrador: {formatCurrency(Number(liquidacion.montoAlquilerBase))}{liquidacion.alquilerExcepcional ? ' · excepción de este período' : ''}</p></div>
+                    <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm font-bold text-gray-800">Nuevo importe<input name="montoNuevo" required type="number" min="0.01" step="0.01" defaultValue={Number(liquidacion.montoAlquilerBase)} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3" /></label><label className="text-sm font-bold text-gray-800">Alcance<select value={effectiveRentScope} onChange={event => setRentScope(event.target.value as 'SOLO_PERIODO' | 'DESDE_PERIODO')} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3">{!rentUpdateDue && <option value="SOLO_PERIODO">Solo esta liquidación (excepción)</option>}{canEditContracts && <option value="DESDE_PERIODO">Desde este mes y siguientes (predeterminado)</option>}</select></label></div>
+                    {effectiveRentScope === 'DESDE_PERIODO' && canEditContracts && <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm font-bold text-gray-800">Próxima actualización<input name="fechaProximaNueva" required type="date" className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3" /></label><label className="text-sm font-bold text-gray-800">Porcentaje aplicado (opcional)<input name="porcentajeAplicado" type="number" min="0" max="999" step="0.0001" className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3" /></label></div>}
+                    <label className="block text-sm font-bold text-gray-800">Motivo o referencia del cálculo<textarea name="motivo" required minLength={5} maxLength={1000} rows={2} defaultValue={liquidacion.motivoCambioAlquiler || ''} placeholder="Ej.: actualización manual según IPC del período" className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2" /></label>
+                    <p className="text-xs text-gray-600">La actualización contractual recalcula los borradores posteriores, pero nunca modifica comprobantes confirmados. Un importe excepcional no cambia el contrato.</p>
+                    <button type="submit" className="min-h-11 rounded-lg bg-indigo-700 px-4 text-sm font-bold text-white hover:bg-indigo-800">Guardar alquiler y recalcular</button>
+                </form>}
+                <div className="mt-4 grid gap-5 lg:grid-cols-2">
                 <form onSubmit={event => { event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); const monto = Number(data.get('monto')); if (!Number.isFinite(monto) || monto <= 0) return; void handleAddMovimiento({ tipo: String(data.get('tipo')) as 'INGRESO' | 'DESCUENTO', concepto: String(data.get('concepto')).trim(), monto, esParaInmobiliaria: data.get('esParaInmobiliaria') === 'on', observaciones: String(data.get('observaciones') || '').trim() || undefined }); form.reset(); }} className="space-y-3 rounded-xl border border-gray-200 p-4"><h3 className="font-black text-gray-900">Agregar concepto</h3><div className="grid gap-2 sm:grid-cols-2"><label className="text-sm font-bold">Tipo<select name="tipo" className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-2"><option value="INGRESO">Ingreso</option><option value="DESCUENTO">Descuento o gasto</option></select></label><label className="text-sm font-bold">Importe<input name="monto" required type="number" min="0.01" step="0.01" className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-2" /></label></div><label className="block text-sm font-bold">Concepto<input name="concepto" required maxLength={255} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-2" placeholder="Ej.: reparación, saldo acordado" /></label><label className="block text-sm font-bold">Detalle opcional<input name="observaciones" maxLength={1000} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-2" /></label><label className="flex items-center gap-2 text-sm text-gray-800"><input type="checkbox" name="esParaInmobiliaria" className="h-5 w-5" />Corresponde a la inmobiliaria</label><button type="submit" className="min-h-11 rounded-lg bg-indigo-600 px-4 text-sm font-bold text-white">Agregar y recalcular</button></form>
-                <form key={`honorarios-${liquidacion.version}`} onSubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget); const amount = Number(data.get('honorarios')); if (Number.isFinite(amount) && amount >= 0) void handleUpdateHonorarios({ montoHonorarios: amount, porcentajeHonorarios: 0 }); }} className="space-y-3 rounded-xl border border-gray-200 p-4"><h3 className="font-black text-gray-900">Honorarios de la inmobiliaria</h3><p className="text-xs text-gray-600">Pagador: {liquidacion.pagaHonorarios === 'PROPIETARIO' ? 'propietario' : 'inquilino'}. Al guardar un importe manual, se deja de usar el porcentaje.</p><label className="block text-sm font-bold">Importe<input name="honorarios" required type="number" min="0" step="0.01" defaultValue={Number(liquidacion.montoHonorarios)} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-2" /></label><button type="submit" className="min-h-11 rounded-lg border border-indigo-300 px-4 text-sm font-bold text-indigo-800">Actualizar honorarios</button></form>
+                <form key={`honorarios-${liquidacion.version}`} onSubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget); const percentage = Number(data.get('porcentajeHonorarios')); const reason = String(data.get('motivoHonorarios') || '').trim(); if (Number.isFinite(percentage) && percentage >= 0 && percentage <= 100 && reason.length >= 5) void handleUpdateHonorarios({ porcentajeHonorarios: percentage, motivo: reason }); }} className="space-y-3 rounded-xl border border-gray-200 p-4"><h3 className="font-black text-gray-900">Honorarios de la inmobiliaria</h3><p className="text-xs text-gray-600">Los abona el propietario. El porcentaje se aplica solo al alquiler de este período y se descuenta del neto a entregarle.</p><label className="block text-sm font-bold">Porcentaje acordado (%)<input name="porcentajeHonorarios" required type="number" min="0" max="100" step="0.01" defaultValue={Number(liquidacion.porcentajeHonorarios ?? 5)} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-2" /></label><label className="block text-sm font-bold">Motivo del cambio<textarea name="motivoHonorarios" required minLength={5} maxLength={1000} rows={2} className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2" placeholder="Ej.: porcentaje acordado en el contrato" /></label><p className="text-xs text-gray-600">Importe actual: {formatCurrency(Number(liquidacion.montoHonorarios))}</p><button type="submit" className="min-h-11 rounded-lg border border-indigo-300 px-4 text-sm font-bold text-indigo-800">Actualizar honorarios</button></form>
             </div></section>}
 
             {liquidacion.cuotas && liquidacion.cuotas.length > 0 && <section className="rounded-2xl border border-blue-200 bg-blue-50 p-4"><h2 className="font-black text-blue-950">Cuotas incorporadas</h2><div className="mt-2 grid gap-2 sm:grid-cols-2">{liquidacion.cuotas.map(cuota => <div key={cuota.id} className="rounded-lg bg-white p-3 text-sm"><p className="font-bold">{cuota.plan.concepto} · cuota {cuota.numeroCuota}/{cuota.plan._count.cuotas}</p><p>{formatCurrency(Number(cuota.monto))} · {cuota.estado.toLowerCase()}</p><p>Saldo propio: {formatCurrency(Math.max(0, Number(cuota.monto) - cuota.imputacionesPago.reduce((sum, item) => sum + Number(item.monto), 0)))}</p></div>)}</div></section>}
@@ -365,6 +399,13 @@ export default function LiquidacionDetalle() {
                         <div><dt className="font-bold text-gray-600">Pago acordado con propietario</dt><dd className="font-black text-gray-950">{liquidacion.contrato?.modalidadPagoPropietario || 'Sin acordar'}{liquidacion.contrato?.modalidadPagoPropietario === 'TRANSFERENCIA' && liquidacion.propietarioPago?.aliasBancario ? ` · ${liquidacion.propietarioPago.aliasBancario}` : ''}</dd></div>
                         <div><dt className="font-bold text-gray-600">Total pagado por inquilino</dt><dd className="font-black text-gray-950">{formatCurrency(getTenantPaidTotal(liquidacion))}</dd></div>
                     </dl>
+
+                    {liquidacion.motivoCambioAlquiler && (
+                        <div className="mb-8 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                            <p className="font-bold">{liquidacion.alquilerExcepcional ? 'Alquiler excepcional de este período' : 'Actualización del alquiler aplicada'}</p>
+                            <p className="mt-1">{liquidacion.motivoCambioAlquiler}</p>
+                        </div>
+                    )}
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                         {/* CARD: TOTAL INQUILINO */}
@@ -475,15 +516,6 @@ export default function LiquidacionDetalle() {
                                     <CurrencyDollarIcon className="w-4 h-4" />
                                     Honorarios Inmob.
                                 </div>
-                                {esEditable && canEditLiquidations && (
-                                    <button 
-                                        onClick={() => setIsHonorariosModalOpen(true)}
-                                        className="text-status-accent hover:text-indigo-600 transition-colors p-1 rounded-lg hover:bg-indigo-50 cursor-pointer"
-                                        title="Editar honorarios"
-                                    >
-                                        <PencilSquareIcon className="w-4 h-4" />
-                                    </button>
-                                )}
                             </div>
                             <div>
                                 <p data-testid="liquidation-fact-value" className="break-words text-lg font-bold text-teal-700 [overflow-wrap:anywhere]">
@@ -966,15 +998,6 @@ export default function LiquidacionDetalle() {
                 agreedMethod={liquidacion.contrato?.modalidadCobroInquilino || null}
                 installments={liquidacion.cuotas?.map(cuota => ({ id: cuota.id, numeroCuota: cuota.numeroCuota, concepto: cuota.plan.concepto, total: Number(cuota.monto), saldo: Math.max(0, Number(cuota.monto) - cuota.imputacionesPago.reduce((sum, item) => sum + Number(item.monto), 0)) })) || []}
 	            />
-
-            <HonorariosModal
-                isOpen={isHonorariosModalOpen}
-                onClose={() => setIsHonorariosModalOpen(false)}
-                onSave={handleUpdateHonorarios}
-                currentMonto={Number(liquidacion.montoHonorarios || 0)}
-                currentPorcentaje={liquidacion.porcentajeHonorarios ? Number(liquidacion.porcentajeHonorarios) : null}
-                moneda={liquidacion.moneda}
-            />
 
             <OwnerPaymentModal
                 isOpen={isOwnerPaymentModalOpen}
