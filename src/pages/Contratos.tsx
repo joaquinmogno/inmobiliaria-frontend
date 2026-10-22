@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment } from "react";
-import { useLocation, useSearchParams } from "react-router-dom";
+import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
 import { Menu, MenuButton, MenuItem, MenuItems, Transition } from "@headlessui/react";
 import { contractsService, type Contract, type ContractDraft, type EstadoContrato } from "../services/contracts.service";
 import { formatCurrency } from "../utils/currency";
@@ -18,7 +18,6 @@ import NewContractModal from "../components/NewContractModal";
 import ContractDetailsModal from "../components/ContractDetailsModal";
 import WhatsAppLink from "../components/WhatsAppLink";
 import ConfirmationModal from "../components/ConfirmationModal";
-import ContractRescissionModal from "../components/ContractRescissionModal";
 import { toast } from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
@@ -33,14 +32,17 @@ type ContractListStatus = Exclude<EstadoContrato, 'PAPELERA'>;
 const contractListOptions: Array<{ value: ContractListStatus; label: string; description: string }> = [
   { value: 'ACTIVO', label: 'Contratos activos', description: 'Contratos actualmente vigentes' },
   { value: 'PROGRAMADO', label: 'Contratos programados', description: 'Contratos que comienzan próximamente' },
+  { value: 'EN_CIERRE', label: 'Contratos en cierre', description: 'Llaves entregadas; cierre financiero pendiente' },
   { value: 'FINALIZADO', label: 'Contratos finalizados', description: 'Contratos cuya vigencia terminó' },
   { value: 'RESCINDIDO', label: 'Contratos rescindidos', description: 'Contratos terminados anticipadamente' }
 ];
 
 export default function Contratos() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const canCreate = hasPermission(user, "contratos.crear");
   const canEdit = hasPermission(user, "contratos.editar");
+  const canViewFinancials = hasPermission(user, "liquidaciones.ver");
   const canDelete = hasPermission(user, "contratos.eliminar");
   const canViewFiles = hasPermission(user, "contratos.archivos.ver");
   const location = useLocation();
@@ -59,7 +61,6 @@ export default function Contratos() {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [contractToDelete, setContractToDelete] = useState<number | null>(null);
-  const [contractToRescind, setContractToRescind] = useState<Contract | null>(null);
 
   const [statusFilter, setStatusFilter] = useState<ContractListStatus>(alertFilter ? 'ACTIVO' : urlStatus);
 
@@ -73,6 +74,25 @@ export default function Contratos() {
       window.history.replaceState({}, document.title);
     }
   }, [location.state, canCreate, searchTerm]);
+
+  useEffect(() => {
+    const renewId = Number(location.state?.renewContractId);
+    if (!canCreate || !Number.isInteger(renewId) || renewId <= 0) return;
+    let active = true;
+    contractsService.getById(renewId).then(contract => {
+      if (!active) return;
+      if ((contract.historialRenovaciones || []).some(entry => entry.contratoAnteriorId === contract.id)) {
+        toast.error('Este contrato ya tiene una renovación. Abrí el contrato nuevo para consultarla.');
+        return;
+      }
+      setEditingContract(null);
+      setActiveDraft(null);
+      setRenewingContract(contract);
+      setIsModalOpen(true);
+    }).catch(error => { if (active) toast.error(error instanceof Error ? error.message : 'No se pudo preparar la renovación'); })
+      .finally(() => { if (active) navigate(`${location.pathname}${location.search}`, { replace: true, state: null }); });
+    return () => { active = false; };
+  }, [canCreate, location.pathname, location.search, location.state, navigate]);
 
   useEffect(() => {
     const nextSearch = searchParams.get('q');
@@ -203,6 +223,7 @@ export default function Contratos() {
       formData.append('fechaInicio', data.startDate);
       formData.append('fechaFin', data.endDate);
       formData.append('fechaActualizacion', data.updateDate);
+      formData.append('frecuenciaActualizacionMeses', data.requiereActualizacion ? data.frecuenciaActualizacion : '');
       formData.append('observaciones', data.observations || '');
       formData.append('serviciosGastos', JSON.stringify(data.serviciosGastos || []));
       formData.append('montoAlquiler', data.montoAlquiler);
@@ -379,23 +400,16 @@ export default function Contratos() {
     setIsDeleteModalOpen(true);
   };
 
-  const handleRescission = async ({ motivo, fechaRescision }: { motivo: string; fechaRescision: string }) => {
-    if (!contractToRescind) return;
-    await contractsService.rescindir(contractToRescind.id, { motivo, fechaRescision, version: contractToRescind.version });
-    toast.success('Contrato rescindido correctamente');
-    setIsDetailsModalOpen(false);
-    await refreshData(debouncedSearch);
-  };
-
   const contractStatusBadge = (estado: Contract['estado']) => {
     const styles = {
       PROGRAMADO: 'bg-blue-50 text-blue-700 border-blue-200',
       ACTIVO: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      EN_CIERRE: 'bg-amber-50 text-amber-700 border-amber-200',
       FINALIZADO: 'bg-gray-100 text-gray-700 border-gray-200',
       RESCINDIDO: 'bg-orange-50 text-orange-700 border-orange-200',
       PAPELERA: 'bg-red-50 text-red-700 border-red-200'
     };
-    const labels = { PROGRAMADO: 'PROGRAMADO', ACTIVO: 'ACTIVO', FINALIZADO: 'FINALIZADO', RESCINDIDO: 'RESCINDIDO', PAPELERA: 'PAPELERA' };
+    const labels = { PROGRAMADO: 'PROGRAMADO', ACTIVO: 'ACTIVO', EN_CIERRE: 'EN CIERRE', FINALIZADO: 'FINALIZADO', RESCINDIDO: 'RESCINDIDO', PAPELERA: 'PAPELERA' };
     return <span className={`text-xs font-bold mt-1 inline-block px-2 py-0.5 rounded border ${styles[estado]}`}>{labels[estado]}</span>;
   };
 
@@ -529,7 +543,7 @@ export default function Contratos() {
         onClose={() => setIsDetailsModalOpen(false)}
         contract={selectedContract}
         onDelete={handleDelete}
-        onRescind={contract => setContractToRescind(contract)}
+        onRescind={canViewFinancials ? contract => navigate(`/contratos/${contract.id}/rescision`) : undefined}
         onRenew={canCreate ? handleRenewContract : undefined}
       />
 
@@ -541,13 +555,6 @@ export default function Contratos() {
         message="Solo los contratos sin actividad financiera ni obligaciones pendientes pueden ir a la papelera. Si tuvo movimientos, usá la rescisión para conservar el historial."
         confirmText="Mover a papelera"
         type="danger"
-      />
-
-      <ContractRescissionModal
-        isOpen={Boolean(contractToRescind)}
-        contractLabel={contractToRescind ? formatAddress(contractToRescind.propiedad) : ''}
-        onClose={() => setContractToRescind(null)}
-        onConfirm={handleRescission}
       />
 
       <FilterBar query={searchTerm} onQueryChange={value => { setSearchTerm(value); setCurrentPage(1); }} onClear={() => { setSearchTerm(""); updateStatusFilter('ACTIVO', true); setCurrentPage(1); }} resultCount={totalContracts} placeholder="Buscar por dirección, propietario, inquilino o teléfono..." />
@@ -711,15 +718,15 @@ export default function Contratos() {
                                   </button>
                                 )}
                               </MenuItem>
-                              {(contract.estado === 'ACTIVO' || contract.estado === 'PROGRAMADO') && <>
+                              {canViewFinancials && ['ACTIVO', 'EN_CIERRE', 'FINALIZADO', 'RESCINDIDO'].includes(contract.estado) && <>
                                 <MenuItem>
                                   {({ focus }) => (
                                     <button
-                                      onClick={() => setContractToRescind(contract)}
+                                      onClick={() => navigate(`/contratos/${contract.id}/rescision`)}
                                       className={`${focus ? 'bg-orange-50 text-orange-700' : 'text-gray-700'} group flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors`}
                                     >
                                       <NoSymbolIcon className="w-4 h-4" />
-                                      Rescindir contrato
+                                      Entrega de llaves y cierre
                                     </button>
                                   )}
                                 </MenuItem>
@@ -833,12 +840,12 @@ export default function Contratos() {
                                                 </button>
                                             )}
                                         </MenuItem>
-                                        {(contract.estado === 'ACTIVO' || contract.estado === 'PROGRAMADO') && <>
+                                        {canViewFinancials && ['ACTIVO', 'EN_CIERRE', 'FINALIZADO', 'RESCINDIDO'].includes(contract.estado) && <>
                                           <MenuItem>
                                             {({ focus }) => (
-                                              <button onClick={() => setContractToRescind(contract)} className={`${focus ? 'bg-orange-50 text-orange-700' : 'text-gray-700'} group flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors`}>
+                                              <button onClick={() => navigate(`/contratos/${contract.id}/rescision`)} className={`${focus ? 'bg-orange-50 text-orange-700' : 'text-gray-700'} group flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors`}>
                                                 <NoSymbolIcon className="w-5 h-5 text-orange-600" />
-                                                Rescindir contrato
+                                                Entrega de llaves y cierre
                                               </button>
                                             )}
                                           </MenuItem>

@@ -7,6 +7,7 @@ import PermissionGuard from "../components/PermissionGuard";
 
 const Home = lazy(() => import("../pages/Home"));
 const Contratos = lazy(() => import("../pages/Contratos"));
+const RescisionContrato = lazy(() => import("../pages/RescisionContrato"));
 const Papelera = lazy(() => import("../pages/Papelera"));
 const Usuarios = lazy(() => import("../pages/Usuarios"));
 const Personas = lazy(() => import("../pages/Personas"));
@@ -32,6 +33,7 @@ export default function AppRouter() {
           <Route path="/home" element={<Home />} />
           <Route path="/mi-acceso" element={<MiAcceso />} />
           <Route path="/contratos" element={<PermissionGuard permission="contratos.ver"><Contratos /></PermissionGuard>} />
+          <Route path="/contratos/:id/rescision" element={<PermissionGuard permission="contratos.ver"><PermissionGuard permission="liquidaciones.ver"><RescisionContrato /></PermissionGuard></PermissionGuard>} />
           <Route path="/propiedades" element={<Navigate to="/contratos" replace />} />
           <Route path="/personas" element={<PermissionGuard permission="personas.ver"><Personas /></PermissionGuard>} />
           <Route path="/contratos/papelera" element={<PermissionGuard permissions={["contratos.restaurar", "contratos.eliminar"]}><Papelera /></PermissionGuard>} />

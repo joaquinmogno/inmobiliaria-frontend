@@ -3,6 +3,7 @@ import { Dialog, Transition, Combobox } from "@headlessui/react";
 import { XMarkIcon, ChevronUpDownIcon, CheckIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import NumericInput from "./NumericInput";
 import type { Contract } from "../services/contracts.service";
+import { liquidacionesService } from "../services/liquidaciones.service";
 import { planesCuotasService, type CuotaPlan } from "../services/planes-cuotas.service";
 import { formatCurrency } from "../utils/currency";
 import FormError, { useFormError } from "./FormError";
@@ -24,7 +25,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
     
     // Honorarios
     const [porcentajeHonorarios, setPorcentajeHonorarios] = useState<string>("");
-    const [montoHonorarios, setMontoHonorarios] = useState<string>("");
+    const [alquilerPeriodo, setAlquilerPeriodo] = useState<number | null>(null);
 
     // Cuotas
     const [pendingCuotas, setPendingCuotas] = useState<CuotaPlan[]>([]);
@@ -50,7 +51,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
         if (!cId) {
             setSelectedContractId("");
             setPorcentajeHonorarios("");
-            setMontoHonorarios("");
+            setAlquilerPeriodo(null);
             setPendingCuotas([]);
             setSelectedCuotasIds([]);
             return;
@@ -60,24 +61,26 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
         
         const contract = contracts.find((c: Contract) => c.id === Number(cId));
         if (contract) {
-            const perc = contract.porcentajeHonorarios || "";
+            const perc = contract.porcentajeHonorarios ?? 5;
             setPorcentajeHonorarios(perc.toString());
-            
-            // Calculamos sugerido
-            if (perc && Number(perc) > 0) {
-                const calculated = (Number(contract.montoAlquiler) * Number(perc)) / 100;
-                setMontoHonorarios(calculated.toString());
-            } else {
-                setMontoHonorarios(contract.montoHonorarios?.toString() || "");
-            }
-
+            setAlquilerPeriodo(Number(contract.montoAlquiler));
         } else {
             setPorcentajeHonorarios("");
-            setMontoHonorarios("");
+            setAlquilerPeriodo(null);
             setPendingCuotas([]);
             setSelectedCuotasIds([]);
         }
     };
+
+    useEffect(() => {
+        if (!selectedContractId || !period) return;
+        let active = true;
+        liquidacionesService.getPreparation(`${period}-01`).then(preparation => {
+            const row = preparation.data.find(item => item.contratoId === Number(selectedContractId));
+            if (active && row) setAlquilerPeriodo(Number(row.montoAlquiler));
+        }).catch(() => {});
+        return () => { active = false; };
+    }, [selectedContractId, period]);
 
     useEffect(() => {
         const contractId = Number(selectedContractId);
@@ -109,17 +112,6 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
         };
     }, [selectedContractId, period]);
 
-    const handlePorcentajeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value;
-        setPorcentajeHonorarios(val);
-        
-        const contract = contracts.find(c => c.id === Number(selectedContractId));
-        if (contract && val && !isNaN(Number(val))) {
-            const calculated = (Number(contract.montoAlquiler) * Number(val)) / 100;
-            setMontoHonorarios(calculated.toString());
-        }
-    };
-
     const selectedContract = contracts.find(c => c.id === Number(selectedContractId));
     const selectedMoneda = selectedContract?.moneda || "ARS";
     const selectedCuotas = pendingCuotas.filter(c => selectedCuotasIds.includes(c.id));
@@ -136,17 +128,20 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
         .filter(c => c.plan?.esParaInmobiliaria)
         .reduce((sum, c) => sum + Number(c.monto), 0);
 
-    const alquiler = selectedContract ? Number(selectedContract.montoAlquiler) : 0;
-    const honorarios = Number(montoHonorarios) || 0;
+    const alquiler = alquilerPeriodo ?? (selectedContract ? Number(selectedContract.montoAlquiler) : 0);
+    const honorarios = Math.round(alquiler * (Number(porcentajeHonorarios) || 0)) / 100;
     
-    const totalInquilino = alquiler + totalIngresosInquilino - totalDescuentosInquilino
-        + (selectedContract?.pagaHonorarios === 'INQUILINO' ? honorarios : 0);
+    const totalInquilino = alquiler + totalIngresosInquilino - totalDescuentosInquilino;
     const totalPropietario = totalInquilino - honorarios - totalCuotasParaInmo;
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setFormError("");
         if (selectedContractId && period) {
+            if (!Number.isFinite(Number(porcentajeHonorarios)) || porcentajeHonorarios === '' || Number(porcentajeHonorarios) < 0 || Number(porcentajeHonorarios) > 100) {
+                setFormError('Indicá un porcentaje de honorarios entre 0 y 100.');
+                return;
+            }
             if (totalPropietario <= 0) {
                 setFormError("Los honorarios y conceptos de la inmobiliaria deben dejar un importe mayor que cero para el propietario.");
                 return;
@@ -159,8 +154,8 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
             onSave(
                 Number(selectedContractId), 
                 `${period}-01`, 
-                montoHonorarios ? Number(montoHonorarios) : undefined,
-                porcentajeHonorarios ? Number(porcentajeHonorarios) : undefined,
+                undefined,
+                Number(porcentajeHonorarios),
                 selectedCuotasIds
             );
         } else setFormError(!selectedContractId ? "Seleccioná un contrato." : "Indicá el período de la liquidación.");
@@ -328,7 +323,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                         id="liquidation-fee-percentage"
                                                         className="block min-h-11 w-full px-3 py-2 text-base text-gray-900 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white"
                                                         value={porcentajeHonorarios}
-                                                        onChange={(val) => handlePorcentajeChange({ target: { value: val.toString() } } as any)}
+                                                        onChange={(val) => setPorcentajeHonorarios(val.toString())}
                                                         placeholder="Ej: 5"
                                                     />
                                                </div>
@@ -336,14 +331,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                     <label htmlFor="liquidation-fee-amount" className="block text-xs font-bold text-indigo-900 uppercase tracking-wide mb-1">
 	                                                        Monto ({selectedMoneda})
                                                     </label>
-                                                    <NumericInput
-                                                        id="liquidation-fee-amount"
-                                                        className="block min-h-11 w-full pr-4 py-2 text-base text-gray-900 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white font-bold"
-                                                        value={montoHonorarios}
-                                                        onChange={(val) => setMontoHonorarios(val.toString())}
-                                                        placeholder="0.00"
-	                                                        icon={<span className="text-content-muted sm:text-sm">{selectedMoneda === "USD" ? "US$" : "$"}</span>}
-                                                    />
+                                                    <output id="liquidation-fee-amount" className="block min-h-11 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-base font-bold text-gray-900">{formatCurrency(honorarios, selectedMoneda)}</output>
                                                </div>
                                             </div>
                                         </div>
@@ -440,7 +428,6 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                         <span className="text-xs font-black text-content-muted uppercase tracking-widest">Inquilino paga</span>
                                                         <span className="text-xs text-gray-600 font-medium">
                                                             Alquiler + conceptos
-                                                            {selectedContract?.pagaHonorarios === 'INQUILINO' ? ' + honorarios' : ''}
                                                         </span>
                                                     </div>
                                                     <span className="text-xl font-black text-gray-900">
@@ -452,7 +439,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                     <div className="flex flex-col">
                                                         <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">Honorarios Inmob.</span>
                                                         <span className="text-xs text-status-accent font-medium">
-                                                            Los abona {selectedContract?.pagaHonorarios === 'PROPIETARIO' ? 'el propietario' : 'el inquilino'}
+                                                            Los abona el propietario
                                                         </span>
                                                     </div>
                                                     <span className="text-lg font-black text-indigo-600">

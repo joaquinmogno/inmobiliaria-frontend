@@ -82,8 +82,9 @@ export function toDateInputValue(value?: string | null): string {
 export function addMonthsToDateInput(value: string, months: number): string {
     const parts = civilParts(value);
     if (!parts || !Number.isInteger(months)) return "";
-    const date = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)));
-    date.setUTCMonth(date.getUTCMonth() + months);
+    const firstOfTargetMonth = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1 + months, 1));
+    const lastDay = new Date(Date.UTC(firstOfTargetMonth.getUTCFullYear(), firstOfTargetMonth.getUTCMonth() + 1, 0)).getUTCDate();
+    const date = new Date(Date.UTC(firstOfTargetMonth.getUTCFullYear(), firstOfTargetMonth.getUTCMonth(), Math.min(Number(parts.day), lastDay)));
     return date.toISOString().slice(0, 10);
 }
 

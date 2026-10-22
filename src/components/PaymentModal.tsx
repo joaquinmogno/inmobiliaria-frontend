@@ -81,8 +81,8 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
                     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
                 </Transition.Child>
 
-                <div className="fixed inset-0 overflow-y-auto">
-                    <div className="flex min-h-full items-center justify-center p-4 text-center">
+                <div className="fixed inset-0 overflow-hidden">
+                    <div className="flex min-h-full items-end justify-center text-center sm:items-center sm:p-4">
                         <Transition.Child
                             as={Fragment}
                             enter="ease-out duration-300"
@@ -92,27 +92,24 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-95"
                         >
-                            <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-3xl bg-white p-8 text-left align-middle shadow-2xl transition-all border border-gray-100">
-                                <div className="flex justify-between items-center mb-8">
+                            <Dialog.Panel className="flex max-h-[100dvh] w-full max-w-md transform flex-col overflow-hidden rounded-t-3xl border border-gray-100 bg-white text-left align-middle shadow-2xl transition-all sm:max-h-[90dvh] sm:rounded-3xl">
+                                <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-100 p-5 sm:p-8 sm:pb-5">
                                     <div>
                                         <Dialog.Title as="h3" className="text-2xl font-black leading-6 text-gray-900 tracking-tight">
                                             Registrar pago
                                         </Dialog.Title>
                                         <p className="text-content-muted text-sm mt-1 font-medium italic">Cobro del inquilino</p>
                                     </div>
-                                    {metodoPago !== 'EFECTIVO' && <div>
-                                        <label htmlFor="tenant-payment-bank" className="block text-xs font-black text-gray-600 uppercase tracking-widest mb-2">Cuenta donde ingresó *</label>
-                                        <AppSelect id="tenant-payment-bank" required ariaLabel="Cuenta bancaria" value={cuentaBancariaId} onChange={setCuentaBancariaId} options={[{ value: '', label: 'Seleccionar cuenta' }, ...cuentas.filter(c => c.moneda === moneda).map(c => ({ value: String(c.id), label: `${c.banco} — ${c.nombre}` }))]} buttonClassName="border-transparent bg-gray-50 font-bold" />
-                                    </div>}
                                     <button
+                                        type="button"
                                         onClick={onClose}
-                                        className="flex h-11 w-11 items-center justify-center text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-all focus:outline-none"
+                                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-gray-600 transition-all hover:bg-gray-100 hover:text-gray-900 focus:outline-none"
                                     >
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
                                 </div>
 
-                                <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
+                                <form ref={formRef} onSubmit={handleSubmit} className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-5 sm:p-8 sm:pt-5">
                                     <FormError message={formError} />
                                     {/* Amount Input */}
 	                                    <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100/50">
@@ -186,6 +183,11 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
                                             />
                                         </div>
                                     </div>
+
+                                    {metodoPago !== 'EFECTIVO' && <div>
+                                        <label htmlFor="tenant-payment-bank" className="mb-2 block text-xs font-black uppercase tracking-widest text-gray-600">Cuenta donde ingresó *</label>
+                                        <AppSelect id="tenant-payment-bank" required ariaLabel="Cuenta bancaria" value={cuentaBancariaId} onChange={setCuentaBancariaId} options={[{ value: '', label: 'Seleccionar cuenta' }, ...cuentas.filter(c => c.moneda === moneda).map(c => ({ value: String(c.id), label: `${c.banco} — ${c.nombre}` }))]} buttonClassName="border-transparent bg-gray-50 font-bold" />
+                                    </div>}
 
                                     {installments.length > 0 && <div className="rounded-xl border border-blue-200 bg-blue-50 p-4"><p className="font-bold text-blue-950">Imputar a cuotas</p><p className="mt-1 text-xs text-blue-900">Indicá cuánto del cobro corresponde a cada cuota. El resto queda aplicado a los demás conceptos de la liquidación.</p><div className="mt-3 space-y-2">{installments.filter(cuota => cuota.saldo > 0).map(cuota => <label key={cuota.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white p-2 text-sm"><span>{cuota.concepto} · cuota {cuota.numeroCuota} · saldo {formatCurrency(cuota.saldo, moneda)}</span><input type="number" min="0" max={cuota.saldo} step="0.01" aria-label={`Importe para cuota ${cuota.numeroCuota} de ${cuota.concepto}`} value={quotaAmounts[cuota.id] || ''} onChange={event => setQuotaAmounts(current => ({ ...current, [cuota.id]: event.target.value }))} className="w-28 rounded-lg border border-gray-300 px-2 py-1 text-right" placeholder="0,00" /></label>)}</div></div>}
 

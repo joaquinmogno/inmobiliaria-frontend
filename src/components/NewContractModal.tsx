@@ -470,7 +470,7 @@ export default function NewContractModal({
                                         <ContractPartyFields
                                             kind="tenant"
                                             parties={tenants}
-                                            editing={!!editingContract}
+                                            editing={!!editingContract || !!renewingContract}
                                             searching={searchingExistingTenant}
                                             onSearchingChange={setSearchingExistingTenant}
                                             onAdd={addTenant}
@@ -478,6 +478,7 @@ export default function NewContractModal({
                                             onRemove={removeTenant}
                                         />
                                     </div>
+                                    {renewingContract && <p className="mt-2 rounded-lg bg-violet-50 p-3 text-xs text-violet-900">La renovación conserva al mismo inquilino. Si va a ocupar el inmueble otra persona, elegí «Nuevo contrato · otro inquilino» para mantener separados ambos historiales.</p>}
 
                                     {/* ─── Condiciones Económicas ─── */}
                                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">

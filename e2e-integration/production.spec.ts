@@ -261,7 +261,7 @@ test('stack real: ciclo de vida contractual y disponibilidad de propiedades', as
 
   const expired = await createContract('Vencido', -60, -30);
   expect(expired.contract.estado).toBe('FINALIZADO');
-  expect((await getProperty(expired.address)).estado).toBe('DISPONIBLE');
+  expect((await getProperty(expired.address)).estado).toBe('PENDIENTE_ENTREGA');
 
   const current = await createContract('Vigente', -10, 10);
   expect(current.contract.estado).toBe('ACTIVO');
@@ -270,11 +270,22 @@ test('stack real: ciclo de vida contractual y disponibilidad de propiedades', as
   const dashboardCurrent = await dashboardCurrentResponse.json();
   expect(dashboardCurrent.contratos.activos).toBe(dashboardBefore.contratos.activos + 1);
 
+  const keyData = { fechaEntregaLlaves: dateAtOffset(-1), cantidadLlaves: 2, receptorNombre: 'Administrador', estadoInmueble: 'Entregado en buen estado', inmuebleDesocupado: true, version: current.contract.version };
+  const keyPreview = await request.post(`/api/contratos/${current.contract.id}/llaves/vista-previa`, { headers, data: keyData });
+  expect(keyPreview.status()).toBe(200);
+  const keyIssue = await request.post(`/api/contratos/${current.contract.id}/llaves`, { headers, data: { ...keyData, vistaPreviaHash: (await keyPreview.json()).vistaPreviaHash } });
+  expect(keyIssue.status()).toBe(201);
+  const closingContract = await request.get(`/api/contratos/${current.contract.id}`, { headers: readHeaders });
+  expect((await closingContract.json()).estado).toBe('EN_CIERRE');
+  expect((await getProperty(current.address)).estado).toBe('DISPONIBLE');
+  const rescissionData = { tipoCierre: 'ANTICIPADA_INQUILINO', sinReclamosConfirmado: true, serviciosSaldadosConfirmados: true, depositoResueltoConfirmado: true, motivo: 'Fin anticipado solicitado por el inquilino', fechaRescision: keyData.fechaEntregaLlaves, llavesEntregadas: true, fechaEntregaLlaves: keyData.fechaEntregaLlaves, cantidadLlaves: 2, estadoInmueble: keyData.estadoInmueble, multaImporte: 0, multaResponsable: null, depositoADevolver: 0, depositoRetenido: 0, pendientesManuales: [], version: (await keyIssue.json()).contratoVersion };
+  const rescissionPreview = await request.post(`/api/contratos/${current.contract.id}/rescision/vista-previa`, { headers, data: rescissionData });
+  expect(rescissionPreview.status()).toBe(200);
   const rescind = await request.post(`/api/contratos/${current.contract.id}/rescindir`, {
     headers,
-    data: { motivo: 'Fin anticipado acordado por las partes', version: current.contract.version }
+    data: { ...rescissionData, vistaPreviaHash: (await rescissionPreview.json()).vistaPreviaHash }
   });
-  expect(rescind.status()).toBe(200);
+  expect(rescind.status()).toBe(201);
   const rescindedContract = await request.get(`/api/contratos/${current.contract.id}`, { headers: readHeaders });
   expect((await rescindedContract.json()).estado).toBe('RESCINDIDO');
   expect((await getProperty(current.address)).estado).toBe('DISPONIBLE');
@@ -322,10 +333,18 @@ test('stack real: cada listado contractual queda aislado por estado', async ({ r
   const rescinded = await createContract('Rescindido', -5, 30);
   const trashed = await createContract('Papelera', -5, 30);
 
+  const keyData = { fechaEntregaLlaves: dateAtOffset(-1), cantidadLlaves: 2, receptorNombre: 'Administrador', estadoInmueble: 'Entregado en buen estado', inmuebleDesocupado: true, version: rescinded.version };
+  const keyPreview = await request.post(`/api/contratos/${rescinded.id}/llaves/vista-previa`, { headers, data: keyData });
+  expect(keyPreview.status()).toBe(200);
+  const keyIssue = await request.post(`/api/contratos/${rescinded.id}/llaves`, { headers, data: { ...keyData, vistaPreviaHash: (await keyPreview.json()).vistaPreviaHash } });
+  expect(keyIssue.status()).toBe(201);
+  const rescissionData = { tipoCierre: 'ANTICIPADA_INQUILINO', sinReclamosConfirmado: true, serviciosSaldadosConfirmados: true, depositoResueltoConfirmado: true, motivo: 'Fin anticipado solicitado por el inquilino', fechaRescision: keyData.fechaEntregaLlaves, llavesEntregadas: true, fechaEntregaLlaves: keyData.fechaEntregaLlaves, cantidadLlaves: 2, estadoInmueble: keyData.estadoInmueble, multaImporte: 0, multaResponsable: null, depositoADevolver: 0, depositoRetenido: 0, pendientesManuales: [], version: (await keyIssue.json()).contratoVersion };
+  const rescissionPreview = await request.post(`/api/contratos/${rescinded.id}/rescision/vista-previa`, { headers, data: rescissionData });
+  expect(rescissionPreview.status()).toBe(200);
   expect((await request.post(`/api/contratos/${rescinded.id}/rescindir`, {
     headers,
-    data: { motivo: 'Fin anticipado acordado por las partes', version: rescinded.version }
-  })).status()).toBe(200);
+    data: { ...rescissionData, vistaPreviaHash: (await rescissionPreview.json()).vistaPreviaHash }
+  })).status()).toBe(201);
   expect((await request.delete(`/api/contratos/${trashed.id}`, { headers })).status()).toBe(200);
 
   const list = async (status?: string, legacyExpired = false) => {

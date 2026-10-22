@@ -115,7 +115,7 @@ export const createContractFormFromContract = (contract: Contract): ContractForm
     tipoArchivosAdicionales: 'ADJUNTO',
     administrado: contract.administrado,
     requiereActualizacion: contract.requiereActualizacion ?? true,
-    frecuenciaActualizacion: '3',
+    frecuenciaActualizacion: contract.frecuenciaActualizacionMeses?.toString() || '',
     honorarioInicial: '', monedaHonorarioInicial: 'ARS',
     honorarioInicialMetodoPago: '', honorarioInicialCuentaBancariaId: ''
 });
@@ -138,7 +138,8 @@ export const createRenewalContractForm = (contract: Contract): ContractFormData 
         ...copied,
         startDate: nextStart,
         endDate: addDaysToDateInput(nextStart, durationDays),
-        updateDate: contract.requiereActualizacion ? addMonthsToDateInput(nextStart, 3) : '',
+        frecuenciaActualizacion: String(contract.frecuenciaActualizacionMeses || 3),
+        updateDate: contract.requiereActualizacion ? addMonthsToDateInput(nextStart, contract.frecuenciaActualizacionMeses || 3) : '',
         observations: `Renovación del contrato #${contract.id}.`,
         file: null,
         observacionDocumento: '',
@@ -177,6 +178,9 @@ export const getContractFormError = (
     }
     if (form.requiereActualizacion && !form.updateDate) {
         return 'La próxima actualización es obligatoria si el contrato tiene actualización programada.';
+    }
+    if (form.requiereActualizacion && (!Number.isInteger(Number(form.frecuenciaActualizacion)) || Number(form.frecuenciaActualizacion) < 1 || Number(form.frecuenciaActualizacion) > 120)) {
+        return 'Indicá la frecuencia de actualización del contrato en meses (entre 1 y 120).';
     }
     const emptyServiceExpense = form.serviciosGastos.find(serviceExpense => !serviceExpense.concepto.trim());
     if (emptyServiceExpense) return 'Indicá el nombre de cada servicio o gasto que agregaste.';

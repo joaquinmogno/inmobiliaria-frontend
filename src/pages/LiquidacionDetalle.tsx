@@ -31,7 +31,7 @@ import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
 import AuditTrail from "../components/AuditTrail";
 import { formatCurrency as formatMoney } from "../utils/currency";
-import { formatDate, formatDateTime, formatMonthYear, todayDateInput } from "../utils/date";
+import { addMonthsToDateInput, formatDate, formatDateTime, formatMonthYear, todayDateInput } from "../utils/date";
 import {
     getLiquidationStatusLabel,
     getOwnerNetAmount,
@@ -41,6 +41,7 @@ import {
     LIQUIDATION_STEPS
 } from "../features/liquidations/liquidation-detail.model";
 import { useLiquidationDetailController } from "../features/liquidations/useLiquidationDetailController";
+import LiquidationContractModal from "../components/LiquidationContractModal";
 
 const ownerMovementStatus = {
     VIGENTE: { label: 'Vigente', className: 'bg-emerald-100 text-emerald-800' },
@@ -49,11 +50,20 @@ const ownerMovementStatus = {
     REVERSION: { label: 'Reversión', className: 'bg-indigo-100 text-indigo-800' }
 } as const;
 
+function nextScheduledUpdate(scheduled: string | null | undefined, frequency: number | null | undefined, period: string): string {
+    if (!scheduled || !frequency) return '';
+    const monthsBetween = (Number(period.slice(0, 4)) - Number(scheduled.slice(0, 4))) * 12
+        + Number(period.slice(5, 7)) - Number(scheduled.slice(5, 7));
+    return addMonthsToDateInput(scheduled, Math.max(1, Math.floor(monthsBetween / frequency) + 1) * frequency);
+}
+
 export default function LiquidacionDetalle() {
     const navigate = useNavigate();
     const { user } = useAuth();
     const canEditLiquidations = hasPermission(user, "liquidaciones.editar");
     const canEditContracts = hasPermission(user, "contratos.editar");
+    const canViewContracts = hasPermission(user, "contratos.ver");
+    const canRenewContracts = hasPermission(user, "contratos.crear");
     const canConfirmLiquidations = hasPermission(user, "liquidaciones.confirmar");
     const canPayOwners = hasPermission(user, "liquidaciones.pagar_propietario");
     const canAdvanceOwnerFunds = hasPermission(user, "liquidaciones.adelantar_propietario");
@@ -66,6 +76,8 @@ export default function LiquidacionDetalle() {
     const [ownerPaymentTab, setOwnerPaymentTab] = useState<'RESUMEN' | 'MOVIMIENTOS'>('RESUMEN');
     const [rentScope, setRentScope] = useState<'SOLO_PERIODO' | 'DESDE_PERIODO'>(canEditContracts ? 'DESDE_PERIODO' : 'SOLO_PERIODO');
     const [timeline, setTimeline] = useState<ContractLiquidationTimeline | null>(null);
+    const [showContract, setShowContract] = useState(false);
+    const [feePercentagePreview, setFeePercentagePreview] = useState<number | null>(null);
     const {
         liquidacion, isLoading, isLoadingAudit, deudaResumen,
         isMovimientoModalOpen, setIsMovimientoModalOpen,
@@ -88,6 +100,10 @@ export default function LiquidacionDetalle() {
         void liquidacionesService.getContractTimeline(liquidacion.contratoId).then(value => { if (active) setTimeline(value); }).catch(() => {});
         return () => { active = false; };
     }, [liquidacion?.contratoId]);
+
+    useEffect(() => {
+        if (liquidacion) setFeePercentagePreview(Number(liquidacion.porcentajeHonorarios ?? 5));
+    }, [liquidacion?.id, liquidacion?.version, liquidacion?.porcentajeHonorarios]);
 
     const formatCurrency = (monto: number) => formatMoney(monto, liquidacion?.moneda || "ARS");
 
@@ -126,15 +142,20 @@ export default function LiquidacionDetalle() {
     const tenantCollectionPending = ['PENDIENTE', 'PARCIAL'].includes(liquidacion.estadoCobroInquilino);
     const ownerPaymentPending = ['PENDIENTE', 'PARCIAL'].includes(liquidacion.estadoPagoPropietario);
     const earlierPeriods = timeline?.periodos.filter(item => item.periodo < liquidacion.periodo && item.liquidacionId).reverse() || [];
-    const rentUpdateDue = Boolean(liquidacion.contrato?.requiereActualizacion
+    const finalMonth = Boolean(liquidacion.contrato?.fechaEntregaLlaves && liquidacion.contrato.fechaEntregaLlaves.slice(0, 7) === liquidacion.periodo.slice(0, 7));
+    const rentUpdateDue = Boolean(!finalMonth && liquidacion.contrato?.requiereActualizacion
         && liquidacion.contrato.fechaProximaActualizacion
         && liquidacion.contrato.fechaProximaActualizacion.slice(0, 7) <= liquidacion.periodo.slice(0, 7));
-    const effectiveRentScope = rentUpdateDue && canEditContracts ? 'DESDE_PERIODO' : rentScope;
+    const updateThisPeriod = liquidacion.contrato?.actualizaciones?.find(item => item.fechaVigencia?.slice(0, 7) === liquidacion.periodo.slice(0, 7));
+    const canUpdateContractRent = !finalMonth && (rentUpdateDue || Boolean(updateThisPeriod));
+    const effectiveRentScope = finalMonth || !canUpdateContractRent ? 'SOLO_PERIODO' : canEditContracts ? 'DESDE_PERIODO' : rentScope;
+    const suggestedNextUpdate = nextScheduledUpdate(updateThisPeriod?.fechaProximaAnterior || liquidacion.contrato?.fechaProximaActualizacion, liquidacion.contrato?.frecuenciaActualizacionMeses, liquidacion.periodo);
     const confirmIssues = [
         !liquidacion.contrato?.inquilinos.find(item => item.esPrincipal) ? 'Falta definir un inquilino principal.' : null,
         !liquidacion.contrato?.propietarios.find(item => item.esPrincipal) ? 'Falta definir un propietario principal.' : null,
         Number(liquidacion.montoAlquilerBase) <= 0 ? 'El alquiler debe ser mayor que cero.' : null,
-        liquidacion.contrato?.requiereActualizacion && !liquidacion.contrato.fechaProximaActualizacion ? 'Falta definir la fecha de próxima actualización del alquiler.' : null,
+        !finalMonth && liquidacion.contrato?.requiereActualizacion && !liquidacion.contrato.fechaProximaActualizacion ? 'Falta definir la fecha de próxima actualización del alquiler.' : null,
+        finalMonth && !liquidacion.alquilerExcepcional ? 'Revisá y guardá el importe manual de los días hasta la entrega de llaves antes de confirmar.' : null,
         rentUpdateDue ? canEditContracts
             ? 'La actualización del alquiler está pendiente: cargá el nuevo importe y guardalo para los próximos meses antes de confirmar.'
             : 'La actualización del alquiler está pendiente: necesitás que alguien con permiso de edición de contratos cargue el nuevo importe antes de confirmar.' : null,
@@ -160,6 +181,8 @@ export default function LiquidacionDetalle() {
                     Volver
                 </button>
                 <div data-testid="liquidation-primary-actions" className="grid min-w-0 grid-cols-1 gap-2 min-[480px]:grid-cols-2 lg:ml-auto lg:flex lg:flex-wrap lg:items-center lg:justify-end lg:gap-3">
+                    {canViewContracts && <button type="button" onClick={() => setShowContract(true)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-indigo-300 bg-white px-4 py-2.5 text-sm font-bold text-indigo-800">VER CONTRATO</button>}
+                    {canRenewContracts && ['FINALIZADO', 'RESCINDIDO'].includes(liquidacion.contrato?.estado || '') && <button type="button" onClick={() => navigate('/contratos', { state: { renewContractId: liquidacion.contratoId } })} className="flex min-h-11 items-center justify-center rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-bold text-white">RENOVAR CONTRATO</button>}
                     {canConfirmLiquidations && liquidacion.estado === 'BORRADOR' && (
                         <button
                             onClick={() => void handleConfirmar()}
@@ -353,7 +376,7 @@ export default function LiquidacionDetalle() {
                     const reason = String(data.get('motivo') || '').trim();
                     const nextDate = String(data.get('fechaProximaNueva') || '');
                     const percentage = String(data.get('porcentajeAplicado') || '');
-                    if (!Number.isFinite(amount) || amount <= 0 || reason.length < 5 || (effectiveRentScope === 'DESDE_PERIODO' && !nextDate)) return;
+                    if (!Number.isFinite(amount) || amount <= 0 || reason.length < 5 || (effectiveRentScope === 'DESDE_PERIODO' && !suggestedNextUpdate && !nextDate)) return;
                     void handleUpdateAlquiler({
                         montoNuevo: amount,
                         alcance: effectiveRentScope,
@@ -364,16 +387,16 @@ export default function LiquidacionDetalle() {
                         } : {})
                     });
                 }} className="mt-4 space-y-4 rounded-xl border border-indigo-200 bg-indigo-50/50 p-4">
-                    <div><h3 className="font-black text-indigo-950">Alquiler mensual</h3><p className="mt-1 text-sm text-indigo-900">Valor actual de este borrador: {formatCurrency(Number(liquidacion.montoAlquilerBase))}{liquidacion.alquilerExcepcional ? ' · excepción de este período' : ''}</p></div>
-                    <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm font-bold text-gray-800">Nuevo importe<input name="montoNuevo" required type="number" min="0.01" step="0.01" defaultValue={Number(liquidacion.montoAlquilerBase)} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3" /></label><label className="text-sm font-bold text-gray-800">Alcance<select value={effectiveRentScope} onChange={event => setRentScope(event.target.value as 'SOLO_PERIODO' | 'DESDE_PERIODO')} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3">{!rentUpdateDue && <option value="SOLO_PERIODO">Solo esta liquidación (excepción)</option>}{canEditContracts && <option value="DESDE_PERIODO">Desde este mes y siguientes (predeterminado)</option>}</select></label></div>
-                    {effectiveRentScope === 'DESDE_PERIODO' && canEditContracts && <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm font-bold text-gray-800">Próxima actualización<input name="fechaProximaNueva" required type="date" className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3" /></label><label className="text-sm font-bold text-gray-800">Porcentaje aplicado (opcional)<input name="porcentajeAplicado" type="number" min="0" max="999" step="0.0001" className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3" /></label></div>}
+                    <div><h3 className="font-black text-indigo-950">{finalMonth ? 'Alquiler final hasta la entrega de llaves' : 'Alquiler mensual'}</h3><p className="mt-1 text-sm text-indigo-900">Valor actual de este borrador: {formatCurrency(Number(liquidacion.montoAlquilerBase))}{liquidacion.alquilerExcepcional ? ' · excepción de este período' : ''}</p>{finalMonth && <p className="mt-1 text-sm font-semibold text-amber-900">Cargá el importe acordado manualmente. No se aplica ninguna división automática por días.</p>}</div>
+                    <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm font-bold text-gray-800">Nuevo importe<input name="montoNuevo" required type="number" min="0.01" step="0.01" defaultValue={Number(liquidacion.montoAlquilerBase)} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3" /></label><label className="text-sm font-bold text-gray-800">Alcance<select value={effectiveRentScope} onChange={event => setRentScope(event.target.value as 'SOLO_PERIODO' | 'DESDE_PERIODO')} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3">{!canUpdateContractRent && <option value="SOLO_PERIODO">Solo esta liquidación (excepción)</option>}{canEditContracts && canUpdateContractRent && <option value="DESDE_PERIODO">Desde este mes y siguientes (predeterminado)</option>}</select></label></div>
+                    {effectiveRentScope === 'DESDE_PERIODO' && canEditContracts && <div className="grid gap-3 sm:grid-cols-2">{suggestedNextUpdate ? <p className="self-center text-sm font-semibold text-indigo-950">Próxima actualización calculada: {formatDate(suggestedNextUpdate)} · cada {liquidacion.contrato?.frecuenciaActualizacionMeses} meses</p> : <label className="text-sm font-bold text-gray-800">Próxima actualización (frecuencia pendiente de configurar)<input name="fechaProximaNueva" required type="date" defaultValue={updateThisPeriod?.fechaProximaNueva?.slice(0, 10)} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3" /></label>}<label className="text-sm font-bold text-gray-800">Porcentaje aplicado (opcional)<input name="porcentajeAplicado" type="number" min="0" max="999" step="0.0001" className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 bg-white px-3" /></label></div>}
                     <label className="block text-sm font-bold text-gray-800">Motivo o referencia del cálculo<textarea name="motivo" required minLength={5} maxLength={1000} rows={2} defaultValue={liquidacion.motivoCambioAlquiler || ''} placeholder="Ej.: actualización manual según IPC del período" className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2" /></label>
                     <p className="text-xs text-gray-600">La actualización contractual recalcula los borradores posteriores, pero nunca modifica comprobantes confirmados. Un importe excepcional no cambia el contrato.</p>
                     <button type="submit" className="min-h-11 rounded-lg bg-indigo-700 px-4 text-sm font-bold text-white hover:bg-indigo-800">Guardar alquiler y recalcular</button>
                 </form>}
                 <div className="mt-4 grid gap-5 lg:grid-cols-2">
                 <form onSubmit={event => { event.preventDefault(); const form = event.currentTarget; const data = new FormData(form); const monto = Number(data.get('monto')); if (!Number.isFinite(monto) || monto <= 0) return; void handleAddMovimiento({ tipo: String(data.get('tipo')) as 'INGRESO' | 'DESCUENTO', concepto: String(data.get('concepto')).trim(), monto, esParaInmobiliaria: data.get('esParaInmobiliaria') === 'on', observaciones: String(data.get('observaciones') || '').trim() || undefined }); form.reset(); }} className="space-y-3 rounded-xl border border-gray-200 p-4"><h3 className="font-black text-gray-900">Agregar concepto</h3><div className="grid gap-2 sm:grid-cols-2"><label className="text-sm font-bold">Tipo<select name="tipo" className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-2"><option value="INGRESO">Ingreso</option><option value="DESCUENTO">Descuento o gasto</option></select></label><label className="text-sm font-bold">Importe<input name="monto" required type="number" min="0.01" step="0.01" className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-2" /></label></div><label className="block text-sm font-bold">Concepto<input name="concepto" required maxLength={255} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-2" placeholder="Ej.: reparación, saldo acordado" /></label><label className="block text-sm font-bold">Detalle opcional<input name="observaciones" maxLength={1000} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-2" /></label><label className="flex items-center gap-2 text-sm text-gray-800"><input type="checkbox" name="esParaInmobiliaria" className="h-5 w-5" />Corresponde a la inmobiliaria</label><button type="submit" className="min-h-11 rounded-lg bg-indigo-600 px-4 text-sm font-bold text-white">Agregar y recalcular</button></form>
-                <form key={`honorarios-${liquidacion.version}`} onSubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget); const percentage = Number(data.get('porcentajeHonorarios')); const reason = String(data.get('motivoHonorarios') || '').trim(); if (Number.isFinite(percentage) && percentage >= 0 && percentage <= 100 && reason.length >= 5) void handleUpdateHonorarios({ porcentajeHonorarios: percentage, motivo: reason }); }} className="space-y-3 rounded-xl border border-gray-200 p-4"><h3 className="font-black text-gray-900">Honorarios de la inmobiliaria</h3><p className="text-xs text-gray-600">Los abona el propietario. El porcentaje se aplica solo al alquiler de este período y se descuenta del neto a entregarle.</p><label className="block text-sm font-bold">Porcentaje acordado (%)<input name="porcentajeHonorarios" required type="number" min="0" max="100" step="0.01" defaultValue={Number(liquidacion.porcentajeHonorarios ?? 5)} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-2" /></label><label className="block text-sm font-bold">Motivo del cambio<textarea name="motivoHonorarios" required minLength={5} maxLength={1000} rows={2} className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2" placeholder="Ej.: porcentaje acordado en el contrato" /></label><p className="text-xs text-gray-600">Importe actual: {formatCurrency(Number(liquidacion.montoHonorarios))}</p><button type="submit" className="min-h-11 rounded-lg border border-indigo-300 px-4 text-sm font-bold text-indigo-800">Actualizar honorarios</button></form>
+                <form key={`honorarios-${liquidacion.version}`} onSubmit={event => { event.preventDefault(); const data = new FormData(event.currentTarget); const percentage = Number(data.get('porcentajeHonorarios')); const reason = String(data.get('motivoHonorarios') || '').trim(); if (Number.isFinite(percentage) && percentage >= 0 && percentage <= 100 && reason.length >= 5) void handleUpdateHonorarios({ porcentajeHonorarios: percentage, motivo: reason }); }} className="space-y-3 rounded-xl border border-gray-200 p-4"><h3 className="font-black text-gray-900">Honorarios de la inmobiliaria</h3><p className="text-xs text-gray-600">Los abona el propietario. El porcentaje se aplica solo al alquiler de este período y se descuenta del neto a entregarle.</p><label className="block text-sm font-bold">Porcentaje acordado (%)<input name="porcentajeHonorarios" required type="number" min="0" max="100" step="0.01" defaultValue={Number(liquidacion.porcentajeHonorarios ?? 5)} onChange={event => setFeePercentagePreview(event.target.value === '' ? null : Number(event.target.value))} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-2" /></label><label className="block text-sm font-bold">Motivo del cambio<textarea name="motivoHonorarios" required minLength={5} maxLength={1000} rows={2} className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-2" placeholder="Ej.: porcentaje acordado en el contrato" /></label>{feePercentagePreview !== null && Number.isFinite(feePercentagePreview) && <div className="rounded-lg bg-indigo-50 p-3 text-sm text-indigo-950"><p>Honorarios calculados: <strong>{formatCurrency(Math.round(Number(liquidacion.montoAlquilerBase) * feePercentagePreview) / 100)}</strong></p><p>Neto estimado para el propietario: <strong>{formatCurrency(Number(liquidacion.montoPropietario) + Number(liquidacion.montoHonorarios) - Math.round(Number(liquidacion.montoAlquilerBase) * feePercentagePreview) / 100)}</strong></p></div>}<p className="text-xs text-gray-600">Importe actual: {formatCurrency(Number(liquidacion.montoHonorarios))}</p><button type="submit" className="min-h-11 rounded-lg border border-indigo-300 px-4 text-sm font-bold text-indigo-800">Actualizar honorarios</button></form>
             </div></section>}
 
             {liquidacion.cuotas && liquidacion.cuotas.length > 0 && <section className="rounded-2xl border border-blue-200 bg-blue-50 p-4"><h2 className="font-black text-blue-950">Cuotas incorporadas</h2><div className="mt-2 grid gap-2 sm:grid-cols-2">{liquidacion.cuotas.map(cuota => <div key={cuota.id} className="rounded-lg bg-white p-3 text-sm"><p className="font-bold">{cuota.plan.concepto} · cuota {cuota.numeroCuota}/{cuota.plan._count.cuotas}</p><p>{formatCurrency(Number(cuota.monto))} · {cuota.estado.toLowerCase()}</p><p>Saldo propio: {formatCurrency(Math.max(0, Number(cuota.monto) - cuota.imputacionesPago.reduce((sum, item) => sum + Number(item.monto), 0)))}</p></div>)}</div></section>}
@@ -434,7 +457,7 @@ export default function LiquidacionDetalle() {
                             </p>
                             <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
                                 <span className="text-xs font-black text-status-accent uppercase tracking-widest">
-                                    {liquidacion.porcentajeHonorarios ? `${liquidacion.porcentajeHonorarios}%` : 'Monto fijo'} · paga {liquidacion.pagaHonorarios === 'PROPIETARIO' ? 'propietario' : 'inquilino'}
+                                    {liquidacion.porcentajeHonorarios !== null ? `${liquidacion.porcentajeHonorarios}%` : 'Monto fijo'} · paga {liquidacion.pagaHonorarios === 'PROPIETARIO' ? 'propietario' : 'inquilino'}
                                 </span>
                                 <div className="bg-indigo-50 p-1 rounded-lg">
                                     <TagIcon className="w-4 h-4 text-indigo-500" />
@@ -522,7 +545,7 @@ export default function LiquidacionDetalle() {
                                     {formatCurrency(Number(liquidacion.montoHonorarios || 0))}
                                 </p>
                                 <p className="text-status-teal font-medium">
-                                    {liquidacion.porcentajeHonorarios ? `${liquidacion.porcentajeHonorarios}% sobre alquiler` : 'Monto fijo'} · paga {liquidacion.pagaHonorarios === 'PROPIETARIO' ? 'propietario' : 'inquilino'}
+                                    {liquidacion.porcentajeHonorarios !== null ? `${liquidacion.porcentajeHonorarios}% sobre alquiler` : 'Monto fijo'} · paga {liquidacion.pagaHonorarios === 'PROPIETARIO' ? 'propietario' : 'inquilino'}
                                 </p>
                             </div>
                         </div>
@@ -986,6 +1009,7 @@ export default function LiquidacionDetalle() {
                 confirmText="Eliminar"
                 type="danger"
             />
+            <LiquidationContractModal contractId={showContract ? liquidacion.contratoId : null} onClose={() => setShowContract(false)} />
 
             <PaymentModal
                 isOpen={isPaymentModalOpen}

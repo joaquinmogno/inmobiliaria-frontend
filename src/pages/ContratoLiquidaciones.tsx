@@ -7,6 +7,7 @@ import { formatCurrency } from '../utils/currency';
 import { formatDate, formatMonthYear, todayDateInput } from '../utils/date';
 import { hasPermission } from '../utils/permissions';
 import { useAuth } from '../context/AuthContext';
+import LiquidationContractModal from '../components/LiquidationContractModal';
 
 const labels: Record<string, string> = {
   PENDIENTE_LIQUIDAR: 'Pendiente de liquidar', BORRADOR: 'Borrador', PENDIENTE_COBRO: 'Pendiente de cobro',
@@ -20,6 +21,8 @@ export default function ContratoLiquidaciones() {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const canCreate = hasPermission(user, 'liquidaciones.crear');
+  const canViewContracts = hasPermission(user, 'contratos.ver');
+  const canRenew = hasPermission(user, 'contratos.crear');
   const [timeline, setTimeline] = useState<ContractLiquidationTimeline | null>(null);
   const [selected, setSelected] = useState('');
   const [available, setAvailable] = useState<CuotaPlan[]>([]);
@@ -27,6 +30,7 @@ export default function ContratoLiquidaciones() {
   const [reviewedOverdue, setReviewedOverdue] = useState(false);
   const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
+  const [showContract, setShowContract] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -84,8 +88,12 @@ export default function ContratoLiquidaciones() {
     <header className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
       <h1 className="text-2xl font-black text-gray-950">{address}</h1>
       <p className="mt-1 text-sm text-gray-700">{contract.inquilino?.nombreCompleto || 'Sin inquilino'} · Propietario: {contract.propietario?.nombreCompleto || 'Sin propietario'}</p>
-      <p className="mt-2 text-xs text-gray-600">Contrato: {formatDate(contract.fechaInicio)} al {formatDate(contract.fechaFin)} · Próxima actualización: {contract.requiereActualizacion ? formatDate(contract.fechaProximaActualizacion) : 'No programada'}</p>
+      <p className="mt-2 text-xs text-gray-600">Contrato: {formatDate(contract.fechaInicio)} al {formatDate(contract.fechaFin)} · Próxima actualización: {contract.requiereActualizacion ? formatDate(contract.fechaProximaActualizacion) : 'No programada'}{contract.requiereActualizacion && ` · Frecuencia: ${contract.frecuenciaActualizacionMeses ? `cada ${contract.frecuenciaActualizacionMeses} meses` : 'pendiente de configurar'}`}</p>
       <p className="mt-1 text-xs text-gray-600">Cobro acordado: {contract.modalidadCobroInquilino || 'Sin acordar'}{contract.modalidadCobroInquilino === 'TRANSFERENCIA' ? ` (${contract.cuentaCobroAcordada ? `${contract.cuentaCobroAcordada.banco} · ${contract.cuentaCobroAcordada.nombre}` : 'cuenta no definida'})` : ''} · Pago al propietario acordado: {contract.modalidadPagoPropietario || 'Sin acordar'}{contract.modalidadPagoPropietario === 'TRANSFERENCIA' && contract.propietario?.aliasBancario ? ` (${contract.propietario.aliasBancario})` : ''}</p>
+      {canViewContracts && <button type="button" onClick={() => setShowContract(true)} className="mt-3 rounded-lg border border-indigo-300 px-3 py-2 text-sm font-bold text-indigo-800">VER CONTRATO</button>}
+      {canRenew && ['FINALIZADO', 'RESCINDIDO'].includes(contract.estado) && <button type="button" onClick={() => navigate('/contratos', { state: { renewContractId: contract.id } })} className="ml-2 mt-3 rounded-lg bg-violet-700 px-3 py-2 text-sm font-bold text-white">RENOVAR CONTRATO</button>}
+      {canRenew && ['FINALIZADO', 'RESCINDIDO'].includes(contract.estado) && <button type="button" onClick={() => navigate('/contratos', { state: { openNewContractModal: true } })} className="ml-2 mt-3 rounded-lg border border-violet-300 px-3 py-2 text-sm font-bold text-violet-800">Nuevo contrato · otro inquilino</button>}
+      {canRenew && ['FINALIZADO', 'RESCINDIDO'].includes(contract.estado) && !contract.fechaEntregaLlaves && <p className="mt-2 text-xs text-amber-800">Para alquilar a otra persona, registrá primero la entrega de llaves del contrato anterior. Una renovación del mismo inquilino conserva la ocupación.</p>}
     </header>
 
     <div className="grid gap-5 lg:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)]">
@@ -116,12 +124,14 @@ export default function ContratoLiquidaciones() {
               {([['Del mes', available.filter(cuota => cuota.correspondeAlPeriodo)], ['Vencidas anteriores', available.filter(cuota => cuota.vencida)], ['Futuras por acuerdo', available.filter(cuota => !cuota.vencida && !cuota.correspondeAlPeriodo)]] as const).map(([title, cuotas]) => cuotas.length > 0 && <div key={title} className="mt-3"><h4 className="text-sm font-black text-blue-950">{title}</h4><div className="mt-2 space-y-2">{cuotas.map(cuota => <label key={cuota.id} className="flex gap-3 rounded-lg bg-white p-2 text-sm"><input type="checkbox" checked={selectedQuotaIds.includes(cuota.id)} onChange={() => toggleQuota(cuota.id)} className="mt-0.5 h-5 w-5" /><span><strong>{cuota.plan?.concepto || 'Acuerdo'} · cuota {cuota.numeroCuota}/{cuota.plan?._count?.cuotas || '?'}</strong><br />{formatCurrency(Number(cuota.monto), contract.moneda)} · {formatMonthYear(cuota.fechaVencimiento)}</span></label>)}</div></div>)}
               {available.some(cuota => cuota.vencida) && <label className="mt-4 flex items-center gap-2 text-sm font-bold text-blue-950"><input type="checkbox" checked={reviewedOverdue} onChange={event => setReviewedOverdue(event.target.checked)} className="h-5 w-5" />Revisé las cuotas vencidas y decidí cuáles incluir</label>}
             </div>}
-            {canCreate && <button type="button" disabled={working || active.estado === 'REQUIERE_REVISION' || contract.estado !== 'ACTIVO' || (available.some(cuota => cuota.vencida) && !reviewedOverdue)} onClick={() => void create()} className="mt-5 min-h-11 rounded-xl bg-indigo-600 px-4 font-bold text-white disabled:opacity-50">{working ? 'Creando…' : 'Crear liquidación'}</button>}
+            {contract.fechaEntregaLlaves && active.periodo.slice(0, 7) === contract.fechaEntregaLlaves.slice(0, 7) && <p className="mt-4 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">Mes de entrega de llaves: después de crear el borrador, cargá manualmente el alquiler correspondiente a los días hasta la entrega. El sistema no prorratea automáticamente.</p>}
+            {canCreate && <button type="button" disabled={working || active.estado === 'REQUIERE_REVISION' || !(['ACTIVO', 'EN_CIERRE', 'FINALIZADO'].includes(contract.estado) && (contract.estado === 'ACTIVO' || Boolean(contract.fechaEntregaLlaves))) || (available.some(cuota => cuota.vencida) && !reviewedOverdue)} onClick={() => void create()} className="mt-5 min-h-11 rounded-xl bg-indigo-600 px-4 font-bold text-white disabled:opacity-50">{working ? 'Creando…' : 'Crear liquidación'}</button>}
           </>}
         </section>}
 
         <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm"><h2 className="font-black text-gray-950">Meses anteriores</h2><p className="mt-1 text-sm text-gray-600">Consultá rápidamente cómo venía este contrato.</p>{earlier.length ? <div className="mt-3 space-y-2">{earlier.map(row => <button key={row.periodo} type="button" onClick={() => setSelected(row.periodo)} className="flex w-full flex-wrap justify-between gap-2 rounded-lg border border-gray-200 p-3 text-left text-sm hover:bg-gray-50"><span className="font-bold capitalize">{formatMonthYear(row.periodo)} · {labels[row.estado]}</span><span>Cobrado {formatCurrency(row.cobrado, contract.moneda)} · saldo {formatCurrency(row.saldoInquilino, contract.moneda)} · {row.ajustes.length} ajuste(s)</span></button>)}</div> : <p className="mt-3 text-sm text-gray-600">No hay liquidaciones anteriores de este contrato.</p>}</section>
       </main>
     </div>
+    <LiquidationContractModal contractId={showContract ? contract.id : null} onClose={() => setShowContract(false)} />
   </div>;
 }

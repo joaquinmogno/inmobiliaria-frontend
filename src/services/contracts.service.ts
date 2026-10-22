@@ -6,9 +6,56 @@ import type { Moneda } from '../utils/currency';
 import { getDaysFromToday } from '../utils/date';
 import type { ContractDraftData, ContractServiceExpense } from '../features/contracts/contract-form.model';
 
-export type EstadoContrato = 'PROGRAMADO' | 'ACTIVO' | 'PAPELERA' | 'FINALIZADO' | 'RESCINDIDO';
+export type EstadoContrato = 'PROGRAMADO' | 'ACTIVO' | 'EN_CIERRE' | 'PAPELERA' | 'FINALIZADO' | 'RESCINDIDO';
 export type PagadorHonorarios = 'INQUILINO' | 'PROPIETARIO';
-export type TipoDocumentoContrato = 'CONTRATO_PRINCIPAL' | 'ADENDA' | 'ADJUNTO';
+export type TipoDocumentoContrato = 'CONTRATO_PRINCIPAL' | 'ADENDA' | 'ADJUNTO' | 'ACTA_RESCISION_FIRMADA' | 'ACTA_LLAVES_FIRMADA';
+
+export interface KeyDeliveryForm {
+    fechaEntregaLlaves: string;
+    horaEntrega: string | null;
+    cantidadLlaves: number;
+    receptorNombre: string;
+    estadoInmueble: string;
+    observaciones?: string;
+    inmuebleDesocupado: boolean;
+    version: number;
+    vistaPreviaHash?: string;
+}
+
+export interface RescissionForm {
+    tipoCierre: 'ANTICIPADA_INQUILINO' | 'VENCIMIENTO_ACORDADO';
+    sinReclamosConfirmado: boolean;
+    serviciosSaldadosConfirmados: boolean;
+    depositoResueltoConfirmado: boolean;
+    motivo: string;
+    fechaRescision: string;
+    llavesEntregadas: boolean;
+    fechaEntregaLlaves?: string;
+    cantidadLlaves: number;
+    estadoInmueble: string;
+    observaciones?: string;
+    multaImporte: number;
+    multaResponsable: 'INQUILINO' | 'PROPIETARIO' | null;
+    depositoADevolver: number;
+    depositoRetenido: number;
+    motivoRetencion?: string;
+    pendientesManuales: Array<{ concepto: string; tipo: 'ALQUILER' | 'SERVICIO' | 'EXPENSA' | 'OTRO'; responsable: 'INQUILINO' | 'PROPIETARIO'; importe: number }>;
+    version: number;
+    motivoRevision?: string;
+    vistaPreviaHash?: string;
+}
+
+export interface RescissionContext {
+    contrato: { id: number; version: number; estado: EstadoContrato; fechaInicio: string; fechaFin: string; fechaRescision: string | null; fechaEntregaLlaves: string | null; moneda: Moneda; direccion: string; piso: string | null; departamento: string | null; inquilinos: Array<{ nombre: string; dni: string | null }>; propietarios: Array<{ nombre: string; dni: string | null }> };
+    saldosRegistrados: { cobrosPendientesInquilino: Array<{ liquidacionId: number; periodo: string; saldo: string; moneda: Moneda }>; pagosPendientesPropietario: Array<{ liquidacionId: number; periodo: string; saldo: string; moneda: Moneda }>; cuotasPendientes: number; saldosAFavorInquilino: Array<{ creditoId: number; saldo: string; moneda: Moneda }> };
+    liquidaciones: Array<{ id: number; periodo: string; estado: string; moneda: Moneda; totalInquilino: string; pagadoInquilino: string; saldoInquilino: string; totalPropietario: string; pagadoPropietario: string; pagos: Array<{ fecha: string; importe: string; metodo: string }>; pagosPropietario: Array<{ fecha: string; importe: string; metodo: string }> }>;
+    actas: Array<{ id: number; version: number; fechaEmision: string; motivoRevision: string | null }>;
+    actasLlaves: Array<{ id: number; version: number; fechaEmision: string; datos: { entrega: Omit<KeyDeliveryForm, 'version' | 'vistaPreviaHash'> } }>;
+    copiasFirmadas: Array<{ id: number; versionDocumento: number; rutaArchivo: string; nombreArchivo: string | null }>;
+    copiasLlavesFirmadas: Array<{ id: number; versionDocumento: number; rutaArchivo: string; nombreArchivo: string | null }>;
+}
+
+export interface RescissionAct { id: number; version: number; datos: { declaracion: Omit<RescissionForm, 'version' | 'motivoRevision'> }; motivoRevision: string | null; fechaEmision: string }
 
 export interface ContractUpdateHistory {
     id: number;
@@ -50,9 +97,11 @@ export interface Contract {
     fechaInicio: string;
     fechaFin: string;
     fechaProximaActualizacion: string | null;
+    frecuenciaActualizacionMeses: number | null;
     estado: EstadoContrato;
     eliminadoEn?: string | null;
     fechaRescision?: string | null;
+    fechaEntregaLlaves?: string | null;
     motivoRescision?: string | null;
     rescindidoPor?: { id: number; nombreCompleto: string; email: string } | null;
     daysUntilDeletion?: number;
@@ -116,6 +165,8 @@ export interface Contract {
         esVigente: boolean;
         creadoPor?: { id: number; nombreCompleto: string } | null;
     }[];
+    actasRescision?: Array<{ id: number; version: number; fechaEmision: string; motivoRevision: string | null }>;
+    actasEntregaLlaves?: Array<{ id: number; version: number; fechaEmision: string }>;
     actualizaciones?: ContractUpdateHistory[];
     historialRenovaciones?: ContractRenewalTimelineEntry[];
     auditLogs?: AuditLogItem[];
@@ -205,7 +256,7 @@ export const contractsService = {
         contractId: number,
         file: File,
         fileName?: string,
-        tipo: Exclude<TipoDocumentoContrato, 'CONTRATO_PRINCIPAL'> = 'ADJUNTO'
+        tipo: 'ADENDA' | 'ADJUNTO' = 'ADJUNTO'
     ) => {
         const formData = new FormData();
         formData.append('archivo', file);
@@ -224,8 +275,22 @@ export const contractsService = {
         return api.delete(`/contratos/${id}/permanente`);
     },
 
-    rescindir: async (id: number, data: { motivo: string; fechaRescision: string; version: number }) => {
-        return api.post(`/contratos/${id}/rescindir`, data);
+    getRescissionContext: (id: number) => api.get<RescissionContext>(`/contratos/${id}/rescision/preparacion`),
+    previewKeyDelivery: (id: number, data: KeyDeliveryForm) => api.post<{ snapshot: unknown; vistaPreviaHash: string }>(`/contratos/${id}/llaves/vista-previa`, data),
+    deliverKeys: (id: number, data: KeyDeliveryForm) => api.post<{ actaVersion: number; contratoVersion: number; pdf: string }>(`/contratos/${id}/llaves`, data),
+    attachSignedKeyAct: (id: number, version: number, file: File) => {
+        const body = new FormData();
+        body.append('archivo', file);
+        return api.post(`/contratos/${id}/actas-llaves/${version}/copia-firmada`, body);
+    },
+    previewRescission: (id: number, data: RescissionForm) => api.post<{ snapshot: unknown; wording: { title: string; introduction: string; reason: string; delivery: string; financial: string; closing: string }; vistaPreviaHash: string }>(`/contratos/${id}/rescision/vista-previa`, data),
+    getRescissionAct: (id: number, version: number) => api.get<RescissionAct>(`/contratos/${id}/actas-rescision/${version}`),
+    rescindir: (id: number, data: RescissionForm) => api.post<{ actaVersion: number; contratoVersion: number; pdf: string }>(`/contratos/${id}/rescindir`, data),
+    revisarActaRescision: (id: number, data: RescissionForm) => api.post<{ actaVersion: number; contratoVersion: number; pdf: string }>(`/contratos/${id}/actas-rescision`, data),
+    adjuntarActaFirmada: (id: number, version: number, file: File) => {
+        const body = new FormData();
+        body.append('archivo', file);
+        return api.post(`/contratos/${id}/actas-rescision/${version}/copia-firmada`, body);
     },
     actualizarMonto: async (id: number, data: { montoNuevo: number; fechaProximaNueva: string; observaciones?: string; version: number }) => {
         return api.post<Contract>(`/contratos/${id}/actualizar`, data);

@@ -2,7 +2,7 @@ import api from './api';
 import type { PaginatedResponse } from './api';
 
 export type TipoPropiedad = 'DEPARTAMENTO' | 'CASA' | 'LOCAL' | 'OTRO';
-export type EstadoPropiedad = 'DISPONIBLE' | 'ALQUILADO' | 'INACTIVO';
+export type EstadoPropiedad = 'DISPONIBLE' | 'ALQUILADO' | 'PENDIENTE_ENTREGA' | 'INACTIVO';
 
 export interface Property {
     id: number;
@@ -29,7 +29,7 @@ export interface PropertyContractSummary {
     id: number;
     fechaInicio: string;
     fechaFin: string;
-    estado: 'PROGRAMADO' | 'ACTIVO' | 'FINALIZADO' | 'RESCINDIDO';
+    estado: 'PROGRAMADO' | 'ACTIVO' | 'EN_CIERRE' | 'FINALIZADO' | 'RESCINDIDO';
     propietarios: PropertyPersonRelation[];
     inquilinos: PropertyPersonRelation[];
 }

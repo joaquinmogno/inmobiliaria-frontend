@@ -6,6 +6,7 @@ const STATUS_LABELS: Record<string, string> = {
   CANCELADO: 'Cancelado',
   ANULADA: 'Anulada',
   DISPONIBLE: 'Disponible',
+  PENDIENTE_ENTREGA: 'Pendiente de entrega de llaves',
   FALLIDO: 'Fallido',
   FINALIZADO: 'Finalizado',
   INACTIVO: 'Inactivo',
@@ -15,6 +16,7 @@ const STATUS_LABELS: Record<string, string> = {
   PENDIENTE_PAGO: 'Pendiente de cobro',
   PROGRAMADO: 'Programado',
   RESCINDIDO: 'Rescindido',
+  EN_CIERRE: 'En cierre',
 };
 
 const PROPERTY_TYPE_LABELS: Record<string, string> = {

@@ -243,8 +243,8 @@ export interface MonthlyLiquidationPreparation {
 
 export interface ContractLiquidationTimeline {
     contrato: {
-        id: number; version: number; estado: string; moneda: Moneda; fechaInicio: string; fechaFin: string;
-        fechaProximaActualizacion: string | null; requiereActualizacion: boolean; diaVencimiento: number;
+        id: number; version: number; estado: string; moneda: Moneda; fechaInicio: string; fechaFin: string; fechaEntregaLlaves: string | null;
+        fechaProximaActualizacion: string | null; frecuenciaActualizacionMeses: number | null; requiereActualizacion: boolean; diaVencimiento: number;
         modalidadCobroInquilino: string | null; modalidadPagoPropietario: string | null;
         cuentaCobroAcordada: { id: number; banco: string; nombre: string } | null;
         propiedad: { direccion: string; piso: string | null; departamento: string | null };
