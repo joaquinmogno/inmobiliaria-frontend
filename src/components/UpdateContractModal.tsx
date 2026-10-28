@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon, CalendarIcon, BanknotesIcon, InformationCircleIcon } from "@heroicons/react/24/outline";
 import { contractsService, type Contract } from "../services/contracts.service";
@@ -26,14 +26,14 @@ export default function UpdateContractModal({
     const [error, setError] = useState<string | null>(null);
 
     // Resetear form cuando se abre para un contrato diferente
-    useState(() => {
-        if (contract) {
+    useEffect(() => {
+        if (isOpen && contract) {
             setMontoNuevo(Number(contract.montoAlquiler));
             setFechaProximaNueva("");
             setObservaciones("");
             setError(null);
         }
-    });
+    }, [isOpen, contract]);
 
     if (!contract) return null;
 
@@ -135,7 +135,7 @@ export default function UpdateContractModal({
                                     <div>
                                         <label htmlFor="contract-update-amount" className="block text-sm font-bold text-gray-700 mb-1 flex items-center gap-1.5 font-display">
                                             <BanknotesIcon className="w-4 h-4 text-gray-600" />
-                                            Nuevo Monto de Alquiler
+                                            Nuevo alquiler mensual completo
                                         </label>
                                         <NumericInput
                                             id="contract-update-amount"
@@ -143,6 +143,8 @@ export default function UpdateContractModal({
                                             onChange={setMontoNuevo}
                                             placeholder="Ingresá el nuevo monto"
                                         />
+                                        <p className="mt-2 text-xs text-gray-600">Ingresá el valor total actualizado. Se precargará en las nuevas liquidaciones y recalculará los borradores desde el período de actualización. Los importes manuales de otros meses se conservan.</p>
+                                        {contract.porcentajeHonorarios != null && montoNuevo > 0 && <p className="mt-2 rounded-lg bg-indigo-50 p-3 text-sm text-indigo-950">Honorarios {contract.porcentajeHonorarios}% sobre el alquiler completo: <strong>{formatCurrency(Math.round(montoNuevo * Number(contract.porcentajeHonorarios)) / 100, contract.moneda)}</strong>.</p>}
                                     </div>
 
                                     {/* Próxima Fecha */}

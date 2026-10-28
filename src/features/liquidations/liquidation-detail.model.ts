@@ -19,7 +19,8 @@ export const isLiquidationEditable = (status: string) =>
     status === 'BORRADOR';
 
 export const getTenantPaidTotal = (liquidacion: Liquidacion) =>
-    liquidacion.pagos?.reduce((total, payment) => total + Number(payment.monto), 0) || 0;
+    liquidacion.pagos?.filter(payment => !payment.moneda || payment.moneda === liquidacion.moneda)
+        .reduce((total, payment) => total + Number(payment.monto), 0) || 0;
 
 export const getTenantCreditAppliedTotal = (liquidacion: Liquidacion) =>
     liquidacion.aplicacionesCredito?.reduce((total, application) => total + Number(application.monto), 0) || 0;

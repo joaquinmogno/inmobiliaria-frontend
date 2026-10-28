@@ -92,6 +92,7 @@ export const pagosService = {
         liquidacionId?: number;
         expectedLiquidationVersion?: number;
         monto: number;
+        moneda: Moneda;
         fechaPago: string;
         metodoPago: MetodoPago;
         cuentaBancariaId?: number;

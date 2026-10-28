@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { liquidacionesService, type Liquidacion, type TipoMovimiento } from '../../services/liquidaciones.service';
 import { pagosService, type DeudaResumen, type MetodoPago } from '../../services/pagos.service';
+import type { Moneda } from '../../utils/currency';
 
 export const useLiquidationDetailController = (id?: string) => {
     const navigate = useNavigate();
@@ -54,7 +55,7 @@ export const useLiquidationDetailController = (id?: string) => {
         }
     };
 
-    const handleAddMovimiento = async (movement: { tipo: TipoMovimiento; concepto: string; monto: number; observaciones?: string; esParaInmobiliaria?: boolean }) => {
+    const handleAddMovimiento = async (movement: { tipo: TipoMovimiento; concepto: string; monto: number; moneda?: Moneda; observaciones?: string; esParaInmobiliaria?: boolean }) => {
         try {
             await liquidacionesService.addMovimiento(liquidationId, {
                 ...movement,
@@ -93,7 +94,7 @@ export const useLiquidationDetailController = (id?: string) => {
         }
     };
 
-    const handleSavePayment = async (payment: { monto: number; fechaPago: string; metodoPago: MetodoPago; cuentaBancariaId?: number; comprobante?: string; observaciones?: string; cuotasImputadas?: Array<{ cuotaId: number; monto: number }> }) => {
+    const handleSavePayment = async (payment: { monto: number; moneda: Moneda; fechaPago: string; metodoPago: MetodoPago; cuentaBancariaId?: number; comprobante?: string; observaciones?: string; cuotasImputadas?: Array<{ cuotaId: number; monto: number }> }) => {
         if (!liquidacion?.contratoId) return;
         try {
             await pagosService.registrarPago({
@@ -116,10 +117,12 @@ export const useLiquidationDetailController = (id?: string) => {
                 ...data,
                 expectedVersion: liquidacion?.version
             });
-            await loadLiquidation();
+            await loadLiquidation(false);
             toast.success('Honorarios actualizados');
+            return true;
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Error al actualizar honorarios');
+            return false;
         }
     };
     const handleUpdateAlquiler = async (data: {
@@ -129,7 +132,7 @@ export const useLiquidationDetailController = (id?: string) => {
         fechaProximaNueva?: string;
         porcentajeAplicado?: number;
     }) => {
-        if (!liquidacion) return;
+        if (!liquidacion) return false;
         try {
             const result = await liquidacionesService.updateAlquiler(liquidationId, {
                 ...data,
@@ -140,8 +143,10 @@ export const useLiquidationDetailController = (id?: string) => {
             toast.success(data.alcance === 'DESDE_PERIODO'
                 ? `Alquiler actualizado; ${result.borradoresActualizados} borrador(es) recalculado(s)`
                 : 'Alquiler excepcional guardado para este período');
+            return true;
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'No se pudo actualizar el alquiler');
+            return false;
         }
     };
     const handleCreateAdjustment = async (data: {
@@ -166,7 +171,7 @@ export const useLiquidationDetailController = (id?: string) => {
         }
     };
 
-    const handleSaveOwnerPayment = async (payment: { monto: number; fechaPago: string; metodoPago: string; cuentaBancariaId?: number; propietarioId: number; comprobante?: string; observaciones?: string; motivoAdelanto?: string }) => {
+    const handleSaveOwnerPayment = async (payment: { monto: number; moneda: Moneda; fechaPago: string; metodoPago: string; cuentaBancariaId?: number; propietarioId: number; comprobante?: string; observaciones?: string; motivoAdelanto?: string }) => {
         if (!liquidacion) return;
         try {
             await liquidacionesService.pagarPropietario(liquidacion.id, { ...payment, expectedVersion: liquidacion.version });

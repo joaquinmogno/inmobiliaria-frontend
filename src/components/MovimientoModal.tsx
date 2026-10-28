@@ -1,14 +1,15 @@
-import { useState, Fragment } from "react";
+import { useState, Fragment, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import NumericInput from "./NumericInput";
 import type { TipoMovimiento } from "../services/liquidaciones.service";
-import type { Moneda } from "../utils/currency";
+import { MONEDA_LABELS, type Moneda } from "../utils/currency";
+import AppSelect from "./AppSelect";
 
 interface MovimientoModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (m: { tipo: TipoMovimiento, concepto: string, monto: number, observaciones?: string }) => void;
+    onSave: (m: { tipo: TipoMovimiento, concepto: string, monto: number, moneda: Moneda, observaciones?: string, esParaInmobiliaria: boolean }) => void;
     moneda?: Moneda;
 }
 
@@ -16,7 +17,13 @@ export default function MovimientoModal({ isOpen, onClose, onSave, moneda = "ARS
     const [tipo, setTipo] = useState<TipoMovimiento>("INGRESO");
     const [concepto, setConcepto] = useState("");
     const [monto, setMonto] = useState("");
+    const [monedaMovimiento, setMonedaMovimiento] = useState<Moneda>(moneda);
     const [observaciones, setObservaciones] = useState("");
+    const [esParaInmobiliaria, setEsParaInmobiliaria] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) setMonedaMovimiento(moneda);
+    }, [isOpen, moneda]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -24,12 +31,16 @@ export default function MovimientoModal({ isOpen, onClose, onSave, moneda = "ARS
             tipo,
             concepto,
             monto: Number(monto),
+            moneda: monedaMovimiento,
+            esParaInmobiliaria,
             observaciones: observaciones || undefined
         });
         // Reset
         setConcepto("");
         setMonto("");
+        setMonedaMovimiento(moneda);
         setObservaciones("");
+        setEsParaInmobiliaria(false);
     };
 
     return (
@@ -120,8 +131,24 @@ export default function MovimientoModal({ isOpen, onClose, onSave, moneda = "ARS
                                     </div>
 
                                     <div>
+                                        <label htmlFor="account-movement-currency" className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">
+                                            Moneda
+                                        </label>
+                                        <AppSelect
+                                            id="account-movement-currency"
+                                            ariaLabel="Moneda del movimiento"
+                                            value={monedaMovimiento}
+                                            onChange={value => setMonedaMovimiento(value as Moneda)}
+                                            options={[
+                                                { value: 'ARS', label: `ARS — ${MONEDA_LABELS.ARS}` },
+                                                { value: 'USD', label: `USD — ${MONEDA_LABELS.USD}` }
+                                            ]}
+                                        />
+                                    </div>
+
+                                    <div>
                                         <label htmlFor="account-movement-amount" className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-1">
-                                            Monto ({moneda})
+                                            Monto ({monedaMovimiento})
                                         </label>
                                         <NumericInput
                                             id="account-movement-amount"
@@ -131,7 +158,7 @@ export default function MovimientoModal({ isOpen, onClose, onSave, moneda = "ARS
                                             className="block w-full pr-4 py-2 text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white font-semibold"
                                             value={monto}
                                             onChange={(val) => setMonto(val.toString())}
-                                            icon={moneda === "USD" ? "US$" : "$"}
+                                            icon={monedaMovimiento === "USD" ? "US$" : "$"}
                                         />
                                     </div>
 
@@ -148,6 +175,8 @@ export default function MovimientoModal({ isOpen, onClose, onSave, moneda = "ARS
                                             onChange={(e) => setObservaciones(e.target.value)}
                                         />
                                     </div>
+
+                                    <label className="flex items-center gap-2 text-sm text-gray-800"><input type="checkbox" checked={esParaInmobiliaria} onChange={event => setEsParaInmobiliaria(event.target.checked)} className="h-5 w-5 rounded border-gray-300" />Corresponde a la inmobiliaria</label>
 
                                     <div className="mt-8 flex justify-end gap-3 pt-4 border-t border-gray-100">
                                         <button

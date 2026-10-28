@@ -3,7 +3,7 @@ import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon, BanknotesIcon, CalendarIcon, CreditCardIcon, ChatBubbleBottomCenterTextIcon } from "@heroicons/react/24/outline";
 import NumericInput from "./NumericInput";
 import { PAYMENT_METHOD_OPTIONS, type MetodoPago } from "../services/pagos.service";
-import { formatCurrency, type Moneda } from "../utils/currency";
+import { formatCurrency, MONEDA_LABELS, type Moneda } from "../utils/currency";
 import FormError, { useFormError } from "./FormError";
 import AppSelect from "./AppSelect";
 import { todayDateInput } from "../utils/date";
@@ -12,16 +12,17 @@ import { cuentasBancariasService, type CuentaBancaria } from "../services/cuenta
 interface PaymentModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (p: { monto: number, fechaPago: string, metodoPago: MetodoPago, cuentaBancariaId?: number, comprobante?: string, observaciones?: string, cuotasImputadas?: Array<{ cuotaId: number; monto: number }> }) => void;
+    onSave: (p: { monto: number, moneda: Moneda, fechaPago: string, metodoPago: MetodoPago, cuentaBancariaId?: number, comprobante?: string, observaciones?: string, cuotasImputadas?: Array<{ cuotaId: number; monto: number }> }) => void;
     suggestedAmount?: number;
     moneda?: Moneda;
     targetLabel?: string;
     otherDebtAmount?: number;
     agreedMethod?: MetodoPago | null;
     installments?: Array<{ id: number; numeroCuota: number; concepto: string; saldo: number; total: number }>;
+    currencyBalances?: Array<{ moneda: Moneda; saldo: number }>;
 }
 
-export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount, moneda = "ARS", targetLabel, otherDebtAmount = 0, agreedMethod, installments = [] }: PaymentModalProps) {
+export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount, moneda = "ARS", targetLabel, otherDebtAmount = 0, agreedMethod, installments = [], currencyBalances }: PaymentModalProps) {
     const { error: formError, setError: setFormError, formRef } = useFormError();
     const [monto, setMonto] = useState("");
     const [fechaPago, setFechaPago] = useState(() => todayDateInput());
@@ -31,12 +32,17 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
     const [quotaAmounts, setQuotaAmounts] = useState<Record<number, string>>({});
     const [cuentas, setCuentas] = useState<CuentaBancaria[]>([]);
     const [cuentaBancariaId, setCuentaBancariaId] = useState("");
+    const [monedaPago, setMonedaPago] = useState<Moneda>(moneda);
+    const availableCurrencies = (currencyBalances?.filter(balance => balance.saldo > 0) || [{ moneda, saldo: suggestedAmount || 0 }]);
+    const activeBalance = availableCurrencies.find(balance => balance.moneda === monedaPago)?.saldo || 0;
 
     useEffect(() => {
-        if (isOpen && suggestedAmount) {
-            setMonto(suggestedAmount.toString());
+        if (isOpen) {
+            const preferred = availableCurrencies.find(balance => balance.moneda === moneda) || availableCurrencies[0];
+            setMonedaPago(preferred?.moneda || moneda);
+            setMonto(preferred?.saldo ? preferred.saldo.toString() : '');
         }
-    }, [isOpen, suggestedAmount]);
+    }, [isOpen, moneda, suggestedAmount, currencyBalances]);
     useEffect(() => { if (isOpen && agreedMethod) setMetodoPago(agreedMethod); }, [isOpen, agreedMethod]);
     useEffect(() => { if (isOpen) cuentasBancariasService.getAll().then(setCuentas).catch(() => setCuentas([])); }, [isOpen]);
 
@@ -45,13 +51,14 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
         const amount = Number(monto);
         setFormError("");
         if (!Number.isFinite(amount) || amount <= 0) return setFormError("El monto debe ser mayor a cero.");
-        if (suggestedAmount !== undefined && amount > suggestedAmount) return setFormError(`El monto no puede superar ${formatCurrency(suggestedAmount, moneda)}.`);
+        if (amount > activeBalance) return setFormError(`El monto no puede superar ${formatCurrency(activeBalance, monedaPago)}.`);
         if (metodoPago !== 'EFECTIVO' && !cuentaBancariaId) return setFormError('Seleccioná la cuenta bancaria donde ingresó el pago.');
         const cuotasImputadas = Object.entries(quotaAmounts).filter(([, value]) => Number(value) > 0).map(([cuotaId, value]) => ({ cuotaId: Number(cuotaId), monto: Number(value) }));
         if (cuotasImputadas.reduce((total, item) => total + item.monto, 0) > amount + 0.001) return setFormError('La suma asignada a cuotas supera el importe recibido.');
         if (cuotasImputadas.some(item => item.monto > (installments.find(cuota => cuota.id === item.cuotaId)?.saldo || 0))) return setFormError('Una cuota supera su saldo pendiente.');
         onSave({
             monto: amount,
+            moneda: monedaPago,
             fechaPago,
             metodoPago,
             cuentaBancariaId: cuentaBancariaId ? Number(cuentaBancariaId) : undefined,
@@ -113,9 +120,27 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
                                     <FormError message={formError} />
                                     {/* Amount Input */}
 	                                    <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100/50">
-                                        {suggestedAmount !== undefined && (
+                                        {availableCurrencies.length > 1 && (
+                                            <label htmlFor="tenant-payment-currency" className="mb-3 block text-xs font-black uppercase tracking-widest text-indigo-600">Moneda
+                                                <AppSelect
+                                                    id="tenant-payment-currency"
+                                                    ariaLabel="Moneda del cobro"
+                                                    value={monedaPago}
+                                                    onChange={value => {
+                                                        const nextCurrency = value as Moneda;
+                                                        setMonedaPago(nextCurrency);
+                                                        setMonto((availableCurrencies.find(balance => balance.moneda === nextCurrency)?.saldo || '').toString());
+                                                        setCuentaBancariaId('');
+                                                        setQuotaAmounts({});
+                                                    }}
+                                                    options={availableCurrencies.map(balance => ({ value: balance.moneda, label: `${balance.moneda} — ${MONEDA_LABELS[balance.moneda]} · saldo ${formatCurrency(balance.saldo, balance.moneda)}` }))}
+                                                    className="mt-1"
+                                                />
+                                            </label>
+                                        )}
+                                        {activeBalance > 0 && (
                                             <p className="text-xs font-bold text-indigo-700 mb-3">
-                                                Saldo sugerido: {formatCurrency(suggestedAmount, moneda)}
+                                                Saldo sugerido: {formatCurrency(activeBalance, monedaPago)}
                                             </p>
                                         )}
 	                                        {targetLabel && (
@@ -124,7 +149,7 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
 	                                                <p className="mt-1 text-xs text-indigo-700">No se imputará automáticamente a liquidaciones anteriores.</p>
 	                                                {otherDebtAmount > 0 && (
 	                                                    <p className="mt-2 text-xs font-semibold text-amber-800">
-	                                                        El contrato además registra {formatCurrency(otherDebtAmount, moneda)} de deuda en otros períodos.
+                                                        El contrato además registra {formatCurrency(otherDebtAmount, moneda)} de deuda en otros períodos.
 	                                                    </p>
 	                                                )}
 	                                            </div>
@@ -136,7 +161,7 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
                                             id="tenant-payment-amount"
                                             required
                                             min="0.01"
-                                            max={suggestedAmount}
+                                            max={activeBalance}
                                             placeholder="0.00"
                                             className="block w-full pl-12 pr-4 py-4 text-2xl font-black text-indigo-900 bg-white border-2 border-transparent focus:border-indigo-500 focus:ring-0 rounded-2xl transition-all shadow-sm"
                                             value={monto}
@@ -186,10 +211,10 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
 
                                     {metodoPago !== 'EFECTIVO' && <div>
                                         <label htmlFor="tenant-payment-bank" className="mb-2 block text-xs font-black uppercase tracking-widest text-gray-600">Cuenta donde ingresó *</label>
-                                        <AppSelect id="tenant-payment-bank" required ariaLabel="Cuenta bancaria" value={cuentaBancariaId} onChange={setCuentaBancariaId} options={[{ value: '', label: 'Seleccionar cuenta' }, ...cuentas.filter(c => c.moneda === moneda).map(c => ({ value: String(c.id), label: `${c.banco} — ${c.nombre}` }))]} buttonClassName="border-transparent bg-gray-50 font-bold" />
+                                        <AppSelect id="tenant-payment-bank" required ariaLabel="Cuenta bancaria" value={cuentaBancariaId} onChange={setCuentaBancariaId} options={[{ value: '', label: 'Seleccionar cuenta' }, ...cuentas.filter(c => c.moneda === monedaPago).map(c => ({ value: String(c.id), label: `${c.banco} — ${c.nombre}` }))]} buttonClassName="border-transparent bg-gray-50 font-bold" />
                                     </div>}
 
-                                    {installments.length > 0 && <div className="rounded-xl border border-blue-200 bg-blue-50 p-4"><p className="font-bold text-blue-950">Imputar a cuotas</p><p className="mt-1 text-xs text-blue-900">Indicá cuánto del cobro corresponde a cada cuota. El resto queda aplicado a los demás conceptos de la liquidación.</p><div className="mt-3 space-y-2">{installments.filter(cuota => cuota.saldo > 0).map(cuota => <label key={cuota.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white p-2 text-sm"><span>{cuota.concepto} · cuota {cuota.numeroCuota} · saldo {formatCurrency(cuota.saldo, moneda)}</span><input type="number" min="0" max={cuota.saldo} step="0.01" aria-label={`Importe para cuota ${cuota.numeroCuota} de ${cuota.concepto}`} value={quotaAmounts[cuota.id] || ''} onChange={event => setQuotaAmounts(current => ({ ...current, [cuota.id]: event.target.value }))} className="w-28 rounded-lg border border-gray-300 px-2 py-1 text-right" placeholder="0,00" /></label>)}</div></div>}
+                                    {installments.length > 0 && monedaPago === moneda && <div className="rounded-xl border border-blue-200 bg-blue-50 p-4"><p className="font-bold text-blue-950">Imputar a cuotas</p><p className="mt-1 text-xs text-blue-900">Indicá cuánto del cobro corresponde a cada cuota. El resto queda aplicado a los demás conceptos de la liquidación.</p><div className="mt-3 space-y-2">{installments.filter(cuota => cuota.saldo > 0).map(cuota => <label key={cuota.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white p-2 text-sm"><span>{cuota.concepto} · cuota {cuota.numeroCuota} · saldo {formatCurrency(cuota.saldo, moneda)}</span><input type="number" min="0" max={cuota.saldo} step="0.01" aria-label={`Importe para cuota ${cuota.numeroCuota} de ${cuota.concepto}`} value={quotaAmounts[cuota.id] || ''} onChange={event => setQuotaAmounts(current => ({ ...current, [cuota.id]: event.target.value }))} className="w-28 rounded-lg border border-gray-300 px-2 py-1 text-right" placeholder="0,00" /></label>)}</div></div>}
 
                                     {/* Observations */}
                                     <div>

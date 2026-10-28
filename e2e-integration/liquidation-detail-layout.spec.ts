@@ -59,7 +59,7 @@ test('el detalle separa el ciclo de la deuda y contiene textos largos sin colisi
 
   const lifecycle = page.getByTestId('liquidation-lifecycle');
   const document = page.getByTestId('liquidation-document');
-  await expect(lifecycle.getByRole('heading', { name: 'Estado de la liquidación' })).toBeVisible();
+  await expect(document.getByRole('heading', { name: /Resumen de liquidación/ })).toBeVisible();
   await expect(lifecycle.getByText('Cobro inquilino · pendiente')).toBeVisible();
   await expect(document.getByText('Pendiente de cobro', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Edición parcial', { exact: true })).toHaveCount(0);
@@ -80,11 +80,7 @@ test('el detalle separa el ciclo de la deuda y contiene textos largos sin colisi
     })).filter(size => size.contentWidth > size.width + 1));
     expect(overflows, `Se detectó texto desbordado a ${width}px`).toEqual([]);
 
-    if (width < 768) {
-      await expect(lifecycle.getByText('Confirmada', { exact: true }).first()).toBeVisible();
-    } else {
-      await expect(lifecycle.locator('[aria-current="step"]')).toContainText('Confirmada');
-    }
+    await expect(document.getByText(/Confirmada · N°/)).toBeVisible();
   }
 
   await page.setViewportSize({ width: 390, height: 800 });

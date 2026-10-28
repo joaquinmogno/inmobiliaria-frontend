@@ -7,7 +7,7 @@ import { propertiesService, type Property } from "../services/properties.service
 import type { Persona } from "../services/personas.service";
 import { type Contract, type ContractDraft } from "../services/contracts.service";
 import { toast } from "react-hot-toast";
-import { MONEDA_LABELS, type Moneda } from "../utils/currency";
+import { formatCurrency, MONEDA_LABELS, type Moneda } from "../utils/currency";
 import {
     ATTACHMENT_ACCEPT,
     ATTACHMENT_FORMATS_LABEL,
@@ -316,6 +316,16 @@ export default function NewContractModal({
         }
     };
 
+    const monthlyRent = Number(formData.montoAlquiler);
+    const managementFeeRate = Number(formData.porcentajeHonorarios);
+    const hasValidMonthlyRent = Number.isFinite(monthlyRent) && monthlyRent > 0;
+    const hasValidManagementFeeRate = Number.isFinite(managementFeeRate)
+        && managementFeeRate >= 0
+        && managementFeeRate <= 100;
+    const monthlyManagementFee = hasValidMonthlyRent && hasValidManagementFeeRate
+        ? monthlyRent * managementFeeRate / 100
+        : null;
+
     return (
         <Transition appear show={isOpen} as={Fragment}>
             {/* onClose={() => {}} prevents accidental close on backdrop click */}
@@ -538,6 +548,14 @@ export default function NewContractModal({
                                                 onChange={event => setFormData(current => ({ ...current, porcentajeHonorarios: event.target.value, pagaHonorarios: 'PROPIETARIO' }))}
                                                 className="mt-3 min-h-11 w-full max-w-40 rounded-lg border border-indigo-200 bg-white px-3 text-sm font-bold text-gray-900"
                                             />
+                                            <output
+                                                aria-live="polite"
+                                                className="mt-3 block rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-indigo-950"
+                                            >
+                                                {monthlyManagementFee === null
+                                                    ? 'Ingresá el alquiler mensual y un porcentaje válido para ver el importe.'
+                                                    : <>Honorarios mensuales de gestión: <strong>{formatCurrency(monthlyManagementFee, formData.moneda)}</strong></>}
+                                            </output>
                                         </div>
                                     </div>
 

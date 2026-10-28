@@ -30,6 +30,7 @@ export interface MovimientoPagoPropietario {
     tipo: 'PAGO' | 'REVERSION';
     estado: 'VIGENTE' | 'REVERTIDO' | 'ANULADO' | 'REVERSION';
     monto: number;
+    moneda?: Moneda;
     fecha: string;
     fechaCreacion: string;
     metodoPago: string;
@@ -100,6 +101,19 @@ export interface Liquidacion {
         saldoPropietario: number;
         capitalPropioExpuesto: number;
     };
+    resumenMonedas?: Array<{
+        moneda: Moneda;
+        totalIngresos: number;
+        totalDescuentos: number;
+        netoACobrar: number;
+        montoPropietario: number;
+        cobradoInquilino: number;
+        creditoAplicadoInquilino: number;
+        saldoInquilino: number;
+        pagadoPropietario: number;
+        saldoPropietario: number;
+        capitalPropioExpuesto: number;
+    }>;
     ajustes?: Array<{
         id: number;
         tipo: 'CREDITO' | 'DEBITO';
@@ -333,6 +347,7 @@ export const liquidacionesService = {
         tipo: TipoMovimiento;
         concepto: string;
         monto: number;
+        moneda?: Moneda;
         observaciones?: string;
         esParaInmobiliaria?: boolean;
         expectedVersion?: number;
@@ -362,7 +377,7 @@ export const liquidacionesService = {
         return api.patch<Liquidacion>(`/liquidaciones/${id}/confirmar`, { expectedVersion });
     },
 
-    pagarPropietario: async (id: number, data: { monto: number, fechaPago: string, metodoPago: string, cuentaBancariaId?: number, propietarioId: number, comprobante?: string, observaciones?: string, motivoAdelanto?: string, expectedVersion?: number }) => {
+    pagarPropietario: async (id: number, data: { monto: number, moneda?: Moneda, fechaPago: string, metodoPago: string, cuentaBancariaId?: number, propietarioId: number, comprobante?: string, observaciones?: string, motivoAdelanto?: string, expectedVersion?: number }) => {
         return api.patch<Liquidacion>(`/liquidaciones/${id}/pagar-propietario`, data);
     },
     crearAjuste: async (id: number, data: {
