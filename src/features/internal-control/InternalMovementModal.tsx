@@ -2,6 +2,8 @@ import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/re
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import { useState, type ReactNode } from 'react';
 import LocalizedFilePicker from '../../components/LocalizedFilePicker';
+import AppSelect from '../../components/AppSelect';
+import InternalAmountInput from './InternalAmountInput';
 import { controlInternoService, type InternalMovement, type InternalMovementInput, type InternalOptions } from '../../services/control-interno.service';
 import { formatCurrencyWithCents as formatCurrency, type Moneda } from '../../utils/currency';
 import { formatDateTime, todayDateInput } from '../../utils/date';
@@ -37,14 +39,19 @@ export default function InternalMovementModal({ record, period, options, close, 
     const [files, setFiles] = useState<File[]>([]);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
+    const [customCategory, setCustomCategory] = useState(false);
+    const [customPaymentMethod, setCustomPaymentMethod] = useState(false);
+    const categories = [...new Set(['Oficina', 'Servicios', 'Mantenimiento', 'Publicidad', 'Otros', ...options.categorias, ...(record?.categoria ? [record.categoria] : [])])];
+    const paymentMethods = [...new Set(['Efectivo', 'Transferencia', 'Cheque', 'Tarjeta', 'Otro', ...options.mediosPago, ...(record?.metodoPago ? [record.metodoPago] : [])])];
     const change = (key: keyof InternalMovementInput, value: string) => setData(current => ({ ...current, [key]: value }));
     const save = async (event: React.FormEvent) => {
         event.preventDefault();
         if (busy) return;
         if (files.length > 10) { setError('Seleccioná hasta 10 comprobantes por carga.'); return; }
+        if (!(Number(data.monto) > 0) || Number(data.monto) > 999999999999.99) { setError('Ingresá un importe mayor a cero y de hasta 999.999.999.999,99.'); return; }
         setBusy(true); setError('');
         try {
-            const normalized = { ...data, detalle: data.detalle.trim(), categoria: data.categoria?.trim(), metodoPago: data.metodoPago?.trim(), observaciones: data.observaciones?.trim() };
+            const normalized = { ...data, monto: data.monto.replace(/\.$/, ''), detalle: data.detalle.trim(), categoria: data.categoria?.trim(), metodoPago: data.metodoPago?.trim(), observaciones: data.observaciones?.trim() };
             if (record) await controlInternoService.update(record.id, record.version, normalized);
             else await controlInternoService.create(normalized, files);
             saved(); close();
@@ -59,19 +66,17 @@ export default function InternalMovementModal({ record, period, options, close, 
             <p className="text-sm text-gray-600">Registro para control interno de la inmobiliaria.</p>
             <div className="grid gap-3 sm:grid-cols-2">
                 <label className="text-sm font-bold text-gray-800">Fecha *<input type="date" required value={data.fecha} onChange={event => change('fecha', event.target.value)} className={internalInputClass} /></label>
-                <label className="text-sm font-bold text-gray-800">Tipo de movimiento *<select value={data.tipo} onChange={event => change('tipo', event.target.value)} className={internalInputClass}><option value="GASTO">Gasto</option><option value="INGRESO">Ingreso</option></select></label>
+                <div><label htmlFor="internal-type" className="text-sm font-bold text-gray-800">Tipo de movimiento *</label><AppSelect id="internal-type" ariaLabel="Tipo de movimiento" value={data.tipo} onChange={value => change('tipo', value)} options={[{ value: 'GASTO', label: 'Gasto' }, { value: 'INGRESO', label: 'Ingreso' }]} className="mt-1" /></div>
             </div>
             <label className="block text-sm font-bold text-gray-800">Detalle de lo pagado o recibido *<input required maxLength={255} value={data.detalle} onChange={event => change('detalle', event.target.value)} placeholder="Ej.: compra de artículos de oficina" className={internalInputClass} /></label>
             <div className="grid grid-cols-[1fr_7rem] gap-3">
-                <label className="min-w-0 text-sm font-bold text-gray-800">Importe *<input type="number" inputMode="decimal" step="0.01" min="0.01" max="999999999999.99" required value={data.monto} onChange={event => change('monto', event.target.value)} className={internalInputClass} /></label>
-                <label className="text-sm font-bold text-gray-800">Moneda *<select value={data.moneda} onChange={event => change('moneda', event.target.value as Moneda)} className={internalInputClass}><option value="ARS">ARS</option><option value="USD">USD</option></select></label>
+                <label className="min-w-0 text-sm font-bold text-gray-800">Importe *<InternalAmountInput value={data.monto} onChange={value => change('monto', value)} className={internalInputClass} /></label>
+                <div><label htmlFor="internal-currency" className="text-sm font-bold text-gray-800">Moneda *</label><AppSelect id="internal-currency" ariaLabel="Moneda" value={data.moneda} onChange={value => change('moneda', value as Moneda)} options={[{ value: 'ARS', label: 'ARS' }, { value: 'USD', label: 'USD' }]} className="mt-1" /></div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-                <label className="text-sm font-bold text-gray-800">Categoría (opcional)<input list="internal-categories" maxLength={80} value={data.categoria} onChange={event => change('categoria', event.target.value)} className={internalInputClass} placeholder="Elegí o escribí una categoría" /></label>
-                <label className="text-sm font-bold text-gray-800">Medio de pago (opcional)<input list="internal-payment-methods" maxLength={80} value={data.metodoPago} onChange={event => change('metodoPago', event.target.value)} className={internalInputClass} placeholder="Sin especificar" /></label>
+                <div><label htmlFor="internal-category" className="text-sm font-bold text-gray-800">Categoría (opcional)</label><AppSelect id="internal-category" ariaLabel="Categoría (opcional)" value={customCategory ? '__custom__' : data.categoria || ''} onChange={value => { setCustomCategory(value === '__custom__'); change('categoria', value === '__custom__' ? '' : value); }} options={[{ value: '', label: 'Sin categoría' }, ...categories.map(value => ({ value, label: value })), { value: '__custom__', label: 'Agregar categoría…' }]} className="mt-1" />{customCategory && <input aria-label="Nueva categoría" maxLength={80} value={data.categoria} onChange={event => change('categoria', event.target.value)} className={internalInputClass} placeholder="Nombre de la categoría" />}</div>
+                <div><label htmlFor="internal-payment-method" className="text-sm font-bold text-gray-800">Medio de pago (opcional)</label><AppSelect id="internal-payment-method" ariaLabel="Medio de pago (opcional)" value={customPaymentMethod ? '__custom__' : data.metodoPago || ''} onChange={value => { setCustomPaymentMethod(value === '__custom__'); change('metodoPago', value === '__custom__' ? '' : value); }} options={[{ value: '', label: 'Sin especificar' }, ...paymentMethods.map(value => ({ value, label: value })), { value: '__custom__', label: 'Agregar medio de pago…' }]} className="mt-1" />{customPaymentMethod && <input aria-label="Nuevo medio de pago" maxLength={80} value={data.metodoPago} onChange={event => change('metodoPago', event.target.value)} className={internalInputClass} placeholder="Nombre del medio de pago" />}</div>
             </div>
-            <datalist id="internal-categories">{[...new Set(['Oficina', 'Servicios', 'Mantenimiento', 'Publicidad', 'Otros', ...options.categorias])].map(value => <option key={value} value={value} />)}</datalist>
-            <datalist id="internal-payment-methods">{[...new Set(['Efectivo', 'Transferencia', 'Cheque', 'Tarjeta', 'Otro', ...options.mediosPago])].map(value => <option key={value} value={value} />)}</datalist>
             <label className="block text-sm font-bold text-gray-800">Observaciones (opcional)<textarea rows={2} maxLength={2000} value={data.observaciones} onChange={event => change('observaciones', event.target.value)} className={internalInputClass} /></label>
             {!record && <>
                 <LocalizedFilePicker id="internal-receipts" label="Comprobantes (opcional)" accept=".pdf,.jpg,.jpeg,.png,.webp" formatsLabel="PDF, JPG, PNG o WEBP" multiple selectedFiles={files} onFilesSelected={setFiles} validateFile={internalFileValidation} onValidationError={setError} disabled={busy} />

@@ -75,6 +75,7 @@ test('permite cargar un gasto con foto/PDF y sin medio de pago obligatorio', asy
     await dialog.getByLabel('Fecha *', { exact: true }).fill('2026-10-28');
     await dialog.getByLabel('Detalle de lo pagado o recibido').fill('Gasto con comprobante');
     await dialog.getByLabel('Importe *', { exact: true }).fill('25000.50');
+    await expect(dialog.getByLabel('Importe *', { exact: true })).toHaveValue('25.000,50');
     await expect(dialog.getByLabel('Medio de pago (opcional)')).not.toHaveAttribute('required');
     await dialog.locator('#internal-receipts').setInputFiles({ name: 'recibo.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4\n%%EOF') });
     await dialog.getByRole('button', { name: 'Guardar movimiento' }).click();
@@ -99,7 +100,8 @@ test('editar y anular conservan versión y motivo sin mostrar un asiento de caja
     await cancel.getByLabel('Motivo de la anulación').fill('Registrado por duplicado');
     await cancel.getByRole('button', { name: 'Confirmar anulación' }).click();
     await expect(cancel).not.toBeVisible();
-    await page.getByRole('combobox', { name: 'Estado', exact: true }).selectOption('ANULADOS');
+    await page.getByRole('button', { name: /^Estado:/ }).click();
+    await page.getByRole('option', { name: 'Anulados', exact: true }).click();
     await expect(page.getByRole('cell').filter({ hasText: 'Registrado por duplicado' })).toBeVisible();
     expect(sent.some(request => request.path.includes('/cajachica'))).toBe(false);
 });
@@ -108,7 +110,8 @@ test('Excel y PDF descargan la selección mensual con los filtros activos', asyn
     const { sent } = await mock(page);
     await page.getByLabel('Mes', { exact: true }).fill('2026-10');
     await page.getByText('Más filtros', { exact: true }).click();
-    await page.getByRole('combobox', { name: 'Categoría', exact: true }).selectOption('Oficina');
+    await page.getByRole('button', { name: /^Categoría:/ }).click();
+    await page.getByRole('option', { name: 'Oficina', exact: true }).click();
     for (const format of ['Excel', 'PDF']) {
         const downloadPromise = page.waitForEvent('download');
         await page.getByRole('button', { name: format, exact: true }).click();
@@ -118,6 +121,66 @@ test('Excel y PDF descargan la selección mensual con los filtros activos', asyn
         expect(request?.query).toContain('periodo=2026-10');
         expect(request?.query).toContain('categoria=Oficina');
     }
+});
+
+test('el importe muestra puntos al escribir y conserva los centavos al editar y guardar', async ({ page }) => {
+    const { sent } = await mock(page);
+    await page.getByRole('button', { name: 'Editar', exact: true }).filter({ visible: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Editar movimiento interno' });
+    const amount = dialog.getByLabel('Importe *', { exact: true });
+    await expect(amount).toHaveValue('25.000,50');
+    await amount.fill('');
+    await amount.pressSequentially('1300000');
+    await expect(amount).toHaveValue('1.300.000');
+    await amount.press('Backspace');
+    await expect(amount).toHaveValue('130.000');
+    await amount.fill('1300');
+    await amount.press('Backspace');
+    await expect(amount).toHaveValue('130');
+    await amount.fill('1.300.000,50');
+    await expect(amount).toHaveValue('1.300.000,50');
+    await dialog.getByRole('button', { name: 'Guardar movimiento' }).click();
+    await expect(dialog).not.toBeVisible();
+    expect(JSON.parse(sent.find(request => request.method === 'PUT')?.body || '{}')).toMatchObject({ monto: '1300000.50' });
+});
+
+test('categoría y medio de pago usan los desplegables de la app y admiten opciones nuevas', async ({ page }) => {
+    const { sent } = await mock(page);
+    await page.getByRole('button', { name: 'Agregar movimiento', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Agregar movimiento interno' });
+    await dialog.getByLabel('Detalle de lo pagado o recibido').fill('Gasto con comprobante');
+    await dialog.getByLabel('Importe *', { exact: true }).fill('1000,25');
+    await dialog.getByRole('button', { name: /^Categoría \(opcional\):/ }).click();
+    await page.getByRole('option', { name: 'Servicios', exact: true }).click();
+    await expect(dialog.getByRole('button', { name: 'Categoría (opcional): Servicios', exact: true })).toBeVisible();
+    await dialog.getByRole('button', { name: /^Categoría \(opcional\):/ }).click();
+    await page.getByRole('option', { name: 'Agregar categoría…', exact: true }).click();
+    await dialog.getByLabel('Nueva categoría', { exact: true }).fill('Capacitación');
+    await dialog.getByRole('button', { name: /^Medio de pago \(opcional\):/ }).click();
+    await page.getByRole('option', { name: 'Agregar medio de pago…', exact: true }).click();
+    await dialog.getByLabel('Nuevo medio de pago', { exact: true }).fill('Billetera virtual');
+    await dialog.getByRole('button', { name: 'Guardar movimiento' }).click();
+    await expect(dialog).not.toBeVisible();
+    const create = sent.find(request => request.path === '/api/control-interno' && request.method === 'POST');
+    expect(create?.body).toContain('Capacitación');
+    expect(create?.body).toContain('Billetera virtual');
+    expect(create?.body).toContain('1000.25');
+});
+
+test('las acciones son íconos accesibles y permanecen en una sola línea', async ({ page }) => {
+    await mock(page);
+    await page.setViewportSize({ width: 1366, height: 900 });
+    const table = page.getByRole('table', { name: 'Planilla mensual del control interno' });
+    const buttons = table.getByRole('button');
+    await expect(buttons).toHaveCount(3);
+    for (const button of await buttons.all()) {
+        await expect(button).toHaveText('');
+        await expect(button).toHaveAttribute('title', /.+/);
+    }
+    const positions = await buttons.evaluateAll(elements => elements.map(element => element.getBoundingClientRect().top));
+    expect(new Set(positions).size).toBe(1);
+    await table.getByRole('button', { name: 'Comprobantes (0)', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Comprobantes del movimiento #1', exact: true })).toBeVisible();
 });
 
 test('la planilla y el formulario son utilizables en móvil y escritorio', async ({ page }, testInfo) => {

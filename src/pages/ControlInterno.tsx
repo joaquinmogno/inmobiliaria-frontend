@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { PlusIcon, DocumentArrowDownIcon, PrinterIcon, ClipboardDocumentListIcon, PaperClipIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, DocumentArrowDownIcon, PrinterIcon, ClipboardDocumentListIcon, PaperClipIcon, PencilSquareIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { hasPermission } from '../utils/permissions';
@@ -7,6 +7,7 @@ import { formatCurrencyWithCents as formatCurrency } from '../utils/currency';
 import { formatDate, formatDateTime, formatMonthYear, todayDateInput } from '../utils/date';
 import { controlInternoService, type InternalFilters, type InternalList, type InternalMovement, type InternalOptions } from '../services/control-interno.service';
 import ServerPagination from '../components/ServerPagination';
+import AppSelect from '../components/AppSelect';
 import InternalMovementModal, { internalInputClass } from '../features/internal-control/InternalMovementModal';
 import { InternalCancelModal, InternalReceiptsModal } from '../features/internal-control/InternalRecordDialogs';
 
@@ -62,10 +63,10 @@ export default function ControlInterno() {
         finally { setReportBusy(''); }
     };
 
-    const actions = (record: InternalMovement) => <div className="flex flex-wrap gap-2">
-        <button type="button" onClick={() => setReceipts(record)} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-indigo-200 px-2 text-xs font-bold text-indigo-800 hover:bg-indigo-50"><PaperClipIcon className="h-4 w-4" />Comprobantes ({record.adjuntos.length})</button>
-        {canEdit && !record.anuladoEn && <button type="button" onClick={() => setEditor({ record })} className="inline-flex min-h-11 items-center gap-1 rounded-lg border border-gray-300 px-2 text-xs font-bold text-gray-700"><PencilSquareIcon className="h-4 w-4" />Editar</button>}
-        {canCancel && !record.anuladoEn && <button type="button" data-danger-trigger="true" onClick={() => setCancelRecord(record)} className="min-h-11 rounded-lg border border-red-200 px-2 text-xs font-bold text-red-800">Anular</button>}
+    const actions = (record: InternalMovement) => <div className="flex flex-nowrap gap-1.5">
+        <button type="button" onClick={() => setReceipts(record)} aria-label={`Comprobantes (${record.adjuntos.length})`} title={`Ver comprobantes (${record.adjuntos.length})`} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-indigo-200 text-indigo-800 hover:bg-indigo-50 focus-visible:ring-2 focus-visible:ring-indigo-500"><PaperClipIcon className="h-5 w-5" aria-hidden="true" /></button>
+        {canEdit && !record.anuladoEn && <button type="button" onClick={() => setEditor({ record })} aria-label="Editar" title="Editar movimiento" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-indigo-500"><PencilSquareIcon className="h-5 w-5" aria-hidden="true" /></button>}
+        {canCancel && !record.anuladoEn && <button type="button" data-danger-trigger="true" onClick={() => setCancelRecord(record)} aria-label="Anular" title="Anular movimiento" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-red-200 text-red-800 hover:bg-red-50 focus-visible:ring-2 focus-visible:ring-red-500"><XCircleIcon className="h-5 w-5" aria-hidden="true" /></button>}
     </div>;
     const recordDetails = (record: InternalMovement) => <>
         <p className="break-words font-bold text-gray-950">{record.detalle}</p>
@@ -90,14 +91,14 @@ export default function ControlInterno() {
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <label className="text-sm font-bold text-gray-800">Mes<input type="month" min="1900-01" max="2100-12" value={filters.periodo} onChange={event => { if (event.target.value) change('periodo', event.target.value); }} className={internalInputClass} /></label>
                 <label className="text-sm font-bold text-gray-800 sm:col-span-1 lg:col-span-2">Buscar por detalle u observaciones<input type="search" maxLength={255} value={filters.search || ''} onChange={event => change('search', event.target.value)} placeholder="Ej.: luz, oficina, reparación…" className={internalInputClass} /></label>
-                <label className="text-sm font-bold text-gray-800">Estado<select value={filters.estado} onChange={event => change('estado', event.target.value)} className={internalInputClass}><option value="VIGENTES">Vigentes</option><option value="ANULADOS">Anulados</option><option value="TODOS">Todos</option></select></label>
+                <div><label htmlFor="internal-filter-state" className="text-sm font-bold text-gray-800">Estado</label><AppSelect id="internal-filter-state" ariaLabel="Estado" value={filters.estado || 'VIGENTES'} onChange={value => change('estado', value)} options={[{ value: 'VIGENTES', label: 'Vigentes' }, { value: 'ANULADOS', label: 'Anulados' }, { value: 'TODOS', label: 'Todos' }]} className="mt-1" /></div>
             </div>
             <details className="mt-3"><summary className="min-h-11 cursor-pointer text-sm font-bold text-indigo-800">Más filtros</summary><div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <label className="text-sm font-bold text-gray-800">Tipo<select value={filters.tipo || ''} onChange={event => change('tipo', event.target.value)} className={internalInputClass}><option value="">Ingresos y gastos</option><option value="GASTO">Gastos</option><option value="INGRESO">Ingresos</option></select></label>
-                <label className="text-sm font-bold text-gray-800">Moneda<select value={filters.moneda || ''} onChange={event => change('moneda', event.target.value)} className={internalInputClass}><option value="">Todas las monedas</option><option value="ARS">Pesos (ARS)</option><option value="USD">Dólares (USD)</option></select></label>
-                <label className="text-sm font-bold text-gray-800">Categoría<select value={filters.categoria || ''} onChange={event => change('categoria', event.target.value)} className={internalInputClass}><option value="">Todas las categorías</option>{options.categorias.map(value => <option key={value}>{value}</option>)}</select></label>
-                <label className="text-sm font-bold text-gray-800">Medio de pago<select value={filters.metodoPago || ''} onChange={event => change('metodoPago', event.target.value)} className={internalInputClass}><option value="">Todos los medios</option>{options.mediosPago.map(value => <option key={value}>{value}</option>)}</select></label>
-                <label className="text-sm font-bold text-gray-800">Cargado por<select value={filters.creadoPorId || ''} onChange={event => change('creadoPorId', event.target.value)} className={internalInputClass}><option value="">Todos los usuarios</option>{options.usuarios.map(person => <option key={person.id} value={person.id}>{person.nombreCompleto}</option>)}</select></label>
+                <div><label htmlFor="internal-filter-type" className="text-sm font-bold text-gray-800">Tipo</label><AppSelect id="internal-filter-type" ariaLabel="Tipo" value={filters.tipo || ''} onChange={value => change('tipo', value)} options={[{ value: '', label: 'Ingresos y gastos' }, { value: 'GASTO', label: 'Gastos' }, { value: 'INGRESO', label: 'Ingresos' }]} className="mt-1" /></div>
+                <div><label htmlFor="internal-filter-currency" className="text-sm font-bold text-gray-800">Moneda</label><AppSelect id="internal-filter-currency" ariaLabel="Moneda" value={filters.moneda || ''} onChange={value => change('moneda', value)} options={[{ value: '', label: 'Todas las monedas' }, { value: 'ARS', label: 'Pesos (ARS)' }, { value: 'USD', label: 'Dólares (USD)' }]} className="mt-1" /></div>
+                <div><label htmlFor="internal-filter-category" className="text-sm font-bold text-gray-800">Categoría</label><AppSelect id="internal-filter-category" ariaLabel="Categoría" value={filters.categoria || ''} onChange={value => change('categoria', value)} options={[{ value: '', label: 'Todas las categorías' }, ...options.categorias.map(value => ({ value, label: value }))]} className="mt-1" /></div>
+                <div><label htmlFor="internal-filter-method" className="text-sm font-bold text-gray-800">Medio de pago</label><AppSelect id="internal-filter-method" ariaLabel="Medio de pago" value={filters.metodoPago || ''} onChange={value => change('metodoPago', value)} options={[{ value: '', label: 'Todos los medios' }, ...options.mediosPago.map(value => ({ value, label: value }))]} className="mt-1" /></div>
+                <div><label htmlFor="internal-filter-author" className="text-sm font-bold text-gray-800">Cargado por</label><AppSelect id="internal-filter-author" ariaLabel="Cargado por" value={filters.creadoPorId || ''} onChange={value => change('creadoPorId', value)} options={[{ value: '', label: 'Todos los usuarios' }, ...options.usuarios.map(person => ({ value: String(person.id), label: person.nombreCompleto }))]} className="mt-1" /></div>
             </div></details>
         </section>
 
