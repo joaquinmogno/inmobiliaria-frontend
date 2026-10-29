@@ -7,6 +7,7 @@ import {
   CalculatorIcon,
   BanknotesIcon,
   CreditCardIcon,
+  ClipboardDocumentListIcon,
   UserGroupIcon,
   ChevronDownIcon,
   Cog6ToothIcon,
@@ -43,6 +44,7 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
   const canViewLiquidations = hasPermission(user, "liquidaciones.ver");
   const canViewCash = hasPermission(user, "caja_chica.ver");
   const canViewPayments = hasPermission(user, "pagos.ver");
+  const canViewInternalControl = hasPermission(user, "control_interno.ver");
   const canViewConfiguration = user?.tipo === "ADMIN";
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -199,6 +201,11 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
         </NavLink>}
 
         {/* Personas */}
+        {canViewInternalControl && <NavLink to="/control-interno" className={linkClass} title={!menuExpanded ? "Control interno" : undefined}>
+          <ClipboardDocumentListIcon className="h-6 w-6 min-w-[24px]" />
+          <span className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"}`}>Control interno</span>
+        </NavLink>}
+
         {canViewPeople && <NavLink to="/personas" className={linkClass}>
           <UserGroupIcon className="w-6 h-6 min-w-[24px]" />
           <span

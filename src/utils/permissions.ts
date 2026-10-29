@@ -1,6 +1,11 @@
 import { type User } from "../services/auth.service";
 
 export const MODULE_PERMISSIONS = [
+  "control_interno.ver",
+  "control_interno.crear",
+  "control_interno.editar",
+  "control_interno.anular",
+  "control_interno.reportes",
   "contratos.ver",
   "contratos.crear",
   "contratos.editar",
@@ -54,6 +59,11 @@ export const MODULE_PERMISSIONS = [
 export type PermissionKey = typeof MODULE_PERMISSIONS[number];
 
 export const PERMISSION_LABELS: Record<PermissionKey, string> = {
+  "control_interno.ver": "Ver control interno y comprobantes",
+  "control_interno.crear": "Cargar movimientos internos",
+  "control_interno.editar": "Editar movimientos internos",
+  "control_interno.anular": "Anular movimientos internos",
+  "control_interno.reportes": "Descargar reportes internos Excel y PDF",
   "contratos.ver": "Ver contratos",
   "contratos.crear": "Crear contratos",
   "contratos.editar": "Editar contratos",
@@ -105,6 +115,7 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
 };
 
 export const PERMISSION_GROUPS: Array<{ title: string; permissions: PermissionKey[] }> = [
+  { title: "Control interno", permissions: ["control_interno.ver", "control_interno.crear", "control_interno.editar", "control_interno.anular", "control_interno.reportes"] },
   { title: "Contratos", permissions: ["contratos.ver", "contratos.crear", "contratos.editar", "contratos.eliminar", "contratos.archivos.ver", "contratos.restaurar"] },
   { title: "Gestión financiera", permissions: ["caja_chica.ver", "caja_chica.crear", "caja_chica.eliminar", "caja_chica.cerrar", "caja_chica.reabrir"] },
   { title: "Liquidaciones", permissions: ["liquidaciones.ver", "liquidaciones.crear", "liquidaciones.editar", "liquidaciones.confirmar", "liquidaciones.pagar_propietario", "liquidaciones.adelantar_propietario", "liquidaciones.ajustar", "liquidaciones.anular_pago_propietario", "liquidaciones.eliminar"] },

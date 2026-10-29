@@ -31,3 +31,8 @@ export function formatSignedCurrency(
 
   return showPositiveSign && numericAmount > 0 ? `+${formattedAmount}` : formattedAmount;
 }
+
+export function formatCurrencyWithCents(amount: number | string | null | undefined, moneda: Moneda = "ARS"): string {
+  const value = normalizeAmount(amount);
+  return `${value < 0 ? '-' : ''}${moneda === 'USD' ? 'US$' : '$'}${Math.abs(value).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
