@@ -61,7 +61,7 @@ export default function RoleEditorDialog({
           </header>
 
           <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">
-            <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-6">
+            <div className="modal-scroll flex-1 space-y-5 px-4 py-5 sm:px-6">
               {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
               <div className="grid gap-4 md:grid-cols-2">

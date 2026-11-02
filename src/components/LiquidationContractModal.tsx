@@ -37,9 +37,9 @@ export default function LiquidationContractModal({ contractId, onClose }: Props)
 
     return <Dialog open={contractId !== null} onClose={onClose} className="relative z-50">
         <div className="fixed inset-0 bg-gray-950/55" aria-hidden="true" />
-        <div className="fixed inset-0 overflow-y-auto p-4 sm:p-8">
-            <div className="flex min-h-full items-center justify-center">
-                <DialogPanel className="w-full max-w-3xl space-y-5 rounded-2xl bg-white p-5 shadow-xl sm:p-7">
+        <div className="fixed inset-0 overflow-hidden p-4 sm:p-8">
+            <div className="flex h-full min-h-0 items-center justify-center">
+                <DialogPanel className="modal-scroll max-h-full w-full max-w-3xl space-y-5 rounded-2xl bg-white p-5 shadow-xl sm:p-7">
                     <div className="flex items-start justify-between gap-4">
                         <div><DialogTitle className="text-xl font-bold text-gray-950">Ver contrato de la liquidación</DialogTitle>
                             <p className="mt-1 text-sm text-gray-600">Contrato #{contractId} · se abre el documento asociado a este período, aunque luego haya una renovación u otro inquilino.</p></div>

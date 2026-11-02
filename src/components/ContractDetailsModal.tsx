@@ -249,7 +249,7 @@ export default function ContractDetailsModal({
                 </Transition.Child>
 
                 <div className="fixed inset-0 overflow-hidden">
-                    <div className="flex min-h-full items-end justify-center text-center sm:items-center sm:p-4">
+                    <div className="flex h-full min-h-0 items-end justify-center text-center sm:items-center sm:p-4">
                         <Transition.Child
                             as={Fragment}
                             enter="ease-out duration-300"
@@ -279,7 +279,7 @@ export default function ContractDetailsModal({
                                     </button>
                                 </div>
 
-                                <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+                                <div className="modal-scroll flex-1 p-4 sm:p-6">
                                 {/* Tabs Navigation */}
                                 <div className="mb-6 flex gap-2 overflow-x-auto border-b border-gray-100 pb-1">
                                     <button

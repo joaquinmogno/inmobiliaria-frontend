@@ -11,7 +11,7 @@ import AppSelect from '../components/AppSelect';
 import InternalMovementModal, { internalInputClass } from '../features/internal-control/InternalMovementModal';
 import { InternalCancelModal, InternalReceiptsModal } from '../features/internal-control/InternalRecordDialogs';
 
-const emptyOptions: InternalOptions = { categorias: [], mediosPago: [], usuarios: [] };
+const emptyOptions: InternalOptions = { categorias: [], mediosPago: [], cuentasPago: [], usuarios: [] };
 
 export default function ControlInterno() {
     const { user } = useAuth();
@@ -71,6 +71,7 @@ export default function ControlInterno() {
     const recordDetails = (record: InternalMovement) => <>
         <p className="break-words font-bold text-gray-950">{record.detalle}</p>
         {record.observaciones && <p className="mt-1 whitespace-pre-wrap break-words text-xs text-gray-600">{record.observaciones}</p>}
+        {record.cuentaPago && <p className="mt-1 break-words text-xs text-indigo-800 [overflow-wrap:anywhere]"><strong>{record.tipo === 'GASTO' ? 'Cuenta de origen' : 'Cuenta de destino'}:</strong> {record.cuentaPago}</p>}
         {record.anuladoEn && <p className="mt-2 rounded-lg bg-gray-100 p-2 text-xs text-gray-700"><strong>Anulado:</strong> {record.motivoAnulacion} · {record.anuladoPor?.nombreCompleto || 'Usuario'} · {formatDateTime(record.anuladoEn)}</p>}
     </>;
 
@@ -90,7 +91,7 @@ export default function ControlInterno() {
         <section aria-label="Filtros del control interno" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <label className="text-sm font-bold text-gray-800">Mes<input type="month" min="1900-01" max="2100-12" value={filters.periodo} onChange={event => { if (event.target.value) change('periodo', event.target.value); }} className={internalInputClass} /></label>
-                <label className="text-sm font-bold text-gray-800 sm:col-span-1 lg:col-span-2">Buscar por detalle u observaciones<input type="search" maxLength={255} value={filters.search || ''} onChange={event => change('search', event.target.value)} placeholder="Ej.: luz, oficina, reparación…" className={internalInputClass} /></label>
+                <label className="text-sm font-bold text-gray-800 sm:col-span-1 lg:col-span-2">Buscar por detalle, cuenta u observaciones<input type="search" maxLength={255} value={filters.search || ''} onChange={event => change('search', event.target.value)} placeholder="Ej.: luz, oficina, banco…" className={internalInputClass} /></label>
                 <div><label htmlFor="internal-filter-state" className="text-sm font-bold text-gray-800">Estado</label><AppSelect id="internal-filter-state" ariaLabel="Estado" value={filters.estado || 'VIGENTES'} onChange={value => change('estado', value)} options={[{ value: 'VIGENTES', label: 'Vigentes' }, { value: 'ANULADOS', label: 'Anulados' }, { value: 'TODOS', label: 'Todos' }]} className="mt-1" /></div>
             </div>
             <details className="mt-3"><summary className="min-h-11 cursor-pointer text-sm font-bold text-indigo-800">Más filtros</summary><div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">

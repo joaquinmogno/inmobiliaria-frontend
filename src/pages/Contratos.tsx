@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
 import { Menu, MenuButton, MenuItem, MenuItems, Transition } from "@headlessui/react";
 import { contractsService, type Contract, type ContractDraft, type EstadoContrato } from "../services/contracts.service";
@@ -54,6 +54,7 @@ export default function Contratos() {
   const [contractsList, setContractsList] = useState<Contract[]>([]);
   const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') ?? readPersistedFilter("contratos"));
   const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('q') ?? readPersistedFilter("contratos"));
+  const lastSyncedSearch = useRef<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalContracts, setTotalContracts] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
@@ -61,24 +62,32 @@ export default function Contratos() {
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [contractToDelete, setContractToDelete] = useState<number | null>(null);
+  const [preparingRenewal, setPreparingRenewal] = useState(false);
 
   const [statusFilter, setStatusFilter] = useState<ContractListStatus>(alertFilter ? 'ACTIVO' : urlStatus);
 
   useEffect(() => {
     persistFilter("contratos", searchTerm);
+  }, [searchTerm]);
+
+  useEffect(() => {
     if (location.state?.openNewContractModal && canCreate) {
       setEditingContract(null);
       setRenewingContract(null);
       setActiveDraft(null);
       setIsModalOpen(true);
-      window.history.replaceState({}, document.title);
+      navigate({ pathname: location.pathname, search: location.search, hash: location.hash }, { replace: true, state: null });
     }
-  }, [location.state, canCreate, searchTerm]);
+  }, [location.state, location.pathname, location.search, location.hash, canCreate, navigate]);
 
   useEffect(() => {
     const renewId = Number(location.state?.renewContractId);
-    if (!canCreate || !Number.isInteger(renewId) || renewId <= 0) return;
+    if (!canCreate || !Number.isInteger(renewId) || renewId <= 0) {
+      setPreparingRenewal(false);
+      return;
+    }
     let active = true;
+    setPreparingRenewal(true);
     contractsService.getById(renewId).then(contract => {
       if (!active) return;
       if ((contract.historialRenovaciones || []).some(entry => entry.contratoAnteriorId === contract.id)) {
@@ -90,9 +99,13 @@ export default function Contratos() {
       setRenewingContract(contract);
       setIsModalOpen(true);
     }).catch(error => { if (active) toast.error(error instanceof Error ? error.message : 'No se pudo preparar la renovación'); })
-      .finally(() => { if (active) navigate(`${location.pathname}${location.search}`, { replace: true, state: null }); });
+      .finally(() => {
+        if (!active) return;
+        setPreparingRenewal(false);
+        navigate({ pathname: location.pathname, search: location.search, hash: location.hash }, { replace: true, state: null });
+      });
     return () => { active = false; };
-  }, [canCreate, location.pathname, location.search, location.state, navigate]);
+  }, [canCreate, location.pathname, location.search, location.hash, location.state, navigate]);
 
   useEffect(() => {
     const nextSearch = searchParams.get('q');
@@ -104,13 +117,17 @@ export default function Contratos() {
   }, [searchParams, alertFilter, urlStatus]);
 
   useEffect(() => {
-    setSearchParams(current => {
-      const next = new URLSearchParams(current);
-      if (searchTerm.trim()) next.set('q', searchTerm.trim());
-      else next.delete('q');
-      return next;
-    }, { replace: true });
-  }, [searchTerm, setSearchParams]);
+    // URL-driven updates are read above; only write back when the search value changes.
+    if (lastSyncedSearch.current === searchTerm) return;
+    lastSyncedSearch.current = searchTerm;
+    const next = new URLSearchParams(searchParams);
+    if (searchTerm.trim()) next.set('q', searchTerm.trim());
+    else next.delete('q');
+    // A filter-only navigation must not discard a pending renewal/new-contract handoff.
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true, state: location.state });
+    }
+  }, [searchTerm, searchParams, setSearchParams, location.state]);
 
   useEffect(() => {
     if (!alertFilter) return;
@@ -125,7 +142,7 @@ export default function Contratos() {
       else next.set('estado', nextStatus);
       if (clearAlert) next.delete('alerta');
       return next;
-    }, { replace: true });
+    }, { replace: true, state: location.state });
   };
 
   useEffect(() => {
@@ -448,6 +465,7 @@ export default function Contratos() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
+      {preparingRenewal && <p role="status" className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-900">Cargando datos para la renovación…</p>}
       {/* Header & Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -471,13 +489,14 @@ export default function Contratos() {
           />
           {canCreate && (
             <button
+              disabled={preparingRenewal}
               onClick={() => {
                 setEditingContract(null);
                 setRenewingContract(null);
                 setActiveDraft(null);
                 setIsModalOpen(true);
               }}
-              className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm font-medium cursor-pointer"
+              className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm font-medium cursor-pointer disabled:cursor-wait disabled:opacity-50"
             >
               <PlusIcon className="w-5 h-5" />
               Nuevo contrato
@@ -486,9 +505,10 @@ export default function Contratos() {
           {canCreate && (
             <button
               type="button"
+              disabled={preparingRenewal}
               onClick={() => setShowDrafts(open => !open)}
               aria-expanded={showDrafts}
-              className="flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 font-medium text-indigo-700 transition-colors hover:bg-indigo-100"
+              className="flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 font-medium text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-wait disabled:opacity-50"
             >
               <DocumentTextIcon className="h-5 w-5" />
               Borradores{drafts.length ? ` (${drafts.length})` : ''}

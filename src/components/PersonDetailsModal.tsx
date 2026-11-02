@@ -26,10 +26,10 @@ export default function PersonDetailsModal({ isOpen, person, canEdit, onClose, o
     return (
         <Dialog open={isOpen} onClose={onClose} className="relative z-50">
             <DialogBackdrop className="fixed inset-0 bg-slate-950/55 backdrop-blur-sm" />
-            <div className="fixed inset-0 overflow-y-auto p-3 sm:p-6">
-                <div className="flex min-h-full items-center justify-center">
-                    <DialogPanel className="w-full max-w-3xl overflow-hidden rounded-2xl bg-white shadow-2xl">
-                        <div className="flex items-start justify-between gap-4 border-b border-gray-200 px-5 py-4 sm:px-7">
+            <div className="fixed inset-0 overflow-hidden p-3 sm:p-6">
+                <div className="flex h-full min-h-0 items-center justify-center">
+                    <DialogPanel className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+                        <div className="flex shrink-0 items-start justify-between gap-4 border-b border-gray-200 px-5 py-4 sm:px-7">
                             <div className="min-w-0">
                                 <DialogTitle className="truncate text-xl font-bold text-gray-950 sm:text-2xl">{person.nombreCompleto}</DialogTitle>
                                 <p className="mt-1 text-sm text-gray-600">Ficha operativa de la persona</p>
@@ -49,7 +49,7 @@ export default function PersonDetailsModal({ isOpen, person, canEdit, onClose, o
                             </div>
                         </div>
 
-                        <div className="max-h-[calc(100vh-8rem)] space-y-7 overflow-y-auto p-5 sm:p-7">
+                        <div className="modal-scroll flex-1 space-y-7 p-5 sm:p-7">
                             <div className="flex flex-wrap items-center gap-2">
                                 <span className={`rounded-full px-3 py-1 text-xs font-bold ${person.estado === "ACTIVO" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>{getStatusLabel(person.estado)}</span>
                                 {person.roles?.map(role => <span key={role} className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-800">{role}</span>)}

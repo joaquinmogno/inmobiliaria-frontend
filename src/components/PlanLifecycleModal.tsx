@@ -84,10 +84,10 @@ export default function PlanLifecycleModal({ isOpen, plan, action, onClose, onCo
                 <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0">
                     <div className="fixed inset-0 bg-black/35 backdrop-blur-sm" />
                 </Transition.Child>
-                <div className="fixed inset-0 overflow-y-auto">
-                    <div className="flex min-h-full items-center justify-center p-4">
+                <div className="fixed inset-0 overflow-hidden">
+                    <div className="flex h-full min-h-0 items-center justify-center p-4">
                         <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
-                            <Dialog.Panel className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+                            <Dialog.Panel className="modal-scroll max-h-full w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
                                 <div className="mb-5 flex items-start justify-between gap-4 border-b border-gray-100 pb-4">
                                     <div>
                                         <Dialog.Title className="text-lg font-bold text-gray-900">{copy.title}</Dialog.Title>

@@ -63,7 +63,7 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh]">
+      <div data-modal-panel className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90dvh]">
         {/* Header */}
         <div className="flex-shrink-0 px-6 py-4 flex items-center justify-between border-b gap-4">
           <div className="flex items-center gap-3">
@@ -86,7 +86,7 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto">
+        <div className="modal-scroll flex-1 p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <LockClosedIcon className="w-5 h-5 text-indigo-500" />
             Cambiar Contraseña

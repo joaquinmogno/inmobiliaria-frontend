@@ -139,7 +139,7 @@ export default function OperationalAlertsPanel() {
 
         <Dialog open={Boolean(selected && draft)} onClose={closeManagement} className="relative z-50">
             <DialogBackdrop className="fixed inset-0 bg-slate-950/55 backdrop-blur-sm" />
-            <div className="fixed inset-0 overflow-y-auto p-3 sm:p-6"><div className="flex min-h-full items-center justify-center"><DialogPanel className="w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl sm:p-7">
+            <div className="fixed inset-0 overflow-hidden p-3 sm:p-6"><div className="flex h-full min-h-0 items-center justify-center"><DialogPanel className="modal-scroll max-h-full w-full max-w-2xl rounded-2xl bg-white p-5 shadow-2xl sm:p-7">
                 {selected && draft && <form onSubmit={save} className="space-y-5">
                     <div className="flex items-start justify-between gap-4"><div><DialogTitle className="text-xl font-bold text-gray-950">Gestionar: {selected.titulo}</DialogTitle><p className="mt-1 text-sm text-gray-600">La alerta permanece visible mientras la condición operativa siga activa.</p></div><button type="button" onClick={closeManagement} aria-label="Cerrar" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-gray-700 hover:bg-gray-100"><XMarkIcon className="h-6 w-6" /></button></div>
                     <div className="grid gap-4 sm:grid-cols-2">

@@ -30,9 +30,9 @@ export default function ExceptionReviewDialog({ row, busy, canCreate, onClose, o
 
   return <Dialog open={Boolean(row)} onClose={() => !busy && onClose()} className="relative z-[120]">
     <DialogBackdrop className="fixed inset-0 bg-gray-950/55 backdrop-blur-sm" />
-    <div className="fixed inset-0 overflow-y-auto p-0 sm:p-4">
-      <div className="flex min-h-full items-end justify-center sm:items-center">
-        <DialogPanel className="max-h-[100dvh] w-full overflow-y-auto rounded-t-2xl bg-white shadow-2xl sm:max-w-2xl sm:rounded-2xl">
+    <div className="fixed inset-0 overflow-hidden p-0 sm:p-4">
+      <div className="flex h-full min-h-0 items-end justify-center sm:items-center">
+        <DialogPanel className="modal-scroll max-h-full w-full rounded-t-2xl bg-white shadow-2xl sm:max-w-2xl sm:rounded-2xl">
           <header className="sticky top-0 z-10 flex items-start justify-between border-b border-gray-200 bg-white p-5">
             <div className="min-w-0 pr-4">
               <p className="text-sm font-bold text-amber-800">Caso que requiere revisión</p>

@@ -64,6 +64,15 @@ body,
   overflow-x: hidden;
 }
 
+/* El scroll de los popups siempre pertenece al panel, nunca al fondo exterior.
+ * La pista queda dentro de la ventana y no dispara el cierre por clic afuera. */
+.modal-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
 /*
  * El menú conserva su desplazamiento cuando la altura disponible es reducida,
  * pero evita la pista gris nativa sobre el fondo de marca. El indicador aparece

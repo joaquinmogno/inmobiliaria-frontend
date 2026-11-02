@@ -343,7 +343,7 @@ export default function NewContractModal({
                 </Transition.Child>
 
                 <div className="fixed inset-0 overflow-hidden">
-                    <div className="flex min-h-full items-end justify-center text-center sm:items-center sm:p-4">
+                    <div className="flex h-full min-h-0 items-end justify-center text-center sm:items-center sm:p-4">
                         <Transition.Child
                             as={Fragment}
                             enter="ease-out duration-300"
@@ -370,7 +370,7 @@ export default function NewContractModal({
                                     </button>
                                 </div>
 
-                                <form ref={formRef} onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+                                <form ref={formRef} onSubmit={handleSubmit} className="modal-scroll flex-1 p-4 sm:p-6 space-y-6">
                                     <FormError message={formError} />
                                     {renewingContract && (
                                         <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-950">

@@ -89,7 +89,7 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
                 </Transition.Child>
 
                 <div className="fixed inset-0 overflow-hidden">
-                    <div className="flex min-h-full items-end justify-center text-center sm:items-center sm:p-4">
+                    <div className="flex h-full min-h-0 items-end justify-center text-center sm:items-center sm:p-4">
                         <Transition.Child
                             as={Fragment}
                             enter="ease-out duration-300"
@@ -116,7 +116,7 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
                                     </button>
                                 </div>
 
-                                <form ref={formRef} onSubmit={handleSubmit} className="min-h-0 flex-1 space-y-6 overflow-y-auto overscroll-contain p-5 sm:p-8 sm:pt-5">
+                                <form ref={formRef} onSubmit={handleSubmit} className="modal-scroll flex-1 space-y-6 p-5 sm:p-8 sm:pt-5">
                                     <FormError message={formError} />
                                     {/* Amount Input */}
 	                                    <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100/50">

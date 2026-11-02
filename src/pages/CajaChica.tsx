@@ -826,12 +826,12 @@ export default function CajaChica() {
             {/* Modal de Nuevo Movimiento */}
             {isModalOpen && canCreate && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center sm:p-4">
-                    <div className="flex max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
-                        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                    <div data-modal-panel className="flex max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
+                        <div className="shrink-0 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                             <h3 className="text-lg font-bold text-gray-900">Nuevo Movimiento Manual</h3>
                             <button onClick={() => setIsModalOpen(false)} className="text-gray-600 hover:text-gray-600 cursor-pointer">✕</button>
                         </div>
-                        <form ref={formRef} onSubmit={handleCreate} className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-6 space-y-4">
+                        <form ref={formRef} onSubmit={handleCreate} className="modal-scroll flex-1 p-5 sm:p-6 space-y-4">
                             <FormError message={formError} />
                             <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-4">
                                 <div>
@@ -922,8 +922,8 @@ export default function CajaChica() {
 
             {movementForAttachments && (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="cash-movement-attachments-title">
-                    <div className="flex max-h-[100dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
-                        <div className="flex items-start justify-between border-b border-gray-100 px-5 py-4 sm:px-6">
+                    <div data-modal-panel className="flex max-h-[100dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
+                        <div className="flex shrink-0 items-start justify-between border-b border-gray-100 px-5 py-4 sm:px-6">
                             <div className="min-w-0">
                                 <h3 id="cash-movement-attachments-title" className="text-lg font-bold text-gray-900">Comprobantes del movimiento</h3>
                                 <p className="mt-1 truncate text-sm text-content-muted">{movementForAttachments.concepto}</p>
@@ -932,7 +932,7 @@ export default function CajaChica() {
                                 <XMarkIcon className="h-5 w-5" />
                             </button>
                         </div>
-                        <div className="space-y-5 overflow-y-auto p-5 sm:p-6">
+                        <div className="modal-scroll flex-1 space-y-5 p-5 sm:p-6">
                             <section>
                                 <h4 className="text-sm font-bold text-gray-900">Archivos adjuntos</h4>
                                 {(movementForAttachments.adjuntos?.length || 0) === 0 ? (
@@ -992,12 +992,12 @@ export default function CajaChica() {
 
             {isTransferModalOpen && canCreate && (
                 <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-                    <div className="flex max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
-                        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                    <div data-modal-panel className="flex max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
+                        <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
                             <div><h3 className="text-lg font-bold text-gray-900">Transferir entre cuentas</h3><p className="mt-1 text-xs text-content-muted">Genera un egreso y un ingreso vinculados; el saldo total no cambia.</p></div>
                             <button type="button" onClick={() => setIsTransferModalOpen(false)} className="text-gray-600 hover:text-gray-900" aria-label="Cerrar">✕</button>
                         </div>
-                        <form onSubmit={handleTransfer} className="space-y-4 overflow-y-auto p-5 sm:p-6">
+                        <form onSubmit={handleTransfer} className="modal-scroll flex-1 space-y-4 p-5 sm:p-6">
                             <FormError message={formError} />
                             <div className="grid grid-cols-2 gap-4">
                                 <label className="text-sm font-medium text-gray-700">Fecha *<input required type="date" max={todayDateInput()} value={transferData.fecha} onChange={event => setTransferData({ ...transferData, fecha: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>

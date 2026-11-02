@@ -77,7 +77,7 @@ export default function LiquidationTermsModal({ mode, liquidacion, canEditContra
                     <DialogTitle className="text-xl font-black text-gray-950">{isRent ? 'Editar alquiler' : 'Editar honorarios'}</DialogTitle>
                     <button type="button" onClick={close} disabled={saving} aria-label="Cerrar edición" className="flex h-11 w-11 items-center justify-center rounded-xl text-gray-600 hover:bg-gray-100"><XMarkIcon className="h-5 w-5" /></button>
                 </div>
-                <form id="liquidation-terms-form" onSubmit={event => void submit(event)} className="space-y-4 overflow-y-auto px-5 py-4">
+                <form id="liquidation-terms-form" onSubmit={event => void submit(event)} className="modal-scroll flex-1 space-y-4 px-5 py-4">
                     {isRent ? <>
                         <p className="text-sm text-gray-700">Ingresá el alquiler mensual completo actualizado. El valor vigente está precargado y podés reemplazarlo manualmente.</p>
                         <div><label htmlFor="liquidation-rent-amount" className="text-sm font-bold text-gray-800">Alquiler mensual completo ({liquidacion.moneda})</label><input id="liquidation-rent-amount" type="number" inputMode="decimal" min="0.01" step="0.01" value={rent || ''} onChange={event => setRent(Number(event.target.value))} required className={inputClass} /></div>

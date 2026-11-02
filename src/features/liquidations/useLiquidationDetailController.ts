@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { liquidacionesService, type Liquidacion, type TipoMovimiento } from '../../services/liquidaciones.service';
+import { liquidacionesService, type DestinatarioNotaLiquidacion, type Liquidacion, type TipoMovimiento } from '../../services/liquidaciones.service';
 import { pagosService, type DeudaResumen, type MetodoPago } from '../../services/pagos.service';
 import type { Moneda } from '../../utils/currency';
 
@@ -66,6 +66,19 @@ export const useLiquidationDetailController = (id?: string) => {
             setIsMovimientoModalOpen(false);
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Error al agregar movimiento');
+        }
+    };
+
+    const handleSaveNote = async (data: { notaLiquidacion: string | null; destinatarioNotaLiquidacion: DestinatarioNotaLiquidacion }) => {
+        if (!liquidacion) return false;
+        try {
+            await liquidacionesService.updateNote(liquidationId, { ...data, expectedVersion: liquidacion.version });
+            await loadLiquidation(false);
+            toast.success(data.notaLiquidacion ? 'Nota guardada' : 'Nota quitada');
+            return true;
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : 'No se pudo guardar la nota');
+            return false;
         }
     };
 
@@ -229,7 +242,7 @@ export const useLiquidationDetailController = (id?: string) => {
         isAdjustmentModalOpen, setIsAdjustmentModalOpen,
         creditToApply, setCreditToApply,
         tenantPaymentToReverse, setTenantPaymentToReverse,
-        loadAuditPage, handleAddMovimiento, handleDeleteMovimiento, handleConfirmar,
+        loadAuditPage, handleAddMovimiento, handleSaveNote, handleDeleteMovimiento, handleConfirmar,
         handleSavePayment, handleUpdateHonorarios, handleUpdateAlquiler, handleCreateAdjustment, handleApplyTenantCredit, handleSaveOwnerPayment, handleReverseOwnerPayment, handleReverseTenantPayment, handleDelete,
         goToList: () => navigate('/liquidaciones')
     };

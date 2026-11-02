@@ -9,6 +9,11 @@ export type EstadoLiquidacion = 'BORRADOR' | 'CONFIRMADA' | 'ANULADA';
 export type EstadoCobroInquilino = 'PENDIENTE' | 'PARCIAL' | 'COBRADO' | 'NO_APLICA';
 export type EstadoPagoPropietario = 'PENDIENTE' | 'PARCIAL' | 'PAGADO' | 'NO_APLICA';
 export type TipoMovimiento = 'INGRESO' | 'DESCUENTO';
+export type DestinatarioNotaLiquidacion = 'INQUILINO' | 'PROPIETARIO' | 'AMBOS';
+
+export const liquidationNoteRecipientLabels: Record<DestinatarioNotaLiquidacion, string> = {
+    INQUILINO: 'Inquilino', PROPIETARIO: 'Propietario', AMBOS: 'Propietario e inquilino'
+};
 
 export const settlementStatusLabel = (status: EstadoCobroInquilino | EstadoPagoPropietario) => (
     status === 'NO_APLICA' ? 'sin saldo' : status.toLowerCase()
@@ -66,6 +71,8 @@ export interface Liquidacion {
     montoAlquilerBase: number;
     alquilerExcepcional?: boolean;
     motivoCambioAlquiler?: string | null;
+    notaLiquidacion?: string | null;
+    destinatarioNotaLiquidacion?: DestinatarioNotaLiquidacion;
     montoPropietario: number;
     montoPagadoPropietario?: number;
     pagaHonorarios: 'INQUILINO' | 'PROPIETARIO';
@@ -148,7 +155,7 @@ export interface Liquidacion {
     comprobantes?: Array<{
         id: number;
         version: number;
-        evento?: 'CONFIRMACION' | 'AJUSTE' | 'COBRO_INQUILINO' | 'ANULACION_COBRO' | 'PAGO_PROPIETARIO' | 'ANULACION_PAGO_PROPIETARIO';
+        evento?: 'CONFIRMACION' | 'AJUSTE' | 'COBRO_INQUILINO' | 'ANULACION_COBRO' | 'PAGO_PROPIETARIO' | 'ANULACION_PAGO_PROPIETARIO' | 'NOTA_LIQUIDACION';
         fechaEmision: string;
         creadoPor: { id: number; nombreCompleto: string };
         moneda: Moneda;
@@ -362,6 +369,12 @@ export const liquidacionesService = {
     updateHonorarios: async (id: number, data: { montoHonorarios?: number, porcentajeHonorarios?: number, motivo: string, expectedVersion?: number }) => {
         return api.patch<Liquidacion>(`/liquidaciones/${id}/honorarios`, data);
     },
+
+    updateNote: (id: number, data: {
+        notaLiquidacion: string | null;
+        destinatarioNotaLiquidacion: DestinatarioNotaLiquidacion;
+        expectedVersion: number;
+    }) => api.patch<{ liquidacion: Liquidacion; comprobanteVersion: number | null }>(`/liquidaciones/${id}/nota`, data),
 
     updateAlquiler: async (id: number, data: {
         montoNuevo: number;

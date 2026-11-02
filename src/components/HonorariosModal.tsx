@@ -47,8 +47,8 @@ export default function HonorariosModal({ isOpen, onClose, onSave, currentMonto,
                     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
                 </Transition.Child>
 
-                <div className="fixed inset-0 overflow-y-auto">
-                    <div className="flex min-h-full items-center justify-center p-4 text-center">
+                <div className="fixed inset-0 overflow-hidden">
+                    <div className="flex h-full min-h-0 items-center justify-center p-4 text-center">
                         <Transition.Child
                             as={Fragment}
                             enter="ease-out duration-300"
@@ -58,7 +58,7 @@ export default function HonorariosModal({ isOpen, onClose, onSave, currentMonto,
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-95"
                         >
-                            <Dialog.Panel className="w-full max-w-sm transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                            <Dialog.Panel className="modal-scroll max-h-full w-full max-w-sm transform rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                                 <div className="flex justify-between items-center mb-6">
                                     <Dialog.Title as="h3" className="text-lg font-bold text-gray-900">
                                         Editar honorarios

@@ -5,9 +5,9 @@ function record() {
     return { id: 1, version: 1, fecha: '2026-10-28', tipo: 'GASTO', detalle: 'Artículos de oficina', monto: '25000.50', moneda: 'ARS', categoria: 'Oficina', metodoPago: null, observaciones: 'Compra del mes', fechaCreacion: '2026-10-28T17:00:00.000Z', fechaActualizacion: '2026-10-28T17:00:00.000Z', anuladoEn: null as string | null, motivoAnulacion: null as string | null, creadoPor: { id: 1, nombreCompleto: 'Jefe de la inmobiliaria' }, actualizadoPor: null, anuladoPor: null, adjuntos: [] as Array<{ id: number; nombreArchivo: string; tipoContenido: string; tamano: number; fechaCreacion: string; creadoPor: { id: number; nombreCompleto: string } }> };
 }
 
-async function mock(page: Page, allowed = permissions) {
+async function mock(page: Page, allowed = permissions, paymentAccount: string | null = null) {
     const user = { id: 5, email: 'control@test.local', fullName: 'Usuario interno', nombreCompleto: 'Usuario interno', tipo: 'USUARIO', role: 'USUARIO', permissions: allowed, inmobiliaria: { id: 1, nombre: 'PropControl' } };
-    const records = [record()];
+    const records = [{ ...record(), cuentaPago: paymentAccount }];
     const sent: Array<{ path: string; method: string; body: string | null; query: string }> = [];
     await page.route('**/api/**', async route => {
         const request = route.request();
@@ -16,7 +16,7 @@ async function mock(page: Page, allowed = permissions) {
         sent.push({ path, method: request.method(), body: request.postData(), query: url.search });
         let body: unknown = {};
         if (path.endsWith('/auth/me')) body = user;
-        else if (path === '/api/control-interno/opciones') body = { categorias: ['Oficina', 'Servicios'], mediosPago: ['Efectivo'], usuarios: [{ id: 1, nombreCompleto: 'Jefe de la inmobiliaria' }] };
+        else if (path === '/api/control-interno/opciones') body = { categorias: ['Oficina', 'Servicios'], mediosPago: ['Efectivo'], cuentasPago: ['Cuenta personal de Micaela', ...(allowed.includes('caja_chica.ver') ? ['Nación · Cuenta principal (ARS)'] : [])], usuarios: [{ id: 1, nombreCompleto: 'Jefe de la inmobiliaria' }] };
         else if (path.startsWith('/api/control-interno/reportes/')) {
             await route.fulfill({ status: 200, headers: { 'Content-Type': path.endsWith('/excel') ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'application/pdf', 'Content-Disposition': `attachment; filename="control-interno-2026-10.${path.endsWith('/excel') ? 'xlsx' : 'pdf'}"` }, body: path.endsWith('/excel') ? Buffer.from('PK-test-workbook') : Buffer.from('%PDF-1.4\n%%EOF') });
             return;
@@ -26,7 +26,8 @@ async function mock(page: Page, allowed = permissions) {
             const gastos = rows.filter(row => !row.anuladoEn && row.tipo === 'GASTO').reduce((sum, row) => sum + Number(row.monto), 0);
             body = { data: rows, meta: { page: 1, limit: 25, total: rows.length, totalPages: rows.length ? 1 : 0 }, periodo: url.searchParams.get('periodo'), resumen: [{ moneda: 'ARS', ingresos: 0, gastos, diferencia: -gastos }, { moneda: 'USD', ingresos: 0, gastos: 0, diferencia: 0 }] };
         } else if (path === '/api/control-interno' && request.method() === 'POST') {
-            const added = { ...record(), id: 2, detalle: 'Gasto con comprobante', adjuntos: [{ id: 5, nombreArchivo: 'recibo.pdf', tipoContenido: 'application/pdf', tamano: 20, fechaCreacion: '2026-10-28T17:00:00.000Z', creadoPor: user }] };
+            const field = (name: string) => request.postData()?.split(`name="${name}"\r\n\r\n`)[1]?.split('\r\n')[0] || '';
+            const added = { ...record(), id: 2, detalle: field('detalle') || 'Gasto con comprobante', tipo: field('tipo') || 'GASTO', monto: field('monto') || '25000.50', cuentaPago: field('cuentaPago') || null, adjuntos: [{ id: 5, nombreArchivo: 'recibo.pdf', tipoContenido: 'application/pdf', tamano: 20, fechaCreacion: '2026-10-28T17:00:00.000Z', creadoPor: user }] };
             records.push(added);
             body = added;
         } else if (path === '/api/control-interno/1/anular') {
@@ -181,6 +182,80 @@ test('las acciones son íconos accesibles y permanecen en una sola línea', asyn
     expect(new Set(positions).size).toBe(1);
     await table.getByRole('button', { name: 'Comprobantes (0)', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Comprobantes del movimiento #1', exact: true })).toBeVisible();
+});
+
+test('permite elegir la cuenta de origen del pago y la muestra en la planilla', async ({ page }) => {
+    const { sent } = await mock(page, [...permissions, 'caja_chica.ver']);
+    await page.getByRole('button', { name: 'Agregar movimiento', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Agregar movimiento interno' });
+    await dialog.getByLabel('Detalle de lo pagado o recibido').fill('Luz Balcarce');
+    await dialog.getByLabel('Importe *', { exact: true }).fill('200000');
+    await dialog.getByRole('button', { name: /^Medio de pago \(opcional\):/ }).click();
+    await page.getByRole('option', { name: 'Transferencia', exact: true }).click();
+    await dialog.getByRole('button', { name: /^Cuenta de origen \(opcional\):/ }).click();
+    await page.getByRole('option', { name: 'Nación · Cuenta principal (ARS)', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Guardar movimiento' }).click();
+    await expect(dialog).not.toBeVisible();
+    const create = sent.find(request => request.path === '/api/control-interno' && request.method === 'POST');
+    expect(create?.body).toContain('name="cuentaPago"\r\n\r\nNación · Cuenta principal (ARS)');
+    const row = page.getByRole('row').filter({ hasText: 'Luz Balcarce' });
+    await expect(row).toContainText('Cuenta de origen: Nación · Cuenta principal (ARS)');
+    expect(sent.some(request => request.path.includes('/cajachica') || request.path.includes('/cuentas-bancarias'))).toBe(false);
+});
+
+test('precarga la cuenta histórica y permite corregirla o quitarla', async ({ page }) => {
+    const { sent } = await mock(page, permissions, 'Cuenta anterior desactivada');
+    await page.getByRole('button', { name: 'Editar', exact: true }).filter({ visible: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Editar movimiento interno' });
+    await expect(dialog.getByRole('button', { name: /^Cuenta de origen \(opcional\):/ })).toContainText('Cuenta anterior desactivada');
+    await dialog.getByRole('button', { name: /^Cuenta de origen \(opcional\):/ }).click();
+    await page.getByRole('option', { name: 'Escribir otra cuenta…', exact: true }).click();
+    await dialog.getByLabel('Nombre de la cuenta', { exact: true }).fill('Billetera personal del jefe');
+    await dialog.getByRole('button', { name: 'Guardar movimiento' }).click();
+    await expect(dialog).not.toBeVisible();
+    expect(JSON.parse(sent.find(request => request.method === 'PUT')?.body || '{}')).toMatchObject({ version: 1, cuentaPago: 'Billetera personal del jefe' });
+    await expect(page.getByRole('table')).toContainText('Cuenta de origen: Billetera personal del jefe');
+    await page.getByRole('button', { name: 'Editar', exact: true }).filter({ visible: true }).click();
+    await dialog.getByRole('button', { name: /^Cuenta de origen \(opcional\):/ }).click();
+    await page.getByRole('option', { name: 'Sin especificar', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Guardar movimiento' }).click();
+    await expect(dialog).not.toBeVisible();
+    expect(JSON.parse(sent.filter(request => request.method === 'PUT')[1]?.body || '{}')).toMatchObject({ version: 2, cuentaPago: '' });
+    await expect(page.getByRole('table')).not.toContainText('Cuenta de origen:');
+});
+
+test('los ingresos ofrecen cuenta de destino opcional y admiten una cuenta personal sin permiso bancario', async ({ page }) => {
+    const { sent } = await mock(page);
+    await page.getByRole('button', { name: 'Agregar movimiento', exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Agregar movimiento interno' });
+    await dialog.getByRole('button', { name: /^Tipo de movimiento:/ }).click();
+    await page.getByRole('option', { name: 'Ingreso', exact: true }).click();
+    await dialog.getByLabel('Detalle de lo pagado o recibido').fill('Ingreso personal');
+    await dialog.getByLabel('Importe *', { exact: true }).fill('50000');
+    const account = dialog.getByRole('button', { name: /^Cuenta de destino \(opcional\):/ });
+    await expect(account).not.toHaveAttribute('aria-required', 'true');
+    await account.click();
+    await expect(page.getByRole('option', { name: 'Nación · Cuenta principal (ARS)', exact: true })).toHaveCount(0);
+    await page.getByRole('option', { name: 'Escribir otra cuenta…', exact: true }).click();
+    await dialog.getByLabel('Nombre de la cuenta', { exact: true }).fill('Cuenta personal de Micaela');
+    await dialog.getByRole('button', { name: 'Guardar movimiento' }).click();
+    await expect(dialog).not.toBeVisible();
+    expect(sent.find(request => request.method === 'POST' && request.path === '/api/control-interno')?.body).toContain('Cuenta personal de Micaela');
+    await expect(page.getByRole('row').filter({ hasText: 'Ingreso personal' })).toContainText('Cuenta de destino: Cuenta personal de Micaela');
+});
+
+test('la cuenta se ve en móvil y el formulario conserva los datos al desplazar', async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 390, height: 600 });
+    await mock(page, permissions, 'Cuenta personal de Micaela');
+    await expect(page.getByRole('article', { name: 'Artículos de oficina' })).toContainText('Cuenta de origen: Cuenta personal de Micaela');
+    await page.getByRole('button', { name: 'Editar', exact: true }).filter({ visible: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Editar movimiento interno' });
+    const scroller = dialog.locator('.modal-scroll');
+    await scroller.evaluate(element => { element.scrollTop = element.scrollHeight; });
+    await expect(dialog.getByRole('button', { name: 'Guardar movimiento' })).toBeInViewport();
+    await expect(dialog.getByRole('button', { name: /^Cuenta de origen \(opcional\):/ })).toContainText('Cuenta personal de Micaela');
+    expect(await page.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('cuenta-pago-interno-movil.png') });
 });
 
 test('la planilla y el formulario son utilizables en móvil y escritorio', async ({ page }, testInfo) => {

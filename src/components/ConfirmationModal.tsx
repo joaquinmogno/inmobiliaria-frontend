@@ -23,8 +23,8 @@ export default function ConfirmationModal({ isOpen, onClose, onConfirm, title, m
 
   return <Dialog open={isOpen} onClose={() => !loading && onClose()} className="relative z-[100]">
     <DialogBackdrop className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
-    <div className="fixed inset-0 flex items-center justify-center p-4">
-      <DialogPanel className="w-full max-w-md rounded-lg bg-white p-6 shadow-2xl">
+    <div className="fixed inset-0 flex min-h-0 items-center justify-center overflow-hidden p-4">
+      <DialogPanel className="modal-scroll max-h-full w-full max-w-md rounded-lg bg-white p-6 shadow-2xl">
         <div className="mb-4 flex items-center gap-4">
           <div className={`rounded-full p-3 ${type === "danger" ? "bg-red-100 text-red-700" : "bg-indigo-100 text-indigo-700"}`}>
             <ExclamationTriangleIcon className="h-6 w-6" />

@@ -19,6 +19,7 @@ export interface InternalMovement {
     moneda: Moneda;
     categoria: string | null;
     metodoPago: string | null;
+    cuentaPago?: string | null;
     observaciones: string | null;
     fechaCreacion: string;
     fechaActualizacion: string;
@@ -39,7 +40,7 @@ export interface InternalFilters {
     creadoPorId?: string;
     estado?: 'VIGENTES' | 'ANULADOS' | 'TODOS';
 }
-export interface InternalOptions { categorias: string[]; mediosPago: string[]; usuarios: Array<{ id: number; nombreCompleto: string }> }
+export interface InternalOptions { categorias: string[]; mediosPago: string[]; cuentasPago?: string[]; usuarios: Array<{ id: number; nombreCompleto: string }> }
 export interface InternalList {
     data: InternalMovement[];
     meta: PaginationMeta;
@@ -54,6 +55,7 @@ export interface InternalMovementInput {
     moneda: Moneda;
     categoria?: string;
     metodoPago?: string;
+    cuentaPago?: string;
     observaciones?: string;
 }
 

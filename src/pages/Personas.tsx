@@ -432,7 +432,7 @@ export default function Personas() {
             {/* Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+                    <div data-modal-panel className="modal-scroll bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl max-h-[90dvh]">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-2xl font-bold text-gray-900">
                                 {editingPersona ? "Editar persona" : "Nueva persona"}

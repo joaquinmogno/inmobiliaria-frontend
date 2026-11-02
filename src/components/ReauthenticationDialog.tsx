@@ -14,8 +14,8 @@ export default function ReauthenticationDialog() {
   const submit = (event: React.FormEvent) => { event.preventDefault(); const value = password; setOpen(false); setPassword(""); resolveReauthentication(value); };
   return <Dialog open={open} onClose={close} className="relative z-[120]">
     <DialogBackdrop className="fixed inset-0 bg-black/50" />
-    <div className="fixed inset-0 flex items-center justify-center p-4">
-      <DialogPanel className="w-full max-w-sm rounded-lg bg-white p-6 shadow-2xl">
+    <div className="fixed inset-0 flex min-h-0 items-center justify-center overflow-hidden p-4">
+      <DialogPanel className="modal-scroll max-h-full w-full max-w-sm rounded-lg bg-white p-6 shadow-2xl">
         <DialogTitle className="text-lg font-bold text-gray-900">Confirmá tu identidad</DialogTitle>
         <p className="mt-2 text-sm text-gray-600">Esta operación es sensible. Ingresá nuevamente tu contraseña.</p>
         <form onSubmit={submit} className="mt-5 space-y-4">

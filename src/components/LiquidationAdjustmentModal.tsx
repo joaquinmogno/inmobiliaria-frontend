@@ -86,9 +86,9 @@ export default function LiquidationAdjustmentModal({
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-[70]" onClose={onClose}>
         <div className="fixed inset-0 bg-black/30" />
-        <div className="fixed inset-0 overflow-y-auto p-4">
-          <div className="flex min-h-full items-center justify-center">
-            <Dialog.Panel className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 overflow-hidden p-4">
+          <div className="flex h-full min-h-0 items-center justify-center">
+            <Dialog.Panel className="modal-scroll max-h-full w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
               <Dialog.Title className="text-xl font-black text-gray-950">Emitir ajuste de liquidación</Dialog.Title>
               <p className="mt-1 text-sm text-gray-600">El ajuste conserva su motivo e historial. Si reduce una liquidación ya cobrada, definí cómo se resuelve el excedente.</p>
               <form onSubmit={submit} className="mt-5 space-y-4">

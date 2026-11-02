@@ -21,7 +21,7 @@ export function InternalDialog({ title, busy, close, children, footer }: { title
         <div className="fixed inset-0 flex items-center justify-center p-3 sm:p-5">
             <DialogPanel className="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
                 <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4"><DialogTitle className="text-lg font-black text-gray-950">{title}</DialogTitle><button type="button" onClick={close} disabled={busy} aria-label="Cerrar ventana" className="flex h-11 w-11 items-center justify-center rounded-xl text-gray-600 hover:bg-gray-100"><XMarkIcon className="h-5 w-5" /></button></div>
-                <div className="overflow-y-auto px-5 py-4">{children}</div>
+                <div className="modal-scroll flex-1 px-5 py-4">{children}</div>
                 <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-gray-100 px-5 py-4">{footer}</div>
             </DialogPanel>
         </div>
@@ -34,15 +34,18 @@ export default function InternalMovementModal({ record, period, options, close, 
     const [data, setData] = useState<InternalMovementInput>({
         fecha: record?.fecha.slice(0, 10) || (today.slice(0, 7) === period ? today : `${period}-01`),
         tipo: record?.tipo || 'GASTO', detalle: record?.detalle || '', monto: String(record?.monto || ''), moneda: record?.moneda || 'ARS',
-        categoria: record?.categoria || '', metodoPago: record?.metodoPago || '', observaciones: record?.observaciones || ''
+        categoria: record?.categoria || '', metodoPago: record?.metodoPago || '', cuentaPago: record?.cuentaPago || '', observaciones: record?.observaciones || ''
     });
     const [files, setFiles] = useState<File[]>([]);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
     const [customCategory, setCustomCategory] = useState(false);
     const [customPaymentMethod, setCustomPaymentMethod] = useState(false);
+    const [customPaymentAccount, setCustomPaymentAccount] = useState(false);
     const categories = [...new Set(['Oficina', 'Servicios', 'Mantenimiento', 'Publicidad', 'Otros', ...options.categorias, ...(record?.categoria ? [record.categoria] : [])])];
     const paymentMethods = [...new Set(['Efectivo', 'Transferencia', 'Cheque', 'Tarjeta', 'Otro', ...options.mediosPago, ...(record?.metodoPago ? [record.metodoPago] : [])])];
+    const paymentAccounts = [...new Set([...(options.cuentasPago || []), ...(record?.cuentaPago ? [record.cuentaPago] : [])])];
+    const accountLabel = data.tipo === 'GASTO' ? 'Cuenta de origen (opcional)' : 'Cuenta de destino (opcional)';
     const change = (key: keyof InternalMovementInput, value: string) => setData(current => ({ ...current, [key]: value }));
     const save = async (event: React.FormEvent) => {
         event.preventDefault();
@@ -51,7 +54,7 @@ export default function InternalMovementModal({ record, period, options, close, 
         if (!(Number(data.monto) > 0) || Number(data.monto) > 999999999999.99) { setError('Ingresá un importe mayor a cero y de hasta 999.999.999.999,99.'); return; }
         setBusy(true); setError('');
         try {
-            const normalized = { ...data, monto: data.monto.replace(/\.$/, ''), detalle: data.detalle.trim(), categoria: data.categoria?.trim(), metodoPago: data.metodoPago?.trim(), observaciones: data.observaciones?.trim() };
+            const normalized = { ...data, monto: data.monto.replace(/\.$/, ''), detalle: data.detalle.trim(), categoria: data.categoria?.trim(), metodoPago: data.metodoPago?.trim(), cuentaPago: data.cuentaPago?.trim(), observaciones: data.observaciones?.trim() };
             if (record) await controlInternoService.update(record.id, record.version, normalized);
             else await controlInternoService.create(normalized, files);
             saved(); close();
@@ -76,6 +79,15 @@ export default function InternalMovementModal({ record, period, options, close, 
             <div className="grid gap-3 sm:grid-cols-2">
                 <div><label htmlFor="internal-category" className="text-sm font-bold text-gray-800">Categoría (opcional)</label><AppSelect id="internal-category" ariaLabel="Categoría (opcional)" value={customCategory ? '__custom__' : data.categoria || ''} onChange={value => { setCustomCategory(value === '__custom__'); change('categoria', value === '__custom__' ? '' : value); }} options={[{ value: '', label: 'Sin categoría' }, ...categories.map(value => ({ value, label: value })), { value: '__custom__', label: 'Agregar categoría…' }]} className="mt-1" />{customCategory && <input aria-label="Nueva categoría" maxLength={80} value={data.categoria} onChange={event => change('categoria', event.target.value)} className={internalInputClass} placeholder="Nombre de la categoría" />}</div>
                 <div><label htmlFor="internal-payment-method" className="text-sm font-bold text-gray-800">Medio de pago (opcional)</label><AppSelect id="internal-payment-method" ariaLabel="Medio de pago (opcional)" value={customPaymentMethod ? '__custom__' : data.metodoPago || ''} onChange={value => { setCustomPaymentMethod(value === '__custom__'); change('metodoPago', value === '__custom__' ? '' : value); }} options={[{ value: '', label: 'Sin especificar' }, ...paymentMethods.map(value => ({ value, label: value })), { value: '__custom__', label: 'Agregar medio de pago…' }]} className="mt-1" />{customPaymentMethod && <input aria-label="Nuevo medio de pago" maxLength={80} value={data.metodoPago} onChange={event => change('metodoPago', event.target.value)} className={internalInputClass} placeholder="Nombre del medio de pago" />}</div>
+            </div>
+            <div>
+                <label htmlFor="internal-payment-account" className="text-sm font-bold text-gray-800">{accountLabel}</label>
+                <AppSelect id="internal-payment-account" ariaLabel={accountLabel} value={customPaymentAccount ? '__custom__' : data.cuentaPago ? `account:${data.cuentaPago}` : ''} onChange={value => {
+                    setCustomPaymentAccount(value === '__custom__');
+                    change('cuentaPago', value.startsWith('account:') ? value.slice(8) : '');
+                }} options={[{ value: '', label: 'Sin especificar' }, ...paymentAccounts.map(value => ({ value: `account:${value}`, label: value })), { value: '__custom__', label: 'Escribir otra cuenta…' }]} className="mt-1" />
+                {customPaymentAccount && <input aria-label="Nombre de la cuenta" maxLength={220} value={data.cuentaPago} onChange={event => change('cuentaPago', event.target.value)} className={internalInputClass} placeholder="Ej.: Banco Nación · Cuenta personal, o caja en efectivo" />}
+                <p className="mt-1 text-xs text-gray-600">{data.tipo === 'GASTO' ? 'Identifica desde dónde se hizo el pago.' : 'Identifica dónde se recibió el dinero.'} Es informativo: no modifica saldos de caja ni bancos.</p>
             </div>
             <label className="block text-sm font-bold text-gray-800">Observaciones (opcional)<textarea rows={2} maxLength={2000} value={data.observaciones} onChange={event => change('observaciones', event.target.value)} className={internalInputClass} /></label>
             {!record && <>

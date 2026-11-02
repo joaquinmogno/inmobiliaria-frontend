@@ -30,8 +30,8 @@ export default function TenantCreditApplicationModal({
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-[70]" onClose={onClose}>
         <div className="fixed inset-0 bg-black/30" />
-        <div className="fixed inset-0 grid place-items-center p-4">
-          <Dialog.Panel className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 grid min-h-0 grid-rows-[minmax(0,1fr)] place-items-center overflow-hidden p-4">
+          <Dialog.Panel className="modal-scroll max-h-full w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
             <Dialog.Title className="text-xl font-black text-gray-950">Aplicar saldo a favor</Dialog.Title>
             <p className="mt-1 text-sm text-gray-600">Disponible: {moneda} {saldo.toLocaleString('es-AR', { minimumFractionDigits: 2 })}. No genera un nuevo movimiento de caja.</p>
             <form onSubmit={submit} className="mt-5 space-y-4">

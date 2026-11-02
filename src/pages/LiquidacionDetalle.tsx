@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
-import { liquidacionesService, settlementStatusLabel, type ContractLiquidationTimeline } from "../services/liquidaciones.service";
+import { liquidacionesService, liquidationNoteRecipientLabels, settlementStatusLabel, type ContractLiquidationTimeline } from "../services/liquidaciones.service";
 import {
     ChevronLeftIcon,
     ChevronDownIcon,
@@ -12,7 +12,9 @@ import {
     CheckIcon,
     BanknotesIcon,
     DocumentChartBarIcon,
-    BuildingOfficeIcon
+    BuildingOfficeIcon,
+    DocumentTextIcon,
+    PencilSquareIcon
 } from "@heroicons/react/24/outline";
 import MovimientoModal from "../components/MovimientoModal";
 import ConfirmationModal from "../components/ConfirmationModal";
@@ -36,6 +38,7 @@ import { useLiquidationDetailController } from "../features/liquidations/useLiqu
 import LiquidationContractModal from "../components/LiquidationContractModal";
 import LiquidationSummary from "../features/liquidations/LiquidationSummary";
 import LiquidationTermsModal from "../features/liquidations/LiquidationTermsModal";
+import LiquidationNoteModal from "../features/liquidations/LiquidationNoteModal";
 
 const ownerMovementStatus = {
     VIGENTE: { label: 'Vigente', className: 'bg-emerald-100 text-emerald-800' },
@@ -64,6 +67,7 @@ export default function LiquidacionDetalle() {
     const [timeline, setTimeline] = useState<ContractLiquidationTimeline | null>(null);
     const [showContract, setShowContract] = useState(false);
     const [termsMode, setTermsMode] = useState<'ALQUILER' | 'HONORARIOS' | null>(null);
+    const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
     const {
         liquidacion, isLoading, isLoadingAudit, deudaResumen,
         isMovimientoModalOpen, setIsMovimientoModalOpen,
@@ -76,7 +80,7 @@ export default function LiquidacionDetalle() {
         isAdjustmentModalOpen, setIsAdjustmentModalOpen,
         creditToApply, setCreditToApply,
         tenantPaymentToReverse, setTenantPaymentToReverse,
-        loadAuditPage, handleAddMovimiento, handleDeleteMovimiento, handleConfirmar,
+        loadAuditPage, handleAddMovimiento, handleSaveNote, handleDeleteMovimiento, handleConfirmar,
         handleSavePayment, handleUpdateHonorarios, handleUpdateAlquiler, handleCreateAdjustment, handleApplyTenantCredit, handleSaveOwnerPayment, handleReverseOwnerPayment, handleReverseTenantPayment, handleDelete, goToList
     } = useLiquidationDetailController(id);
 
@@ -159,6 +163,8 @@ export default function LiquidacionDetalle() {
 
     // Los importes quedan congelados al confirmar; luego sólo avanza el flujo de cobro/pago.
     const esEditable = isLiquidationEditable(liquidacion.estado);
+    const canEditNote = canEditLiquidations && liquidacion.estado !== 'ANULADA';
+    const latestVoucherVersion = Math.max(0, ...(liquidacion.comprobantes || []).map(voucher => voucher.version)) || undefined;
 
     return (
         <div className="max-w-7xl mx-auto space-y-4 pb-8">
@@ -217,20 +223,20 @@ export default function LiquidacionDetalle() {
                         </MenuItem>
                     )}
                     <MenuItem as="button"
-                        onClick={() => void liquidacionesService.downloadPdf(Number(id)).catch(error => toast.error(error instanceof Error ? error.message : 'No se pudo abrir el PDF'))}
+                        onClick={() => void liquidacionesService.downloadPdf(Number(id), latestVoucherVersion).catch(error => toast.error(error instanceof Error ? error.message : 'No se pudo abrir el PDF'))}
                         className="flex min-h-11 items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-all font-bold text-sm cursor-pointer"
                         title="Comprobante para el inquilino"
                     >
                         <PrinterIcon className="w-5 h-5" />
-                        Comprobante original
+                        Comprobante del inquilino
                     </MenuItem>
                     <MenuItem as="button"
-                        onClick={() => void liquidacionesService.downloadPdfPropietario(Number(id)).catch(error => toast.error(error instanceof Error ? error.message : 'No se pudo abrir el PDF'))}
+                        onClick={() => void liquidacionesService.downloadPdfPropietario(Number(id), latestVoucherVersion).catch(error => toast.error(error instanceof Error ? error.message : 'No se pudo abrir el PDF'))}
                         className="flex min-h-11 items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-all font-bold text-sm cursor-pointer"
                         title="Liquidación para el propietario con honorarios"
                     >
                         <DocumentChartBarIcon className="w-5 h-5" />
-                        Liquidación original
+                        Liquidación del propietario
                     </MenuItem>                        </MenuItems>
                     </Menu>
                 </div>
@@ -243,7 +249,10 @@ export default function LiquidacionDetalle() {
             <section aria-labelledby="liquidation-concepts-title" className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <h2 id="liquidation-concepts-title" className="text-base font-black text-gray-900">Conceptos y cálculo detallado</h2>
-                    {esEditable && canEditLiquidations && <button type="button" onClick={() => setIsMovimientoModalOpen(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-indigo-50 px-3 text-sm font-bold text-indigo-700 hover:bg-indigo-100"><PlusIcon className="h-5 w-5" />Agregar movimiento</button>}
+                    <div className="flex flex-wrap items-center gap-2">
+                        {canEditNote && <button type="button" onClick={() => setIsNoteModalOpen(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-indigo-200 px-3 text-sm font-bold text-indigo-700 hover:bg-indigo-50"><DocumentTextIcon className="h-5 w-5" />Nota para liquidación</button>}
+                        {esEditable && canEditLiquidations && <button type="button" onClick={() => setIsMovimientoModalOpen(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-indigo-50 px-3 text-sm font-bold text-indigo-700 hover:bg-indigo-100"><PlusIcon className="h-5 w-5" />Agregar movimiento</button>}
+                    </div>
                 </div>
                 <div className="mt-3 grid grid-cols-1 gap-5 lg:grid-cols-2">
                 {/* Ingresos Column */}
@@ -372,6 +381,15 @@ export default function LiquidacionDetalle() {
                 </div>
                 </div>
             </section>
+
+            {liquidacion.notaLiquidacion && <section aria-labelledby="liquidation-note-title" className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h2 id="liquidation-note-title" className="flex items-center gap-2 font-black text-indigo-950"><DocumentTextIcon className="h-5 w-5" />Aclaraciones</h2>
+                    {canEditNote && <button type="button" onClick={() => setIsNoteModalOpen(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-bold text-indigo-800 hover:bg-indigo-100 print:hidden"><PencilSquareIcon className="h-5 w-5" />Editar nota</button>}
+                </div>
+                <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-900 [overflow-wrap:anywhere]">{liquidacion.notaLiquidacion}</p>
+                <p className="mt-3 text-xs font-semibold text-indigo-800">PDF: {liquidationNoteRecipientLabels[liquidacion.destinatarioNotaLiquidacion || 'AMBOS']}</p>
+            </section>}
 
             <details className="rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm">
                 <summary className="flex min-h-11 cursor-pointer flex-wrap items-center justify-between gap-2 font-black text-gray-950"><span>Cobros de inquilinos</span><span className="text-xs font-semibold text-indigo-800">{settlementStatusLabel(liquidacion.estadoCobroInquilino)} · {liquidacion.pagos?.length || 0} cobros <ChevronDownIcon className="ml-2 inline h-4 w-4" /></span></summary>
@@ -608,7 +626,7 @@ export default function LiquidacionDetalle() {
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <h3 className="font-black text-gray-900">Versión {comprobante.version}</h3>
                                                 <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${tieneAjustes ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
-                                                    {comprobante.evento === 'AJUSTE' ? `Corregida · ${comprobante.ajustes.length} ajuste${comprobante.ajustes.length === 1 ? '' : 's'}` : comprobante.evento === 'COBRO_INQUILINO' ? 'Cobro registrado' : comprobante.evento === 'PAGO_PROPIETARIO' ? 'Pago al propietario' : comprobante.evento === 'ANULACION_COBRO' ? 'Cobro anulado' : comprobante.evento === 'ANULACION_PAGO_PROPIETARIO' ? 'Entrega anulada' : 'Original confirmada'}
+                                                    {comprobante.evento === 'NOTA_LIQUIDACION' ? 'Aclaración actualizada' : comprobante.evento === 'AJUSTE' ? `Corregida · ${comprobante.ajustes.length} ajuste${comprobante.ajustes.length === 1 ? '' : 's'}` : comprobante.evento === 'COBRO_INQUILINO' ? 'Cobro registrado' : comprobante.evento === 'PAGO_PROPIETARIO' ? 'Pago al propietario' : comprobante.evento === 'ANULACION_COBRO' ? 'Cobro anulado' : comprobante.evento === 'ANULACION_PAGO_PROPIETARIO' ? 'Entrega anulada' : 'Original confirmada'}
                                                 </span>
                                             </div>
                                             <p className="mt-1 text-xs text-content-muted">Emitida el {formatDateTime(comprobante.fechaEmision)} por {comprobante.creadoPor.nombreCompleto}</p>
@@ -740,6 +758,7 @@ export default function LiquidacionDetalle() {
             </div>
 
             {termsMode && esEditable && canEditLiquidations && <LiquidationTermsModal key={`${termsMode}-${liquidacion.id}`} mode={termsMode} liquidacion={liquidacion} canEditContracts={canEditContracts} onClose={() => setTermsMode(null)} onSaveRent={handleUpdateAlquiler} onSaveFees={handleUpdateHonorarios} />}
+            {isNoteModalOpen && canEditNote && <LiquidationNoteModal note={liquidacion.notaLiquidacion} recipient={liquidacion.destinatarioNotaLiquidacion} confirmed={liquidacion.estado === 'CONFIRMADA'} onClose={() => setIsNoteModalOpen(false)} onSave={handleSaveNote} />}
 
             <MovimientoModal
                 isOpen={isMovimientoModalOpen}

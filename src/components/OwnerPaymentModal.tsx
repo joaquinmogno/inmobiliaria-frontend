@@ -92,7 +92,7 @@ export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAm
                 </Transition.Child>
 
                 <div className="fixed inset-0 overflow-hidden">
-                    <div className="flex min-h-full items-end justify-center text-center sm:items-center sm:p-4">
+                    <div className="flex h-full min-h-0 items-end justify-center text-center sm:items-center sm:p-4">
                         <Transition.Child
                             as={Fragment}
                             enter="ease-out duration-300"
@@ -123,7 +123,7 @@ export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAm
                                     </button>
                                 </div>
 
-                                <form onSubmit={handleSubmit} className="min-h-0 flex-1 overflow-y-auto p-5 sm:p-8 sm:pt-5 space-y-6">
+                                <form onSubmit={handleSubmit} className="modal-scroll flex-1 p-5 sm:p-8 sm:pt-5 space-y-6">
                                     {/* Info Amount */}
                                     <div className="bg-orange-50/50 p-4 sm:p-6 rounded-2xl border border-orange-100/50">
                                         <p className="mb-3 text-sm font-bold text-orange-950">
