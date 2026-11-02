@@ -50,7 +50,7 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex min-h-11 items-center rounded-lg py-2 text-sm transition-colors duration-200 whitespace-nowrap overflow-hidden ${menuExpanded ? "gap-3 px-4" : "justify-center px-0"} ${isActive
       ? "bg-indigo-600 text-white font-semibold"
-      : "text-slate-300 hover:bg-white/10 hover:text-white"
+      : "text-indigo-100 hover:bg-indigo-700/50 hover:text-white"
     }`;
 
   return (
@@ -138,7 +138,7 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
             </span>
           </NavLink>
             {menuExpanded && (canCreateContracts || canDeleteContracts || canRestoreContracts) && (
-              <button ref={contractsMenuButtonRef} type="button" aria-label="Mostrar opciones de contratos" aria-expanded={isContratosOpen} aria-controls="contracts-submenu" onClick={() => setIsContratosOpen(prev => !prev)} className="ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-300 hover:bg-white/10">
+              <button ref={contractsMenuButtonRef} type="button" aria-label="Mostrar opciones de contratos" aria-expanded={isContratosOpen} aria-controls="contracts-submenu" onClick={() => setIsContratosOpen(prev => !prev)} className="ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-indigo-100 hover:bg-indigo-700/50">
               <ChevronDownIcon
                 className={`w-4 h-4 min-w-[16px] transition-transform duration-200 ${isContratosOpen ? "rotate-180" : ""
                   }`}
@@ -155,7 +155,7 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
                   navigate("/contratos", { state: { openNewContractModal: true } });
                   if (mobileOpen && closeMobile) closeMobile();
                 }}
-                className="w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 whitespace-nowrap overflow-hidden text-slate-300 hover:bg-white/10 hover:text-white"
+                className="w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 whitespace-nowrap overflow-hidden text-indigo-100 hover:bg-indigo-700/50 hover:text-white"
               >
                 <PlusIcon className="w-5 h-5 min-w-[20px]" />
                 <span className="text-sm">Crear Contrato</span>
@@ -231,7 +231,7 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
 
         </nav>
 
-        <button type="button" onClick={toggleExpanded} className="mt-2 hidden min-h-11 items-center justify-center gap-2 rounded-lg text-slate-300 hover:bg-white/10 xl:flex" aria-label={isExpanded ? "Contraer menú" : "Expandir menú"} title={isExpanded ? "Contraer menú" : "Expandir menú"}>
+        <button type="button" onClick={toggleExpanded} className="mt-2 hidden min-h-11 items-center justify-center gap-2 rounded-lg text-indigo-100 hover:bg-indigo-700/50 xl:flex" aria-label={isExpanded ? "Contraer menú" : "Expandir menú"} title={isExpanded ? "Contraer menú" : "Expandir menú"}>
           {isExpanded ? <ChevronDoubleLeftIcon className="h-5 w-5" /> : <ChevronDoubleRightIcon className="h-5 w-5" />}
           {menuExpanded && <span className="text-sm font-medium">Contraer menú</span>}
         </button>
@@ -240,7 +240,7 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
         {menuExpanded && (
           <div className="mt-4 border-t border-white/10 pt-4">
             <div className="flex flex-col items-center justify-center">
-              <span className="text-xs text-slate-400">© {new Date().getFullYear()} PropControl</span>
+              <span className="text-xs text-on-accent-muted">© {new Date().getFullYear()} PropControl</span>
             </div>
           </div>
         )}

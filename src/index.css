@@ -8,7 +8,7 @@
  * varios no alcanzan 4.5:1 cuando se combinan con esas superficies.
  */
 @theme {
-  --color-navigation: #172033;
+  --color-navigation: var(--color-indigo-800);
   --color-content-muted: #4b5563;
   --color-status-success: #166534;
   --color-status-success-strong: #14532d;
