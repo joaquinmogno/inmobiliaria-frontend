@@ -163,7 +163,7 @@ export default function InstallationProfileSettings({ refreshToken }: { refreshT
 
     return (
         <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-            <div className="flex flex-col gap-2 border-b border-gray-100 p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 border-b border-gray-100 p-4 sm:p-6 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 className="flex items-center text-lg font-semibold text-gray-900">
                         <BuildingOfficeIcon className="mr-2 h-5 w-5 text-indigo-600" />
@@ -174,7 +174,7 @@ export default function InstallationProfileSettings({ refreshToken }: { refreshT
                 {success && <span className="text-sm font-medium text-status-success">✓ Cambios guardados</span>}
             </div>
 
-            <form ref={formRef} onSubmit={handleSubmit} className="space-y-8 p-6">
+            <form ref={formRef} onSubmit={handleSubmit} className="space-y-8 p-4 sm:p-6">
                 <FormError message={error} />
 
                 <fieldset>
@@ -263,7 +263,7 @@ export default function InstallationProfileSettings({ refreshToken }: { refreshT
                 </fieldset>
 
                 <div className="flex justify-end border-t border-gray-100 pt-6">
-                    <button type="submit" disabled={loading} className={`min-h-11 rounded-xl px-6 font-semibold text-white shadow-md transition-all ${loading ? 'cursor-not-allowed bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95'}`}>
+                    <button type="submit" disabled={loading} className={`min-h-11 w-full rounded-xl px-6 font-semibold text-white shadow-md transition-all sm:w-auto ${loading ? 'cursor-not-allowed bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95'}`}>
                         {loading ? 'Guardando...' : 'Guardar perfil institucional'}
                     </button>
                 </div>

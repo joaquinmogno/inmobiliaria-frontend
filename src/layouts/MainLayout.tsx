@@ -1,9 +1,10 @@
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import { Outlet, useLocation } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import ReauthenticationDialog from "../components/ReauthenticationDialog";
 import GlobalConfirmationDialog from "../components/GlobalConfirmationDialog";
+import LoadingState from "../components/LoadingState";
 
 export default function MainLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -59,7 +60,7 @@ export default function MainLayout() {
   const mobileBackgroundInert = isMobileMenuOpen && !isDesktop;
 
   return (
-    <div className="h-screen w-screen flex flex-col overflow-hidden">
+    <div className="relative flex h-dvh w-full overflow-hidden bg-gray-100">
       <a
         href="#main-content"
         onClick={() => window.requestAnimationFrame(() => mainRef.current?.focus())}
@@ -67,19 +68,19 @@ export default function MainLayout() {
       >
         Saltar al contenido principal
       </a>
-      <Header
-        toggleMobileMenu={() => setIsMobileMenuOpen(current => !current)}
-        mobileMenuOpen={isMobileMenuOpen}
-        menuButtonRef={menuButtonRef}
-        inert={mobileBackgroundInert}
+      <Sidebar
+        ref={sidebarRef}
+        mobileOpen={isMobileMenuOpen}
+        isDesktop={isDesktop}
+        closeMobile={() => setIsMobileMenuOpen(false)}
       />
 
-      <div className="flex flex-1 overflow-hidden relative">
-        <Sidebar
-          ref={sidebarRef}
-          mobileOpen={isMobileMenuOpen}
-          isDesktop={isDesktop}
-          closeMobile={() => setIsMobileMenuOpen(false)}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        <Header
+          toggleMobileMenu={() => setIsMobileMenuOpen(current => !current)}
+          mobileMenuOpen={isMobileMenuOpen}
+          menuButtonRef={menuButtonRef}
+          inert={mobileBackgroundInert}
         />
 
         <main
@@ -91,7 +92,11 @@ export default function MainLayout() {
           inert={mobileBackgroundInert || undefined}
           className="min-w-0 flex-1 bg-gray-100 overflow-y-auto overflow-x-hidden p-4 sm:p-6 w-full focus:outline-none"
         >
-          <Outlet />
+          <Suspense key={location.pathname} fallback={<LoadingState label="Cargando página…" />}>
+            <div className="ui-page-enter" data-page-content>
+              <Outlet />
+            </div>
+          </Suspense>
         </main>
         <ReauthenticationDialog />
         <GlobalConfirmationDialog />

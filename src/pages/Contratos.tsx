@@ -1,3 +1,7 @@
+import { getStatusLabel } from '../utils/status';
+import LoadingState from '../components/LoadingState';
+import { formatDateTime } from '../utils/date';
+import EmptyState from '../components/EmptyState';
 import { useState, useEffect, useRef, Fragment } from "react";
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
 import { Menu, MenuButton, MenuItem, MenuItems, Transition } from "@headlessui/react";
@@ -58,7 +62,8 @@ export default function Contratos() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalContracts, setTotalContracts] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
-  const [, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [contractToDelete, setContractToDelete] = useState<number | null>(null);
@@ -165,7 +170,7 @@ export default function Contratos() {
     requestedStatus: ContractListStatus = statusFilter,
     requestedAlert: 'POR_VENCER' | undefined = alertFilter
   ) => {
-    setIsLoading(true);
+    setIsLoading(true); setLoadError('');
     try {
       const response = await contractsService.getAll({ search: searchQuery, page, limit: 10, status: requestedStatus, alert: requestedAlert, signal });
       setContractsList(response.data);
@@ -173,7 +178,7 @@ export default function Contratos() {
       setTotalPages(response.meta.totalPages);
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
-      console.error("Error loading contracts:", error);
+      setLoadError("No se pudieron cargar los contratos. Intentá nuevamente.");
     } finally {
       setIsLoading(false);
     }
@@ -426,11 +431,13 @@ export default function Contratos() {
       RESCINDIDO: 'bg-orange-50 text-orange-700 border-orange-200',
       PAPELERA: 'bg-red-50 text-red-700 border-red-200'
     };
-    const labels = { PROGRAMADO: 'PROGRAMADO', ACTIVO: 'ACTIVO', EN_CIERRE: 'EN CIERRE', FINALIZADO: 'FINALIZADO', RESCINDIDO: 'RESCINDIDO', PAPELERA: 'PAPELERA' };
-    return <span className={`text-xs font-bold mt-1 inline-block px-2 py-0.5 rounded border ${styles[estado]}`}>{labels[estado]}</span>;
+    return <span className={`ui-status mt-1 ${styles[estado]}`}>{getStatusLabel(estado)}</span>;
   };
 
   const selectedList = contractListOptions.find(option => option.value === statusFilter)!;
+  const clearListFilters = () => { setSearchTerm(''); updateStatusFilter('ACTIVO', true); setCurrentPage(1); };
+  const emptyState = isLoading ? <LoadingState compact label="Cargando contratos…" /> : loadError ? <div role="alert" className="p-6 text-sm text-red-800">{loadError}<button type="button" className="ui-button ui-button-secondary mt-3" onClick={() => void refreshData()}>Reintentar</button></div> : <EmptyState filtered={Boolean(searchTerm.trim() || alertFilter) || statusFilter !== 'ACTIVO'} title="Todavía no hay contratos activos" description="Los contratos vigentes aparecerán aquí. Podés consultar otros estados desde los filtros." onClear={clearListFilters} action={canCreate ? { label: 'Crear un contrato', onClick: () => { setEditingContract(null); setRenewingContract(null); setActiveDraft(null); setIsModalOpen(true); } } : undefined} />;
+
 
 
   const confirmDelete = async () => {
@@ -467,7 +474,7 @@ export default function Contratos() {
     <div className="max-w-7xl mx-auto space-y-6">
       {preparingRenewal && <p role="status" className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-900">Cargando datos para la renovación…</p>}
       {/* Header & Actions */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="ui-page-header">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">
             {selectedList.label}
@@ -476,17 +483,7 @@ export default function Contratos() {
             {alertFilter ? 'Mostrando contratos activos que vencen dentro de los próximos 60 días.' : selectedList.description}
           </p>
         </div>
-        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-          <AppSelect
-            ariaLabel="Filtrar contratos por estado"
-            value={statusFilter}
-            onChange={(value) => {
-              updateStatusFilter(value as ContractListStatus, Boolean(alertFilter));
-              setCurrentPage(1);
-            }}
-            options={contractListOptions}
-            className="w-full sm:w-64"
-          />
+        <div className="ui-page-actions">
           {canCreate && (
             <button
               disabled={preparingRenewal}
@@ -496,7 +493,7 @@ export default function Contratos() {
                 setActiveDraft(null);
                 setIsModalOpen(true);
               }}
-              className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm font-medium cursor-pointer disabled:cursor-wait disabled:opacity-50"
+              className="ui-button ui-button-primary disabled:cursor-wait"
             >
               <PlusIcon className="w-5 h-5" />
               Nuevo contrato
@@ -508,7 +505,7 @@ export default function Contratos() {
               disabled={preparingRenewal}
               onClick={() => setShowDrafts(open => !open)}
               aria-expanded={showDrafts}
-              className="flex items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 font-medium text-indigo-700 transition-colors hover:bg-indigo-100 disabled:cursor-wait disabled:opacity-50"
+              className="ui-button ui-button-secondary disabled:cursor-wait"
             >
               <DocumentTextIcon className="h-5 w-5" />
               Borradores{drafts.length ? ` (${drafts.length})` : ''}
@@ -533,11 +530,11 @@ export default function Contratos() {
                     <p className="truncate font-semibold text-gray-900">{draft.resumen.direccion}</p>
                     <p className="text-sm text-content-muted">
                       {[draft.resumen.propietario, draft.resumen.inquilino].filter(Boolean).join(' · ') || 'Sin partes definidas'}
-                      {' · '}Actualizado {new Date(draft.fechaActualizacion).toLocaleDateString('es-AR')}
+                      {' · '}Actualizado {formatDateTime(draft.fechaActualizacion)}
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-2">
-                    <button type="button" onClick={() => handleContinueDraft(draft)} className="rounded-lg bg-indigo-600 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-700">Continuar</button>
+                    <button type="button" onClick={() => handleContinueDraft(draft)} className="ui-button ui-button-secondary">Continuar</button>
                     <button type="button" onClick={() => void handleDeleteDraft(draft)} aria-label={`Eliminar borrador ${draft.resumen.direccion}`} className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">Eliminar</button>
                   </div>
                 </li>
@@ -577,7 +574,18 @@ export default function Contratos() {
         type="danger"
       />
 
-      <FilterBar query={searchTerm} onQueryChange={value => { setSearchTerm(value); setCurrentPage(1); }} onClear={() => { setSearchTerm(""); updateStatusFilter('ACTIVO', true); setCurrentPage(1); }} resultCount={totalContracts} placeholder="Buscar por dirección, propietario, inquilino o teléfono..." />
+      <FilterBar query={searchTerm} onQueryChange={value => { setSearchTerm(value); setCurrentPage(1); }} onClear={clearListFilters} resultCount={totalContracts} placeholder="Buscar por dirección, propietario, inquilino o teléfono...">
+          <AppSelect
+            ariaLabel="Filtrar contratos por estado"
+            value={statusFilter}
+            onChange={(value) => {
+              updateStatusFilter(value as ContractListStatus, Boolean(alertFilter));
+              setCurrentPage(1);
+            }}
+            options={contractListOptions}
+            className="w-full sm:w-64"
+          />
+      </FilterBar>
       <ActiveFilterChips filters={[
         ...(searchTerm ? [{ key: 'q', label: `Búsqueda: ${searchTerm}`, onRemove: () => setSearchTerm('') }] : []),
         ...(statusFilter !== 'ACTIVO' ? [{ key: 'estado', label: `Estado: ${contractListOptions.find(option => option.value === statusFilter)?.label || statusFilter}`, onRemove: () => updateStatusFilter('ACTIVO') }] : []),
@@ -585,11 +593,11 @@ export default function Contratos() {
       ]} onClearAll={() => { setSearchTerm(''); updateStatusFilter('ACTIVO', true); }} />
 
       {/* Contenedor Principal Tablas/Tarjetas */}
-      <div className="lg:bg-white lg:rounded-xl lg:shadow-sm lg:border lg:border-gray-200 min-h-[400px] flex flex-col">
+      <div className="flex flex-col 2xl:rounded-xl 2xl:border 2xl:border-slate-200 2xl:bg-white">
         {/* VISTA DESKTOP */}
         <div className="relative hidden overflow-x-auto rounded-t-xl 2xl:block">
           <p className="sr-only">Deslizá horizontalmente para ver más columnas.</p>
-          <table className="min-w-full divide-y divide-gray-200">
+          <table className="tabular-nums min-w-full divide-y divide-gray-200">
             <thead className="sticky top-0 z-10 bg-gray-50 whitespace-nowrap">
               <tr>
                 <th
@@ -624,7 +632,7 @@ export default function Contratos() {
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase tracking-wider"
+                  className="px-6 py-3 text-right text-xs font-medium text-content-muted uppercase tracking-wider"
                 >
                   Alquiler
                 </th>
@@ -671,7 +679,7 @@ export default function Contratos() {
                         <WhatsAppLink phone={contract.propietarios.find(p => p.esPrincipal)?.persona.telefono || ""} />
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="text-sm font-bold text-gray-900">
                         {formatCurrency(contract.montoAlquiler, contract.moneda)}
                       </div>
@@ -776,9 +784,9 @@ export default function Contratos() {
                 <tr>
                   <td
                     colSpan={7}
-                    className="px-6 py-10 text-center text-sm text-content-muted"
+                    className="text-center"
                   >
-                    No se encontraron contratos que coincidan con tu búsqueda.
+                    {emptyState}
                   </td>
                 </tr>
               )}
@@ -789,7 +797,7 @@ export default function Contratos() {
         {/* VISTA MOBILE */}
         <div className="space-y-4 2xl:hidden">
             {currentContracts.map((contract) => (
-                <div key={contract.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
+                <div key={contract.id} className="ui-panel flex flex-col gap-4 p-4 sm:p-5">
                     <div className="flex justify-between items-start">
                         <div className="flex items-center gap-2.5">
                              <div className="bg-indigo-50 p-2 rounded-lg shrink-0">
@@ -889,32 +897,32 @@ export default function Contratos() {
                         </Menu>
                     </div>
                     
-                    <div className="bg-gray-50 rounded-lg p-3 border border-gray-100 text-sm flex flex-col gap-2 mt-1">
-                         <div className="flex justify-between items-center bg-white p-2 border border-gray-100 rounded-md">
-                             <div className="flex flex-col">
-                                 <span className="text-xs uppercase font-bold text-gray-600">Inquilino</span>
-                                 <span className="font-semibold text-gray-700">{contract.inquilinos.find(i => i.esPrincipal)?.persona.nombreCompleto || "N/A"}</span>
+                    <div className="grid gap-4 border-t border-slate-100 pt-4 text-sm sm:grid-cols-2">
+                         <div className="flex min-w-0 items-center justify-between gap-3">
+                             <div className="min-w-0">
+                                 <span className="block text-xs font-medium text-slate-500">Inquilino</span>
+                                 <span className="block break-words font-medium text-slate-800">{contract.inquilinos.find(i => i.esPrincipal)?.persona.nombreCompleto || "N/A"}</span>
                              </div>
                              <WhatsAppLink phone={contract.inquilinos.find(i => i.esPrincipal)?.persona.telefono || ""} />
                          </div>
-                         <div className="flex justify-between items-center bg-white p-2 border border-gray-100 rounded-md">
-                             <div className="flex flex-col">
-                                 <span className="text-xs uppercase font-bold text-gray-600">Propietario</span>
-                                 <span className="font-semibold text-gray-700">{contract.propietarios.find(p => p.esPrincipal)?.persona.nombreCompleto || "N/A"}</span>
+                         <div className="flex min-w-0 items-center justify-between gap-3">
+                             <div className="min-w-0">
+                                 <span className="block text-xs font-medium text-slate-500">Propietario</span>
+                                 <span className="block break-words font-medium text-slate-800">{contract.propietarios.find(p => p.esPrincipal)?.persona.nombreCompleto || "N/A"}</span>
                              </div>
                              <WhatsAppLink phone={contract.propietarios.find(p => p.esPrincipal)?.persona.telefono || ""} />
                          </div>
                     </div>
 
-                    <div className="flex items-center justify-between mt-1 pt-3 border-t border-gray-100">
+                    <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
                          <span className="text-xs uppercase font-bold text-content-muted tracking-wider">Alquiler</span>
-                         <span className="text-lg font-black text-gray-900">{formatCurrency(contract.montoAlquiler, contract.moneda)}</span>
+                         <span className="text-lg font-bold tabular-nums text-right text-gray-900">{formatCurrency(contract.montoAlquiler, contract.moneda)}</span>
                     </div>
                 </div>
             ))}
             {currentContracts.length === 0 && (
-                <div className="bg-white p-8 rounded-xl border border-gray-100 text-center text-sm text-content-muted shadow-sm">
-                    No se encontraron contratos que coincidan con tu búsqueda.
+                <div className="ui-panel">
+                    {emptyState}
                 </div>
             )}
         </div>

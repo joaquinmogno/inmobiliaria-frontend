@@ -1,3 +1,6 @@
+import FieldError, { useFieldValidation } from '../components/FieldError';
+import EmptyState from '../components/EmptyState';
+import LoadingState from '../components/LoadingState';
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
@@ -28,6 +31,7 @@ export default function Personas() {
     const canDelete = hasPermission(user, "personas.eliminar");
     const [searchParams, setSearchParams] = useSearchParams();
     const [personas, setPersonas] = useState<Persona[]>([]);
+    const [loadError, setLoadError] = useState('');
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState(() => searchParams.get('q') ?? readPersistedFilter("personas"));
     const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('q') ?? readPersistedFilter("personas"));
@@ -39,6 +43,8 @@ export default function Personas() {
     const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
     const [coincidencias, setCoincidencias] = useState<PersonaCoincidencia[]>([]);
     const { error: formError, setError: setFormError, reportError, formRef } = useFormError();
+    const validation = useFieldValidation();
+    const [saving, setSaving] = useState(false);
     const [formData, setFormData] = useState<CreatePersonaData>({
         nombreCompleto: "",
         dni: "",
@@ -120,7 +126,7 @@ export default function Personas() {
     }, [isModalOpen, editingPersona?.id, formData.dni, formData.cuit, formData.email, formData.telefono]);
 
     const loadPersonas = async (searchQuery: string = debouncedSearch, page: number = currentPage, signal?: AbortSignal) => {
-        setLoading(true);
+        setLoading(true); setLoadError('');
         try {
             const response = await personasService.getAll({ search: searchQuery, page, limit: 25, signal });
             setPersonas(response.data);
@@ -128,7 +134,7 @@ export default function Personas() {
             setTotalPages(response.meta.totalPages);
         } catch (error) {
             if (error instanceof DOMException && error.name === 'AbortError') return;
-            console.error("Error loading personas:", error);
+            setLoadError("No se pudieron cargar las personas. Intentá nuevamente.");
         } finally {
             setLoading(false);
         }
@@ -136,7 +142,15 @@ export default function Personas() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (saving) return;
         setFormError("");
+        const errors: Record<string, string> = {};
+        if (!formData.nombreCompleto.trim()) errors['person-name'] = 'Ingresá el nombre completo o la razón social.';
+        if (formData.cuit && formData.cuit.replace(/\D/g, '').length !== 11) errors['person-cuit'] = 'El CUIT debe tener 11 dígitos.';
+        if (formData.cbu && formData.cbu.replace(/\D/g, '').length !== 22) errors['person-cbu'] = 'El CBU debe tener 22 dígitos.';
+        if (Object.keys(errors).length) { validation.showErrors(errors); return; }
+        validation.reset();
+        setSaving(true);
         try {
             if (editingPersona) {
                 await personasService.update(editingPersona.id, { ...formData, version: editingPersona.version });
@@ -149,7 +163,7 @@ export default function Personas() {
             loadPersonas();
         } catch (error) {
             reportError(error, "No se pudo guardar la persona");
-        }
+        } finally { setSaving(false); }
     };
 
     const handleDelete = async (id: number) => {
@@ -190,6 +204,8 @@ export default function Personas() {
     };
 
     const resetForm = () => {
+        validation.reset();
+        setFormError('');
         setCoincidencias([]);
         setFormData({
             nombreCompleto: "",
@@ -210,6 +226,8 @@ export default function Personas() {
     };
 
     const handleEdit = (persona: Persona) => {
+        validation.reset();
+        setFormError('');
         setEditingPersona(persona);
         setFormData({
             nombreCompleto: persona.nombreCompleto,
@@ -230,14 +248,22 @@ export default function Personas() {
         setIsModalOpen(true);
     };
 
-    if (loading && personas.length === 0) return <div className="p-8 text-center text-indigo-600 font-semibold">Cargando personas...</div>;
+    const personField = (id: string, label: string, key: Exclude<keyof CreatePersonaData, 'titularidadBancariaVerificada' | 'estado'>, type = 'text', required = false, placeholder?: string) => <div className="min-w-0">
+        <label htmlFor={id} className="mb-1 block text-sm font-medium text-slate-700">{label}</label>
+        <input {...validation.inputProps(id)} type={type} required={required} value={formData[key] || ''} placeholder={placeholder} className="ui-field" onChange={event => setFormData(current => ({ ...current, [key]: event.target.value, ...(['cbu', 'aliasBancario', 'titularCuentaBancaria'].includes(key) ? { titularidadBancariaVerificada: false } : {}) }))} />
+        <FieldError id={id} message={validation.errors[id]} />
+    </div>;
+
+    const emptyState = loadError ? <div role="alert" className="p-6 text-center text-sm text-red-800">{loadError}<button type="button" className="ui-button ui-button-secondary mt-3" onClick={() => void loadPersonas(debouncedSearch, currentPage)}>Reintentar</button></div> : <EmptyState filtered={Boolean(searchTerm.trim())} title="Todavía no hay personas registradas" description="Agregá inquilinos, propietarios y garantes para vincularlos a tus contratos." onClear={() => updateSearch('')} action={canCreate ? { label: 'Crear la primera persona', onClick: () => { setEditingPersona(null); resetForm(); setIsModalOpen(true); } } : undefined} />;
+
+    if (loading && personas.length === 0) return <LoadingState label="Cargando personas…" />;
 
     return (
-        <div className="p-4 md:p-8 max-w-7xl mx-auto">
-            <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+        <div className="mx-auto w-full max-w-7xl">
+            <div className="ui-page-header mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">Personas</h1>
-                    <p className="text-content-muted mt-1">Centraliza la información de inquilinos, propietarios y garantes</p>
+                    <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Personas</h1>
+                    <p className="mt-1 text-sm text-content-muted sm:text-base">Centraliza la información de inquilinos, propietarios y garantes</p>
                 </div>
                 {canCreate && <button
                     onClick={() => {
@@ -245,7 +271,7 @@ export default function Personas() {
                         resetForm();
                         setIsModalOpen(true);
                     }}
-                    className="flex items-center gap-2 bg-indigo-600 text-white px-5 py-2.5 rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 font-semibold"
+                    className="ui-button ui-button-primary"
                 >
                     <PlusIcon className="w-5 h-5" />
                     Nueva persona
@@ -259,7 +285,7 @@ export default function Personas() {
             {/* VISTA DESKTOP */}
             <div className="hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden 2xl:block">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
+                    <table className="tabular-nums w-full text-left border-collapse">
                         <thead className="sticky top-0 z-10 bg-gray-50">
                             <tr className="bg-gray-50/50 border-b border-gray-100">
                                 <th className="px-6 py-4 text-xs font-bold text-content-muted uppercase tracking-wider">Persona</th>
@@ -344,8 +370,8 @@ export default function Personas() {
                             ))}
                             {personas.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-8 text-center text-content-muted">
-                                        No se encontraron personas con ese criterio.
+                                    <td colSpan={5} className="text-center">
+                                        {emptyState}
                                     </td>
                                 </tr>
                             )}
@@ -413,8 +439,8 @@ export default function Personas() {
                     </div>
                 ))}
                 {personas.length === 0 && (
-                    <div className="p-8 text-center bg-white rounded-xl border border-gray-100 text-content-muted text-sm">
-                        No se encontraron personas con ese criterio.
+                    <div className="ui-panel">
+                        {emptyState}
                     </div>
                 )}
             </div>
@@ -431,18 +457,18 @@ export default function Personas() {
 
             {/* Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div data-modal-panel className="modal-scroll bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl max-h-[90dvh]">
-                        <div className="flex justify-between items-center mb-6">
+                <div className="ui-backdrop-enter fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div data-modal-panel className="ui-modal-enter flex flex-col overflow-hidden bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[calc(100dvh-2rem)]">
+                        <div className="flex shrink-0 justify-between items-center border-b border-slate-100 p-4 sm:px-6">
                             <h2 className="text-2xl font-bold text-gray-900">
                                 {editingPersona ? "Editar persona" : "Nueva persona"}
                             </h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-600 hover:text-gray-600">
+                            <button type="button" disabled={saving} aria-label="Cerrar ventana" onClick={() => setIsModalOpen(false)} className="h-11 w-11 text-gray-600 hover:text-gray-900">
                                 ✕
                             </button>
                         </div>
 
-                        <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
+                        <form id="person-form" ref={formRef} onSubmit={handleSubmit} className="modal-scroll flex-1 space-y-6 p-4 sm:p-6">
                             <FormError message={formError} />
                             {coincidencias.length > 0 && (
                                 <aside className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" aria-live="polite">
@@ -462,104 +488,41 @@ export default function Personas() {
                                     </ul>
                                 </aside>
                             )}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="md:col-span-2">
-                                    <label htmlFor="person-name" className="block text-sm font-medium text-gray-700 mb-1">Nombre y Apellido / Razón Social *</label>
-                                    <input
-                                        id="person-name"
-                                        type="text"
-                                        required
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                        value={formData.nombreCompleto}
-                                        onChange={(e) => setFormData({ ...formData, nombreCompleto: e.target.value })}
-                                        placeholder="Ej: Juan Pérez S.A."
-                                    />
+                            <fieldset className="min-w-0 space-y-4">
+                                <legend className="mb-3 text-base font-semibold text-slate-900">Datos principales</legend>
+                                <p className="text-sm text-slate-600">El nombre es obligatorio. Los demás datos son opcionales y podés completarlos después.</p>
+                                {personField('person-name', 'Nombre y Apellido / Razón Social *', 'nombreCompleto', 'text', true, 'Ej.: Juan Pérez')}
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    {personField('person-document', 'DNI (opcional)', 'dni')}
+                                    {personField('person-cuit', 'CUIT (opcional)', 'cuit', 'text', false, '11 dígitos')}
+                                    <div><label htmlFor="person-status" className="mb-1 block text-sm font-medium text-slate-700">Estado</label><AppSelect id="person-status" ariaLabel="Estado de la persona" value={formData.estado} onChange={value => setFormData({ ...formData, estado: value as 'ACTIVO' | 'INACTIVO' })} options={[{ value: 'ACTIVO', label: 'Activo' }, { value: 'INACTIVO', label: 'Inactivo' }]} /></div>
                                 </div>
-                                <div><label htmlFor="person-cuit" className="block text-sm font-medium text-gray-700 mb-1">CUIT (opcional)</label><input id="person-cuit" inputMode="numeric" value={formData.cuit || ''} onChange={e => setFormData({ ...formData, cuit: e.target.value })} placeholder="11 dígitos" className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
-                                <div><label htmlFor="person-alternative-contact" className="block text-sm font-medium text-gray-700 mb-1">Contacto alternativo (opcional)</label><input id="person-alternative-contact" value={formData.contactoAlternativo || ''} onChange={e => setFormData({ ...formData, contactoAlternativo: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
-                                <div><label htmlFor="person-alternative-phone" className="block text-sm font-medium text-gray-700 mb-1">Teléfono alternativo (opcional)</label><input id="person-alternative-phone" value={formData.telefonoAlternativo || ''} onChange={e => setFormData({ ...formData, telefonoAlternativo: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
-                                <div><label htmlFor="person-bank" className="block text-sm font-medium text-gray-700 mb-1">Banco (opcional)</label><input id="person-bank" value={formData.banco || ''} onChange={e => setFormData({ ...formData, banco: e.target.value })} className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
-                                <div><label htmlFor="person-cbu" className="block text-sm font-medium text-gray-700 mb-1">CBU (opcional)</label><input id="person-cbu" inputMode="numeric" value={formData.cbu || ''} onChange={e => setFormData({ ...formData, cbu: e.target.value, titularidadBancariaVerificada: false })} placeholder="22 dígitos" className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
-                                <div><label htmlFor="person-bank-alias" className="block text-sm font-medium text-gray-700 mb-1">Alias bancario (opcional)</label><input id="person-bank-alias" value={formData.aliasBancario || ''} onChange={e => setFormData({ ...formData, aliasBancario: e.target.value, titularidadBancariaVerificada: false })} placeholder="Ej: LUZ.CASA.123" className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
-                                <div className="md:col-span-2"><label htmlFor="person-account-holder" className="block text-sm font-medium text-gray-700 mb-1">Titular de la cuenta (opcional si coincide con la persona)</label><input id="person-account-holder" value={formData.titularCuentaBancaria || ''} onChange={e => setFormData({ ...formData, titularCuentaBancaria: e.target.value, titularidadBancariaVerificada: false })} placeholder={formData.nombreCompleto || 'Se asumirá el nombre de la persona'} className="w-full px-4 py-2 border border-gray-200 rounded-xl" /></div>
-                                {(formData.cbu || formData.aliasBancario) && <label className="md:col-span-2 flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"><input type="checkbox" checked={Boolean(formData.titularidadBancariaVerificada)} onChange={e => setFormData({ ...formData, titularidadBancariaVerificada: e.target.checked })} className="mt-0.5 h-4 w-4 rounded border-amber-400 text-indigo-600 focus:ring-indigo-500" /><span><strong>Cuenta verificada.</strong> Confirmo que el CBU o alias pertenece a {formData.titularCuentaBancaria?.trim() || formData.nombreCompleto || 'la persona indicada'}.</span></label>}
-
-                                <div>
-                                    <label htmlFor="person-document" className="block text-sm font-medium text-gray-700 mb-1">DNI (opcional)</label>
-                                    <input
-                                        id="person-document"
-                                        type="text"
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                        value={formData.dni || ""}
-                                        onChange={(e) => setFormData({ ...formData, dni: e.target.value })}
-                                    />
+                            </fieldset>
+                            <fieldset className="min-w-0 border-t border-slate-100 pt-4">
+                                <legend className="pr-2 text-base font-semibold text-slate-900">Contacto <span className="text-sm font-normal text-slate-500">· Opcional</span></legend>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    {personField('person-email', 'Email', 'email', 'email')}
+                                    {personField('person-phone', 'Teléfono', 'telefono', 'tel')}
+                                    <div className="sm:col-span-2">{personField('person-address', 'Dirección', 'direccion', 'text', false, 'Calle, número, piso…')}</div>
+                                    {personField('person-alternative-contact', 'Contacto alternativo (opcional)', 'contactoAlternativo')}
+                                    {personField('person-alternative-phone', 'Teléfono alternativo (opcional)', 'telefonoAlternativo', 'tel')}
                                 </div>
-
-                                <div>
-                                    <label htmlFor="person-status" className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-                                    <AppSelect
-                                        id="person-status"
-                                        ariaLabel="Estado de la persona"
-                                        value={formData.estado}
-                                        onChange={(value) => setFormData({ ...formData, estado: value as 'ACTIVO' | 'INACTIVO' })}
-                                        options={[
-                                            { value: "ACTIVO", label: "Activo" },
-                                            { value: "INACTIVO", label: "Inactivo" }
-                                        ]}
-                                    />
+                            </fieldset>
+                            <fieldset className="min-w-0 space-y-4 border-t border-slate-100 pt-4">
+                                <legend className="pr-2 text-base font-semibold text-slate-900">Datos bancarios <span className="text-sm font-normal text-slate-500">· Opcional</span></legend>
+                                <div className="grid gap-4 sm:grid-cols-2">
+                                    {personField('person-bank', 'Banco (opcional)', 'banco')}
+                                    {personField('person-cbu', 'CBU (opcional)', 'cbu', 'text', false, '22 dígitos')}
+                                    {personField('person-bank-alias', 'Alias bancario (opcional)', 'aliasBancario', 'text', false, 'Ej.: LUZ.CASA.123')}
+                                    {personField('person-account-holder', 'Titular de la cuenta (opcional si coincide con la persona)', 'titularCuentaBancaria', 'text', false, formData.nombreCompleto || 'Se asumirá el nombre de la persona')}
                                 </div>
-
-                                <div>
-                                    <label htmlFor="person-email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                                    <input
-                                        id="person-email"
-                                        type="email"
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                        value={formData.email || ""}
-                                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                    />
-                                </div>
-
-                                <div>
-                                    <label htmlFor="person-phone" className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                                    <input
-                                        id="person-phone"
-                                        type="tel"
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                        value={formData.telefono}
-                                        onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                                    />
-                                </div>
-
-                                <div className="md:col-span-2">
-                                    <label htmlFor="person-address" className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
-                                    <input
-                                        id="person-address"
-                                        type="text"
-                                        className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                                        value={formData.direccion || ""}
-                                        onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                                        placeholder="Calle, número, piso..."
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsModalOpen(false)}
-                                    className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-xl transition-colors font-medium"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="submit"
-                                    className="px-6 py-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all font-semibold shadow-lg shadow-indigo-100"
-                                >
-                                    Guardar persona
-                                </button>
-                            </div>
+                                {(formData.cbu || formData.aliasBancario) && <label className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"><input type="checkbox" checked={Boolean(formData.titularidadBancariaVerificada)} onChange={event => setFormData({ ...formData, titularidadBancariaVerificada: event.target.checked })} className="mt-0.5 h-4 w-4 shrink-0 rounded border-amber-400 text-indigo-600" /><span><strong>Cuenta verificada.</strong> Confirmo que el CBU o alias pertenece a {formData.titularCuentaBancaria?.trim() || formData.nombreCompleto || 'la persona indicada'}.</span></label>}
+                            </fieldset>
                         </form>
+                        <div className="grid shrink-0 grid-cols-2 gap-3 border-t border-slate-100 bg-white p-4 sm:flex sm:justify-end sm:px-6">
+                            <button type="button" disabled={saving} onClick={() => setIsModalOpen(false)} className="ui-button ui-button-secondary">Cancelar</button>
+                            <button type="submit" form="person-form" disabled={saving} className="ui-button ui-button-primary">{saving ? 'Guardando…' : 'Guardar persona'}</button>
+                        </div>
                     </div>
                 </div>
             )}

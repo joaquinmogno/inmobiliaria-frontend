@@ -25,7 +25,7 @@ test('el Administrador restablece una contraseña temporal sin exponer enlaces',
   const targetCard = page.getByRole('article', { name: 'Usuario' });
   await targetCard.getByRole('button', { name: 'Acciones' }).click();
   await page.getByRole('menuitem', { name: 'Cambiar contraseña' }).click();
-  await page.getByLabel('Nueva contraseña temporal').fill('NuevaTemporal!2026');
+  await page.getByLabel('Nueva contraseña temporal', { exact: true }).fill('NuevaTemporal!2026');
   await page.getByRole('button', { name: 'Restablecer' }).click();
   expect(sentPassword).toBe('NuevaTemporal!2026');
   await expect(page.getByText(/Contraseña temporal actualizada/i)).toBeVisible();
@@ -56,6 +56,10 @@ test('un usuario con contraseña temporal queda bloqueado hasta crear una person
   await page.route('**/api/auth/me', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(user) }));
   await page.route('**/api/auth/change-password', async route => {
     submittedBody = route.request().postDataJSON();
+    if (submittedBody?.newPassword === temporaryPassword) {
+      await route.fulfill({ status: 400, contentType: 'application/json', body: JSON.stringify({ message: 'La nueva contraseña debe ser diferente de la contraseña temporal' }) });
+      return;
+    }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ message: 'ok' }) });
   });
   await page.route('**/api/auth/logout', route => route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
@@ -73,20 +77,49 @@ test('un usuario con contraseña temporal queda bloqueado hasta crear una person
   await expect(page).toHaveURL(/\/cambiar-contrasena$/);
   await expect(page.getByText('Gestión de Contratos')).toHaveCount(0);
 
-  await page.getByLabel('Contraseña temporal').fill(temporaryPassword);
+  await expect(page.getByLabel('Contraseña temporal', { exact: true })).toHaveCount(0);
+  await expect(page.locator('input')).toHaveCount(2);
+  await expect(page.getByRole('button', { name: 'Mostrar nueva contraseña', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Mostrar confirmación de contraseña' })).toBeVisible();
+
+  await page.getByLabel('Nueva contraseña', { exact: true }).fill(personalPassword);
+  await page.getByLabel('Repetir nueva contraseña').fill(temporaryPassword);
+  await page.getByRole('button', { name: 'Guardar y continuar' }).click();
+  await expect(page.getByRole('alert')).toContainText('no coinciden');
+  expect(submittedBody).toBeNull();
+
   await page.getByLabel('Nueva contraseña', { exact: true }).fill(temporaryPassword);
   await page.getByLabel('Repetir nueva contraseña').fill(temporaryPassword);
   await page.getByRole('button', { name: 'Guardar y continuar' }).click();
   await expect(page.getByRole('alert')).toContainText('debe ser diferente');
-  expect(submittedBody).toBeNull();
+  expect(submittedBody).toEqual({ newPassword: temporaryPassword });
 
   await page.getByLabel('Nueva contraseña', { exact: true }).fill(personalPassword);
   await page.getByLabel('Repetir nueva contraseña').fill(personalPassword);
   await page.getByRole('button', { name: 'Guardar y continuar' }).click();
 
-  expect(submittedBody).toEqual({ currentPassword: temporaryPassword, newPassword: personalPassword });
+  expect(submittedBody).toEqual({ newPassword: personalPassword });
   await expect(page).toHaveURL(/\/login$/);
   await expect(page.getByText(/Contraseña actualizada.*Ingresá nuevamente/i)).toBeVisible();
+});
+
+test('el cambio obligatorio pide volver a ingresar cuando el inicio de sesión ya no es reciente', async ({ page }) => {
+  const user = { id: 8, email: 'temporal@test.local', fullName: 'Usuario Temporal', tipo: 'USUARIO', role: 'USUARIO', permissions: [], mustChangePassword: true, inmobiliaria: { id: 1, nombre: 'Test' } };
+  await page.route('**/api/auth/login', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ csrfToken: 'csrf', user }) }));
+  await page.route('**/api/auth/change-password', route => route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({ code: 'RECENT_LOGIN_REQUIRED' }) }));
+
+  await page.goto('/login');
+  await page.getByLabel('Correo electrónico').fill(user.email);
+  await page.locator('#login-password').fill('Temporal!2026_Segura');
+  await page.getByRole('button', { name: /Ingresar a mi cuenta/i }).click();
+  await expect(page).toHaveURL(/\/cambiar-contrasena$/);
+  await page.getByLabel('Nueva contraseña', { exact: true }).fill('Personal!2026_Segura');
+  await page.getByLabel('Repetir nueva contraseña').fill('Personal!2026_Segura');
+  await page.getByRole('button', { name: 'Guardar y continuar' }).click();
+
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole('alert')).toHaveText('Volvé a iniciar sesión para crear tu contraseña personal.');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
 });
 
 test('una respuesta PASSWORD_CHANGE_REQUIRED redirige globalmente y no aparenta falta de datos', async ({ page }) => {

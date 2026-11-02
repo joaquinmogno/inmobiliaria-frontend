@@ -1,6 +1,6 @@
-import type { ChangeEvent } from 'react';
+import { useLayoutEffect, useRef, type ChangeEvent, type InputHTMLAttributes } from 'react';
 
-interface Props {
+interface Props extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
     value: string;
     onChange: (value: string) => void;
     className?: string;
@@ -13,7 +13,19 @@ const displayAmount = (value: string) => {
     return `${grouped}${decimals === undefined ? '' : `,${decimals}`}`;
 };
 
-export default function InternalAmountInput({ value, onChange, className }: Props) {
+export default function InternalAmountInput({ value, onChange, className, ...props }: Props) {
+    const inputRef = useRef<HTMLInputElement>(null);
+    const pendingCursor = useRef<number | null>(null);
+
+    useLayoutEffect(() => {
+        const input = inputRef.current;
+        const position = pendingCursor.current;
+        pendingCursor.current = null;
+        if (input && position !== null && document.activeElement === input) {
+            input.setSelectionRange(position, position);
+        }
+    });
+
     const change = (event: ChangeEvent<HTMLInputElement>) => {
         const input = event.currentTarget;
         const cursor = input.selectionStart ?? input.value.length;
@@ -28,20 +40,18 @@ export default function InternalAmountInput({ value, onChange, className }: Prop
         const display = displayAmount(canonical);
         const meaningfulBeforeCursor = input.value.slice(0, cursor).replace(/[^\d,]/g, '').length;
         const atEnd = cursor === input.value.length;
+        let position = 0;
+        let count = 0;
+        while (position < display.length && count < meaningfulBeforeCursor) {
+            if (/[\d,]/.test(display[position])) count++;
+            position++;
+        }
+        // Restore after React formats the value, before a later keystroke or selection.
+        pendingCursor.current = atEnd ? display.length : position;
         onChange(canonical);
-        requestAnimationFrame(() => {
-            if (document.activeElement !== input) return;
-            let position = 0;
-            let count = 0;
-            while (position < display.length && count < meaningfulBeforeCursor) {
-                if (/[\d,]/.test(display[position])) count++;
-                position++;
-            }
-            input.setSelectionRange(atEnd ? display.length : position, atEnd ? display.length : position);
-        });
     };
 
-    return <input type="text" inputMode="decimal" required autoComplete="off" placeholder="Ej.: 1.300.000,50"
+    return <input {...props} ref={inputRef} type="text" inputMode="decimal" required autoComplete="off" placeholder="Ej.: 1.300.000,50"
         pattern="[0-9]{1,3}(\.[0-9]{3})*(,[0-9]{0,2})?" title="Ingresá un importe positivo. Usá coma para los centavos."
         value={displayAmount(value)} onChange={change} className={className} />;
 }

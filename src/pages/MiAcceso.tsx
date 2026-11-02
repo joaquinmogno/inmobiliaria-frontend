@@ -10,8 +10,8 @@ export default function MiAcceso() {
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div><h1 className="text-3xl font-bold text-gray-900">Mi acceso</h1><p className="mt-1 text-content-muted">Permisos actuales para {user?.fullName || 'tu usuario'}.</p></div>
-        <div className="rounded-xl border border-gray-100 bg-white px-4 py-3 text-right shadow-sm"><p className="text-xs font-black uppercase text-content-muted">Acceso</p><p className="font-bold text-gray-900">{isAdmin ? 'Administrador' : user?.rol?.nombre || 'Sin rol'}</p></div>
+        <div><h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Mi acceso</h1><p className="mt-1 text-sm text-content-muted sm:text-base">Permisos actuales para {user?.fullName || 'tu usuario'}.</p></div>
+        <div className="rounded-xl border border-gray-100 bg-white px-4 py-3 text-left shadow-sm sm:text-right"><p className="text-xs font-black uppercase text-content-muted">Acceso</p><p className="font-bold text-gray-900">{isAdmin ? 'Administrador' : user?.rol?.nombre || 'Sin rol'}</p></div>
       </div>
 
       {isAdmin && <div className="flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 p-5 text-indigo-800"><ShieldCheckIcon className="h-7 w-7" /><div><p className="font-bold">Acceso total</p><p className="text-sm">Tu cuenta administradora puede acceder a todas las funciones, usuarios, backups y auditoría.</p></div></div>}

@@ -1,4 +1,6 @@
-import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
+import LoadingState from './LoadingState';
+import { DialogTitle } from '@headlessui/react';
+import { Modal as Dialog, ModalBackdrop as DialogBackdrop, ModalPanel as DialogPanel } from './Modal';
 import { BellAlertIcon, CheckCircleIcon, ClockIcon, UserCircleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -116,7 +118,7 @@ export default function OperationalAlertsPanel() {
             <button type="button" onClick={() => void load()} className="min-h-11 rounded-xl bg-gray-100 px-4 text-sm font-bold text-gray-800 hover:bg-gray-200">Actualizar</button>
         </div>
 
-        {loading ? <p className="py-10 text-center text-sm font-semibold text-gray-700">Cargando alertas…</p>
+        {loading ? <LoadingState compact label="Cargando alertas…" />
             : alerts.length === 0 ? <div className="mt-4 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-5 text-center"><CheckCircleIcon className="mx-auto h-8 w-8 text-emerald-600" /><p className="mt-2 text-sm font-bold text-gray-800">No hay alertas operativas activas.</p></div>
                 : <div className="mt-4 grid gap-3 lg:grid-cols-2">
                     {alerts.map(alert => <article key={alert.clave} className={`rounded-xl border p-4 ${alert.prioridad === 'ALTA' ? 'border-red-200 bg-red-50/60' : 'border-gray-200 bg-gray-50'}`}>

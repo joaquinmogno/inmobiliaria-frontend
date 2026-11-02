@@ -4,6 +4,7 @@ import MainLayout from "../layouts/MainLayout";
 import Login from "../pages/Login";
 import ProtectedRoute from "../components/ProtectedRoute";
 import PermissionGuard from "../components/PermissionGuard";
+import LoadingState from "../components/LoadingState";
 
 const Home = lazy(() => import("../pages/Home"));
 const Contratos = lazy(() => import("../pages/Contratos"));
@@ -24,7 +25,7 @@ const NotFound = lazy(() => import("../pages/NotFound"));
 
 export default function AppRouter() {
   return (
-    <Suspense fallback={<div className="flex min-h-[40vh] items-center justify-center text-sm font-medium text-content-muted">Cargando...</div>}>
+    <Suspense fallback={<div className="p-6"><LoadingState label="Cargando página…" /></div>}>
     <Routes>
       <Route path="/login" element={<Login />} />
 

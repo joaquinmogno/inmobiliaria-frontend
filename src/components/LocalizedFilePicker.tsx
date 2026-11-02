@@ -1,5 +1,6 @@
 import { DocumentArrowUpIcon } from '@heroicons/react/24/outline';
 import { useRef } from 'react';
+import FieldError from './FieldError';
 
 interface LocalizedFilePickerProps {
   id: string;
@@ -14,6 +15,7 @@ interface LocalizedFilePickerProps {
   required?: boolean;
   disabled?: boolean;
   className?: string;
+  errorMessage?: string;
 }
 
 const formatFileSize = (bytes: number) => {
@@ -35,6 +37,7 @@ export default function LocalizedFilePicker({
   required = false,
   disabled = false,
   className = '',
+  errorMessage,
 }: LocalizedFilePickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const descriptionId = `${id}-description`;
@@ -81,7 +84,8 @@ export default function LocalizedFilePicker({
           multiple={multiple}
           required={required}
           disabled={disabled}
-          aria-describedby={descriptionId}
+          aria-invalid={errorMessage ? true : undefined}
+          aria-describedby={`${descriptionId}${errorMessage ? ` ${id}-error` : ''}`}
           onChange={event => processFiles(Array.from(event.target.files || []))}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
         />
@@ -100,6 +104,7 @@ export default function LocalizedFilePicker({
           Formatos permitidos: {formatsLabel}. Tamaño máximo: 30 MB por archivo.
         </span>
       </div>
+      <FieldError id={id} message={errorMessage} />
     </div>
   );
 }

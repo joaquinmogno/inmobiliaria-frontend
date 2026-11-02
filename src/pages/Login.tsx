@@ -2,16 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/auth.service';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { EnvelopeIcon, LockClosedIcon, EyeIcon, EyeSlashIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { EnvelopeIcon, LockClosedIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
 import { ApiError } from '../services/api';
+import PasswordInput from '../components/PasswordInput';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(() => sessionStorage.getItem('passwordChangeLoginRequired')
+    ? 'Volvé a iniciar sesión para crear tu contraseña personal.'
+    : '');
   const [isLoading, setIsLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -22,6 +24,7 @@ const Login = () => {
 
   useEffect(() => {
     sessionStorage.removeItem('passwordChanged');
+    sessionStorage.removeItem('passwordChangeLoginRequired');
     const savedEmail = localStorage.getItem('rememberedEmail');
     if (savedEmail) {
       setEmail(savedEmail);
@@ -71,18 +74,18 @@ const Login = () => {
       </div>
 
       {/* Main Container */}
-      <div className="relative z-10 w-full flex flex-col md:flex-row">
+      <div className="relative z-10 w-full flex flex-col lg:flex-row">
         
         {/* Left Branding Panel (Hidden on very small mobile, visible on desktop) */}
-        <div className="hidden md:flex flex-1 flex-col justify-between p-12 lg:p-20 border-r border-indigo-500/10">
-          <div className="flex flex-col gap-8 mt-12 animate-in fade-in slide-in-from-left-8 duration-1000">
-            <div className="h-16 lg:h-20 max-w-[280px] bg-white rounded-2xl flex items-center justify-center p-4 shadow-[0_8px_32px_rgba(0,0,0,0.2)] overflow-hidden">
+        <div className="hidden lg:flex flex-1 flex-col justify-between p-12 lg:p-20 border-r border-indigo-500/10">
+          <div className="flex flex-col gap-8 mt-12 ui-content-enter">
+            <div className="aspect-[3.3/1] w-full max-w-[264px] bg-white rounded-2xl flex items-center justify-center shadow-[0_8px_32px_rgba(0,0,0,0.2)] overflow-hidden">
               <img
                 src="/logo-440.webp"
                 width="440"
                 height="240"
                 alt="PropControl Logo"
-                className="w-full h-full object-contain filter"
+                className="w-full h-full object-contain scale-[2]"
                 onError={(e) => {
                   (e.target as HTMLImageElement).style.display = 'none';
                 }}
@@ -117,19 +120,19 @@ const Login = () => {
         </div>
 
         {/* Right Form Panel */}
-        <div className="w-full md:w-[480px] lg:w-[540px] flex-1 md:flex-none shrink-0 flex flex-col justify-center items-center p-6 sm:p-12 md:bg-slate-900/60 md:backdrop-blur-xl transition-all relative">
+        <div className="w-full lg:w-[480px] xl:w-[540px] flex-1 lg:flex-none shrink-0 flex flex-col justify-center items-center p-6 sm:p-12 lg:bg-slate-900/60 lg:backdrop-blur-xl transition-all relative">
           
-          <div className="w-full max-w-[420px] animate-in fade-in zoom-in-95 duration-1000 my-auto">
+          <div className="w-full max-w-[420px] ui-content-enter my-auto">
             
             {/* Mobile Logo (Visible only on mobile) */}
-            <div className="md:hidden flex justify-center mb-8">
-               <div className="h-14 sm:h-16 bg-white rounded-[1.25rem] flex items-center justify-center px-6 py-2 shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
+            <div className="lg:hidden flex justify-center mb-8">
+               <div className="h-16 w-52 overflow-hidden bg-white rounded-2xl flex items-center justify-center shadow-[0_8px_30px_rgba(0,0,0,0.3)]">
                  <img
                    src="/logo-440.webp"
                    width="440"
                    height="240"
                    alt="PropControl Logo"
-                   className="h-full object-contain"
+                   className="h-full w-full object-contain scale-[2]"
                    onError={(e) => {
                      (e.target as HTMLImageElement).style.display = 'none';
                    }}
@@ -153,7 +156,7 @@ const Login = () => {
             )}
 
             {error && (
-              <div role="alert" aria-live="polite" className="flex items-center gap-3 bg-red-950/40 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl text-sm font-medium mb-6 animate-in fade-in">
+              <div role="alert" aria-live="polite" className="flex items-center gap-3 bg-red-950/40 border border-red-500/30 text-red-400 px-4 py-3 rounded-xl text-sm font-medium mb-6 ui-content-enter">
                 <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
                 </svg>
@@ -183,28 +186,20 @@ const Login = () => {
 
               <div className="space-y-2 relative group">
                 <label htmlFor="login-password" className="text-[13px] font-bold text-slate-300 uppercase tracking-wider ml-1">Contraseña</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                     <LockClosedIcon className="w-5 h-5 text-slate-500 group-focus-within:text-status-accent transition-colors" />
-                  </div>
-                  <input
-                    id="login-password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="w-full bg-slate-900/40 border border-slate-700/50 text-white placeholder-slate-600 text-[15px] rounded-2xl pl-12 pr-12 py-3.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 focus:bg-slate-900/80 transition-all shadow-inner"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                    className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-500 hover:text-slate-300 transition-colors"
-                  >
-                    {showPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-                  </button>
-                </div>
+                <PasswordInput
+                  id="login-password"
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full bg-slate-900/40 border border-slate-700/50 text-white placeholder-slate-600 text-[15px] rounded-2xl pl-12 py-3.5 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-400 focus:bg-slate-900/80 transition-all shadow-inner"
+                  toggleClassName="text-slate-400 hover:text-slate-200"
+                >
+                  <span className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <LockClosedIcon className="w-5 h-5 text-slate-500 group-focus-within:text-status-accent transition-colors" />
+                  </span>
+                </PasswordInput>
               </div>
 
               <div className="flex items-center -mt-1 mb-2 ml-1">

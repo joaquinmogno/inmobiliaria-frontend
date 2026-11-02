@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from '@headlessui/react';
+import { DialogTitle } from '@headlessui/react';
+import { Modal as Dialog, ModalBackdrop as DialogBackdrop, ModalPanel as DialogPanel } from '../../components/Modal';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import type { Liquidacion } from '../../services/liquidaciones.service';
 import { formatCurrency } from '../../utils/currency';

@@ -1,7 +1,11 @@
+import { getStatusLabel } from '../utils/status';
+import AppSelect from "../components/AppSelect";
+import EmptyState from '../components/EmptyState';
+import LoadingState from '../components/LoadingState';
 import { Fragment, useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { pagosService, type Pago } from "../services/pagos.service";
-import { ChevronLeftIcon, ChevronRightIcon, DocumentTextIcon, EllipsisVerticalIcon, NoSymbolIcon } from "@heroicons/react/24/outline";
+import { ChevronLeftIcon, ChevronRightIcon, EllipsisVerticalIcon, NoSymbolIcon } from "@heroicons/react/24/outline";
 import { Menu, MenuButton, MenuItem, MenuItems, Transition } from "@headlessui/react";
 import { formatCurrency, formatSignedCurrency } from "../utils/currency";
 import FilterBar, { persistFilter, readPersistedFilter } from "../components/FilterBar";
@@ -47,6 +51,7 @@ const readPaymentFilters = (params: URLSearchParams): PaymentFilters => {
 
 export default function HistorialPagos() {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const canVoid = hasPermission(user, "pagos.eliminar");
     const [searchParams, setSearchParams] = useSearchParams();
     const initialFilters = readPaymentFilters(searchParams);
@@ -185,7 +190,7 @@ export default function HistorialPagos() {
         setSearchTerm("");
         setMonedaFilter('');
         setMetodoFilter('');
-        setEstadoFilter('VIGENTE');
+        setEstadoFilter('');
         setPropietarioId('');
         setInquilinoId('');
         setDesdeFilter('');
@@ -206,6 +211,9 @@ export default function HistorialPagos() {
         ...(desdeFilter ? [{ key: 'desde', label: `Desde: ${formatDate(desdeFilter)}`, onRemove: () => setDesdeFilter('') }] : []),
         ...(hastaFilter ? [{ key: 'hasta', label: `Hasta: ${formatDate(hastaFilter)}`, onRemove: () => setHastaFilter('') }] : [])
     ];
+
+    const activeFilterCount = [monedaFilter, metodoFilter, cuentaFilter, estadoFilter, propietarioId, inquilinoId, desdeFilter, hastaFilter].filter(Boolean).length;
+    const emptyState = <EmptyState filtered={Boolean(searchTerm.trim()) || activeFilterCount > 0} title="Todavía no hay cobros registrados" description="Los cobros se registran desde la liquidación de cada contrato." onClear={clearFilters} action={hasPermission(user, 'pagos.crear') && hasPermission(user, 'liquidaciones.ver') ? { label: 'Ir a liquidaciones', onClick: () => navigate('/liquidaciones') } : undefined} />;
 
     const formatAddress = (propiedad: any) => {
         if (!propiedad) return "N/A";
@@ -234,10 +242,16 @@ export default function HistorialPagos() {
                 </div>
             </div>
 
-            <FilterBar query={searchTerm} onQueryChange={setSearchTerm} onClear={clearFilters} resultCount={totalItems} placeholder="Buscar por propiedad, inquilino u observaciones..." />
-            <div className="flex flex-wrap gap-2"><select aria-label="Filtrar moneda" value={monedaFilter} onChange={e => setMonedaFilter(e.target.value)} className="rounded-lg border px-3 py-2 text-sm"><option value="">Todas las monedas</option><option value="ARS">ARS</option><option value="USD">USD</option></select><select aria-label="Filtrar método" value={metodoFilter} onChange={e => setMetodoFilter(e.target.value)} className="rounded-lg border px-3 py-2 text-sm"><option value="">Todos los medios</option><option value="EFECTIVO">Efectivo</option><option value="TRANSFERENCIA">Transferencia</option><option value="CHEQUE">Cheque</option></select><select aria-label="Filtrar cuenta" value={cuentaFilter} onChange={e => setCuentaFilter(e.target.value)} className="rounded-lg border px-3 py-2 text-sm"><option value="">Todas las cuentas</option><option value="CAJA">Caja</option><option value="BANCO">Todos los bancos</option>{cuentasBancarias.map(cuenta => <option key={cuenta.id} value={`BANCO:${cuenta.id}`}>{cuenta.banco} — {cuenta.nombre}{cuenta.activa ? '' : ' (inactiva)'}</option>)}</select><select aria-label="Filtrar estado" value={estadoFilter} onChange={e => setEstadoFilter(e.target.value)} className="rounded-lg border px-3 py-2 text-sm"><option value="">Todos</option><option value="VIGENTE">Vigentes</option><option value="ANULADO">Anulados</option></select></div>
-            <details className="rounded-xl border border-gray-200 bg-white"><summary className="cursor-pointer px-4 py-3 text-sm font-bold text-gray-800">Personas y período</summary><div className="grid gap-3 border-t border-gray-200 p-4 md:grid-cols-2 xl:grid-cols-4"><AutocompleteSelector<Persona> label="Propietario" placeholder="Buscar propietario..." value={selectedOwner} onSearch={personasService.search} onSelect={person => { setSelectedOwner(person); setPropietarioId(person ? String(person.id) : ''); }} renderItem={person => person.nombreCompleto} renderSelection={person => person.nombreCompleto} idField="id" /><AutocompleteSelector<Persona> label="Inquilino" placeholder="Buscar inquilino..." value={selectedTenant} onSearch={personasService.search} onSelect={person => { setSelectedTenant(person); setInquilinoId(person ? String(person.id) : ''); }} renderItem={person => person.nombreCompleto} renderSelection={person => person.nombreCompleto} idField="id" /><label className="text-sm font-semibold text-gray-800">Desde<input type="date" value={desdeFilter} onChange={event => setDesdeFilter(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-3" /></label><label className="text-sm font-semibold text-gray-800">Hasta<input type="date" value={hastaFilter} onChange={event => setHastaFilter(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-gray-300 px-3" /></label></div></details>
-            <ActiveFilterChips filters={activeFilters} onClearAll={clearFilters} />
+            <FilterBar collapsibleOnMobile activeFilterCount={activeFilterCount} query={searchTerm} onQueryChange={setSearchTerm} onClear={clearFilters} resultCount={totalItems} placeholder="Buscar por propiedad, inquilino u observaciones..." filters={<>
+                <div className="grid gap-3 min-[380px]:grid-cols-2 xl:grid-cols-4">
+                    <div><label htmlFor="payment-currency-filter" className="block text-sm font-semibold text-slate-700">Moneda</label><AppSelect id="payment-currency-filter" ariaLabel="Filtrar moneda" value={monedaFilter} onChange={setMonedaFilter} className="mt-1" options={[{ value: '', label: 'Todas' }, { value: 'ARS', label: 'ARS' }, { value: 'USD', label: 'USD' }]} /></div>
+                    <div><label htmlFor="payment-method-filter" className="block text-sm font-semibold text-slate-700">Medio de pago</label><AppSelect id="payment-method-filter" ariaLabel="Filtrar método" value={metodoFilter} onChange={setMetodoFilter} className="mt-1" options={[{ value: '', label: 'Todos' }, { value: 'EFECTIVO', label: 'Efectivo' }, { value: 'TRANSFERENCIA', label: 'Transferencia' }, { value: 'CHEQUE', label: 'Cheque' }]} /></div>
+                    <div><label htmlFor="payment-account-filter" className="block text-sm font-semibold text-slate-700">Cuenta</label><AppSelect id="payment-account-filter" ariaLabel="Filtrar cuenta" value={cuentaFilter} onChange={setCuentaFilter} className="mt-1" options={[{ value: '', label: 'Todas' }, { value: 'CAJA', label: 'Caja' }, { value: 'BANCO', label: 'Todos los bancos' }, ...cuentasBancarias.map(cuenta => ({ value: `BANCO:${cuenta.id}`, label: `${cuenta.banco} — ${cuenta.nombre}${cuenta.activa ? '' : ' (inactiva)'}` }))]} /></div>
+                    <div><label htmlFor="payment-state-filter" className="block text-sm font-semibold text-slate-700">Estado</label><AppSelect id="payment-state-filter" ariaLabel="Filtrar estado" value={estadoFilter} onChange={setEstadoFilter} className="mt-1" options={[{ value: '', label: 'Todos' }, { value: 'VIGENTE', label: 'Vigentes' }, { value: 'ANULADO', label: 'Anulados' }]} /></div>
+                </div>
+            <details className="border-t border-slate-100 pt-2"><summary className="cursor-pointer py-3 text-sm font-semibold text-gray-800">Personas y período</summary><div className="grid gap-3 pt-2 md:grid-cols-2 xl:grid-cols-4"><AutocompleteSelector<Persona> label="Propietario" placeholder="Buscar propietario..." value={selectedOwner} onSearch={personasService.search} onSelect={person => { setSelectedOwner(person); setPropietarioId(person ? String(person.id) : ''); }} renderItem={person => person.nombreCompleto} renderSelection={person => person.nombreCompleto} idField="id" /><AutocompleteSelector<Persona> label="Inquilino" placeholder="Buscar inquilino..." value={selectedTenant} onSearch={personasService.search} onSelect={person => { setSelectedTenant(person); setInquilinoId(person ? String(person.id) : ''); }} renderItem={person => person.nombreCompleto} renderSelection={person => person.nombreCompleto} idField="id" /><label className="text-sm font-semibold text-gray-800">Desde<input type="date" value={desdeFilter} onChange={event => setDesdeFilter(event.target.value)} className="ui-field mt-1" /></label><label className="text-sm font-semibold text-gray-800">Hasta<input type="date" value={hastaFilter} onChange={event => setHastaFilter(event.target.value)} className="ui-field mt-1" /></label></div></details>
+            <ActiveFilterChips filters={activeFilters} />
+            </>} />
 
             {loadError && (
                 <div role="alert" className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 sm:flex-row sm:items-center sm:justify-between">
@@ -250,17 +264,13 @@ export default function HistorialPagos() {
                 <div className="divide-y divide-gray-100 2xl:hidden">
                     {isLoading ? (
                         <div className="px-4 py-12 text-center text-sm text-content-muted">
-                            <div className="flex justify-center items-center gap-2">
-                                <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                                Cargando pagos...
-                            </div>
+                            <LoadingState compact label="Cargando pagos…" />
                         </div>
                     ) : loadError ? (
                         <div className="px-4 py-12 text-center text-sm text-red-800">No fue posible obtener los pagos. Revisá el aviso e intentá nuevamente.</div>
                     ) : pagos.length === 0 ? (
-                        <div className="px-4 py-12 text-center">
-                            <DocumentTextIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                            <p className="text-content-muted text-sm">No se encontraron pagos con los filtros actuales.</p>
+                        <div className="text-center">
+                            {emptyState}
                         </div>
                     ) : (
                         pagos.map((pago: any) => (
@@ -268,7 +278,7 @@ export default function HistorialPagos() {
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
                                         <p className="text-xs font-black uppercase tracking-wider text-gray-600">
-                                            {formatDate(pago.fechaPago)} · {pago.metodoPago}
+                                            {formatDate(pago.fechaPago)} · {getStatusLabel(pago.metodoPago)}
                                         </p>
                                         <h3 className="mt-1 text-sm font-black leading-snug text-gray-900">
                                             {formatAddress(pago.liquidacion?.contrato?.propiedad)}
@@ -279,7 +289,7 @@ export default function HistorialPagos() {
                                         <p className="mt-1 text-xs font-semibold text-blue-800">{paymentAccountLabel(pago)}</p>
                                     </div>
                                     <div className="flex shrink-0 items-start gap-1">
-                                        <span className={`pt-2 text-sm font-black font-mono ${pago.anuladoEn ? "text-content-muted line-through" : "text-green-700"}`}>
+                                        <span className={`pt-2 text-sm font-bold tabular-nums text-right ${pago.anuladoEn ? "text-content-muted line-through" : "text-green-700"}`}>
                                             {pago.anuladoEn
                                               ? formatCurrency(pago.monto, pago.moneda || pago.liquidacion?.moneda || "ARS")
                                               : formatSignedCurrency(pago.monto, pago.moneda || pago.liquidacion?.moneda || "ARS", true)}
@@ -318,13 +328,13 @@ export default function HistorialPagos() {
                     )}
                 </div>
                 <div className="hidden overflow-x-auto 2xl:block">
-                    <table className="min-w-full divide-y divide-gray-200">
+                    <table className="tabular-nums min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50/50 whitespace-nowrap">
                             <tr>
                                 <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Fecha / Método</th>
                                 <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Propiedad / Contrato</th>
                                 <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Inquilino</th>
-                                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Monto</th>
+                                <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-content-muted uppercase tracking-wider">Monto</th>
                                 <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Período Liq.</th>
                                 <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Auditoría</th>
                                 <th scope="col" className="sticky right-0 z-20 bg-gray-50 px-6 py-4 text-right text-xs font-semibold text-content-muted uppercase tracking-wider shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">Acciones</th>
@@ -334,10 +344,7 @@ export default function HistorialPagos() {
                             {isLoading ? (
                                 <tr>
                                     <td colSpan={7} className="px-6 py-12 text-center text-sm text-content-muted">
-                                        <div className="flex justify-center items-center gap-2">
-                                            <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                                            Cargando pagos...
-                                        </div>
+                                        <LoadingState compact label="Cargando pagos…" />
                                     </td>
                                 </tr>
                             ) : loadError ? (
@@ -346,9 +353,8 @@ export default function HistorialPagos() {
                                 </tr>
                             ) : pagos.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center">
-                                        <DocumentTextIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                                        <p className="text-content-muted text-sm">No se encontraron pagos con los filtros actuales.</p>
+                                    <td colSpan={7} className="text-center">
+                                        {emptyState}
                                     </td>
                                 </tr>
                             ) : (
@@ -360,7 +366,7 @@ export default function HistorialPagos() {
                                                     {formatDate(pago.fechaPago)}
                                                 </span>
                                                 <span className="text-xs text-content-muted mt-1">
-                                                    {pago.metodoPago}
+                                                    {getStatusLabel(pago.metodoPago)}
                                                 </span>
                                                 <span className="text-xs font-semibold text-blue-800 mt-1">{paymentAccountLabel(pago)}</span>
                                             </div>
@@ -378,13 +384,13 @@ export default function HistorialPagos() {
                                                 {pago.liquidacion?.contrato?.inquilinos.find((i: any) => i.esPrincipal)?.persona.nombreCompleto || 'N/A'}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                                        <td className="px-6 py-4 whitespace-nowrap text-right tabular-nums">
                                             <div className={`text-sm font-bold whitespace-nowrap ${pago.anuladoEn ? "text-content-muted line-through" : "text-green-700"}`}>
 	                                                {pago.anuladoEn
 	                                                  ? formatCurrency(pago.monto, pago.moneda || pago.liquidacion?.moneda || "ARS")
 	                                                  : formatSignedCurrency(pago.monto, pago.moneda || pago.liquidacion?.moneda || "ARS", true)}
                                             </div>
-                                            {pago.anuladoEn && <span className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-black uppercase text-amber-800">Anulado</span>}
+                                            {pago.anuladoEn && <span className="ui-status mt-1 border-amber-200 bg-amber-50 text-amber-900">Anulado</span>}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-content-muted">

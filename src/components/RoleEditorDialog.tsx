@@ -1,12 +1,5 @@
-import {
-  Dialog,
-  DialogBackdrop,
-  DialogPanel,
-  DialogTitle,
-  Disclosure,
-  DisclosureButton,
-  DisclosurePanel
-} from '@headlessui/react';
+import { DialogTitle, Disclosure, DisclosureButton, DisclosurePanel } from '@headlessui/react';
+import { Modal as Dialog, ModalBackdrop as DialogBackdrop, ModalPanel as DialogPanel } from './Modal';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
 import type { FormEvent } from 'react';
 import type { AccessRole, Permission, RoleInput } from '../services/roles.service';

@@ -8,6 +8,7 @@
  * varios no alcanzan 4.5:1 cuando se combinan con esas superficies.
  */
 @theme {
+  --color-navigation: #172033;
   --color-content-muted: #4b5563;
   --color-status-success: #166534;
   --color-status-success-strong: #14532d;
@@ -19,6 +20,66 @@
   --color-status-teal: #115e59;
   --color-on-accent-muted: #eef2ff;
   --color-content-on-dark-muted: #d1d5db;
+}
+
+/* Controles compartidos: misma altura y foco en filtros y acciones. */
+@layer components {
+  .ui-page-header {
+    @apply flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:flex-wrap sm:items-center;
+  }
+
+  .ui-page-actions {
+    @apply flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end;
+  }
+
+  .ui-button {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-transparent px-4 py-2 text-sm font-semibold leading-5 transition-colors;
+  }
+
+  .ui-button:disabled {
+    @apply cursor-not-allowed opacity-50;
+  }
+
+  .ui-button-primary {
+    @apply bg-indigo-600 text-white hover:bg-indigo-700;
+  }
+
+  .ui-button-secondary {
+    @apply border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-slate-50;
+  }
+
+  .ui-button-ghost {
+    @apply text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+  }
+
+  .ui-field {
+    @apply min-h-11 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium leading-5 text-slate-800 transition-colors placeholder:font-normal placeholder:text-slate-500;
+  }
+
+  .ui-field:hover:not(:disabled) {
+    @apply border-slate-400;
+  }
+
+  .ui-field:focus-visible,
+  .ui-field[data-open] {
+    @apply border-indigo-500 ring-2 ring-indigo-100;
+  }
+
+  .ui-field:disabled {
+    @apply cursor-not-allowed bg-slate-100 text-slate-500;
+  }
+
+  .ui-status {
+    @apply inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold normal-case tracking-normal;
+  }
+
+  .ui-field[aria-invalid="true"] {
+    @apply border-red-500 bg-red-50;
+  }
+
+  .ui-panel {
+    @apply rounded-xl border border-slate-200 bg-white;
+  }
 }
 
 @keyframes spin {
@@ -155,5 +216,84 @@ body,
   .sidebar-scrollbar:hover,
   .sidebar-scrollbar:focus-within {
     scrollbar-color: auto;
+  }
+}
+
+/* Movimiento breve: no transformar páginas, ya que contienen ventanas fijas. */
+:root {
+  --ui-motion-enter: 180ms;
+  --ui-motion-exit: 140ms;
+  --ui-motion-fast: 120ms;
+  --ui-motion-ease: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@keyframes ui-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes ui-modal-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+.ui-page-enter {
+  animation: ui-fade-in var(--ui-motion-enter) var(--ui-motion-ease) backwards;
+}
+
+.ui-content-enter,
+.ui-backdrop-enter {
+  animation: ui-fade-in var(--ui-motion-exit) ease-out backwards;
+}
+
+.ui-modal-enter {
+  animation: ui-modal-in var(--ui-motion-enter) var(--ui-motion-ease) backwards;
+}
+
+.ui-modal-backdrop,
+.ui-modal-panel,
+.ui-modal-enter-transition {
+  transition-property: opacity, transform, translate, scale;
+  transition-duration: var(--ui-motion-enter);
+  transition-timing-function: var(--ui-motion-ease);
+}
+
+.ui-modal-backdrop[data-closed],
+.ui-modal-panel[data-closed] {
+  opacity: 0;
+}
+
+.ui-modal-panel[data-closed] {
+  transform: translateY(6px) scale(0.98);
+}
+
+.ui-modal-backdrop[data-leave],
+.ui-modal-panel[data-leave],
+.ui-modal-leave-transition {
+  transition-property: opacity, transform, translate, scale;
+  transition-duration: var(--ui-motion-exit);
+  transition-timing-function: ease-in;
+}
+
+.ui-popover {
+  transition: opacity var(--ui-motion-fast) ease-out;
+}
+
+.ui-popover[data-closed] {
+  opacity: 0;
+}
+
+/* También cubre los controles y transiciones existentes de Headless UI.
+ * La duración mínima permite completar sus eventos de cierre y devolver el foco. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
   }
 }

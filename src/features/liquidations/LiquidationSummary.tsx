@@ -26,9 +26,9 @@ export default function LiquidationSummary({ liquidacion, summaries, canEdit, on
     const tenant = liquidacion.inquilinoNombre
         || liquidacion.contrato?.inquilinos.find(person => person.esPrincipal)?.persona.nombreCompleto || 'Sin definir';
     const moneyClass = 'mt-1 break-words text-xl font-black tracking-tight [overflow-wrap:anywhere]';
-    const cardClass = 'min-w-0 rounded-2xl border p-3 sm:p-4';
+    const cardClass = 'min-w-0 p-3';
 
-    return <section data-testid="liquidation-document" aria-labelledby="liquidation-title" className="min-w-0 rounded-3xl border border-indigo-100 bg-white p-4 shadow-sm sm:p-5">
+    return <section data-testid="liquidation-document" aria-labelledby="liquidation-title" className="ui-panel min-w-0 p-4 sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
             <h1 id="liquidation-title" className="text-xl font-black text-gray-950 sm:text-2xl">
                 Resumen de liquidación <span className="capitalize">· {formatMonthYear(liquidacion.periodo)}</span>
@@ -37,36 +37,36 @@ export default function LiquidationSummary({ liquidacion, summaries, canEdit, on
                 {getLiquidationStatusLabel(liquidacion.estado)} · N° {String(liquidacion.id).padStart(6, '0')}
             </span>
         </div>
-        <dl className="mt-3 grid gap-3 rounded-2xl bg-indigo-50/60 p-3 text-sm sm:grid-cols-2 xl:grid-cols-[1.4fr_1fr_1fr_auto]">
+        <dl className="mt-4 grid gap-4 border-y border-slate-100 py-4 text-sm sm:grid-cols-2 xl:grid-cols-[1.4fr_1fr_1fr_auto]">
             <div className="min-w-0"><dt className="text-xs font-bold text-gray-600">Inmueble</dt><dd data-testid="liquidation-fact-value" className="break-words font-black text-gray-950">{address}</dd></div>
             <div className="min-w-0"><dt className="text-xs font-bold text-gray-600">Propietario</dt><dd data-testid="liquidation-fact-value" className="break-words font-bold text-gray-900">{owner}</dd></div>
             <div className="min-w-0"><dt className="text-xs font-bold text-gray-600">Inquilino</dt><dd data-testid="liquidation-fact-value" className="break-words font-bold text-gray-900">{tenant}</dd></div>
             <div><dt className="text-xs font-bold text-gray-600">Vencimiento de pago</dt><dd className="font-bold text-gray-900">{formatDate(liquidacion.fechaVencimiento)}</dd></div>
         </dl>
         <div className="mt-3 grid grid-cols-1 gap-3 min-[400px]:grid-cols-2 xl:grid-cols-5">
-            <div data-testid="liquidation-summary-card" className={`${cardClass} border-indigo-100 bg-indigo-50/30`}>
+            <div data-testid="liquidation-summary-card" className={cardClass}>
                 <h2 className="text-xs font-bold text-gray-600">Alquiler mensual</h2>
                 <p data-testid="liquidation-summary-amount" className={`${moneyClass} text-gray-950`}>{formatCurrency(Number(liquidacion.montoAlquilerBase), liquidacion.moneda)}</p>
-                {canEdit && <button type="button" onClick={onEditRent} className="mt-2 inline-flex min-h-11 items-center gap-1 rounded-lg border border-indigo-300 px-2 text-xs font-bold text-indigo-800 hover:bg-indigo-50"><PencilSquareIcon className="h-4 w-4" />Editar alquiler</button>}
+                {canEdit && <button type="button" onClick={onEditRent} className="ui-button ui-button-secondary mt-2 px-2 text-xs"><PencilSquareIcon className="h-4 w-4" />Editar alquiler</button>}
                 <p className="mt-2 text-xs text-gray-600">{liquidacion.alquilerExcepcional ? 'Importe manual de este período' : 'Alquiler vigente precargado'}</p>
             </div>
-            <div data-testid="liquidation-summary-card" className={`${cardClass} border-gray-200 bg-white`}>
+            <div data-testid="liquidation-summary-card" className={cardClass}>
                 <h2 className="text-xs font-bold text-gray-600">Otros conceptos netos</h2>
                 {summaries.map(summary => <p key={summary.moneda} className={`${moneyClass} text-gray-950`}>{formatCurrency(summary.netoACobrar - (summary.moneda === liquidacion.moneda ? Number(liquidacion.montoAlquilerBase) + (liquidacion.pagaHonorarios === 'INQUILINO' ? Number(liquidacion.montoHonorarios) : 0) : 0), summary.moneda)}</p>)}
                 <p className="mt-2 text-xs text-gray-600">Ingresos y descuentos adicionales</p>
             </div>
-            <div data-testid="liquidation-summary-card" className={`${cardClass} border-gray-200 bg-white`}>
+            <div data-testid="liquidation-summary-card" className={cardClass}>
                 <h2 className="text-xs font-bold text-gray-600">Honorarios {liquidacion.porcentajeHonorarios != null ? `${liquidacion.porcentajeHonorarios}%` : '(fijos)'}</h2>
                 <p data-testid="liquidation-summary-amount" className={`${moneyClass} text-indigo-700`}>{formatCurrency(Number(liquidacion.montoHonorarios), liquidacion.moneda)}</p>
-                {canEdit && <button type="button" onClick={onEditFees} className="mt-2 inline-flex min-h-11 items-center gap-1 rounded-lg border border-indigo-300 px-2 text-xs font-bold text-indigo-800 hover:bg-indigo-50"><PencilSquareIcon className="h-4 w-4" />Editar honorarios</button>}
+                {canEdit && <button type="button" onClick={onEditFees} className="ui-button ui-button-secondary mt-2 px-2 text-xs"><PencilSquareIcon className="h-4 w-4" />Editar honorarios</button>}
                 <p className="mt-2 text-xs text-gray-600">{liquidacion.porcentajeHonorarios != null ? 'Sobre el alquiler completo' : 'Importe acordado'} · paga {liquidacion.pagaHonorarios === 'PROPIETARIO' ? 'propietario' : 'inquilino'}</p>
             </div>
-            <div data-testid="liquidation-summary-card" className={`${cardClass} border-gray-200 bg-white`}>
+            <div data-testid="liquidation-summary-card" className={cardClass}>
                 <h2 className="text-xs font-bold text-gray-600">Total a cobrar al inquilino</h2>
                 {summaries.map(summary => <p data-testid="liquidation-summary-amount" key={summary.moneda} className={`${moneyClass} text-gray-950`}>{formatCurrency(summary.netoACobrar, summary.moneda)}</p>)}
                 <p className="mt-2 text-xs text-gray-600">Total de este período</p>
             </div>
-            <div data-testid="liquidation-summary-card" className={`${cardClass} border-emerald-200 bg-emerald-50`}>
+            <div data-testid="liquidation-summary-card" className={`${cardClass} rounded-lg bg-emerald-50`}>
                 <h2 className="text-xs font-bold text-emerald-800">Neto propietario</h2>
                 {summaries.map(summary => <p data-testid="liquidation-summary-amount" key={summary.moneda} className={`${moneyClass} text-emerald-900`}>{formatCurrency(summary.montoPropietario, summary.moneda)}</p>)}
                 <p className="mt-2 text-xs text-emerald-800">Luego de honorarios y descuentos</p>

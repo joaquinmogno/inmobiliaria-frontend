@@ -22,6 +22,8 @@ interface AppSelectProps {
   icon?: ReactNode;
   className?: string;
   buttonClassName?: string;
+  'aria-invalid'?: boolean;
+  'aria-describedby'?: string;
 }
 
 export default function AppSelect({
@@ -36,7 +38,9 @@ export default function AppSelect({
   required = false,
   icon,
   className = '',
-  buttonClassName = ''
+  buttonClassName = '',
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedBy,
 }: AppSelectProps) {
   const generatedId = useId();
   const selectId = id || generatedId;
@@ -51,7 +55,9 @@ export default function AppSelect({
           id={selectId}
           aria-label={accessibleLabel}
           aria-required={required || undefined}
-          className={`group flex min-h-11 w-full items-center gap-2 rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-left text-sm font-semibold text-gray-800 shadow-sm outline-none transition hover:border-indigo-300 hover:bg-indigo-50/40 focus-visible:border-indigo-500 focus-visible:ring-4 focus-visible:ring-indigo-100 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 data-open:border-indigo-500 data-open:ring-4 data-open:ring-indigo-100 ${buttonClassName}`}
+          aria-invalid={ariaInvalid}
+          aria-describedby={ariaDescribedBy}
+          className={`ui-field group flex items-center gap-2 text-left ${buttonClassName}`}
         >
           {icon && <span className="shrink-0 text-indigo-500">{icon}</span>}
           <span className={`min-w-0 flex-1 truncate ${selected ? '' : 'text-content-muted'}`}>
@@ -60,9 +66,9 @@ export default function AppSelect({
           <ChevronUpDownIcon className="h-5 w-5 shrink-0 text-gray-400 transition group-data-open:rotate-180 group-data-open:text-indigo-600" aria-hidden="true" />
         </ListboxButton>
 
-        <ListboxOptions
+        <ListboxOptions transition
           anchor="bottom start"
-          className="z-[200] mt-1 max-h-64 w-[var(--button-width)] overflow-auto rounded-xl border border-indigo-100 bg-white p-1.5 text-sm shadow-2xl shadow-indigo-950/15 outline-none [--anchor-gap:6px] data-closed:scale-95 data-closed:opacity-0"
+          className="ui-popover z-[200] mt-1 max-h-64 w-[var(--button-width)] overflow-auto rounded-lg border border-slate-200 bg-white p-1.5 text-sm shadow-lg outline-none [--anchor-gap:6px] data-closed:scale-95 data-closed:opacity-0"
         >
           {options.map(option => (
             <ListboxOption

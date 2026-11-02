@@ -108,12 +108,12 @@ export default function AutocompleteSelector<T>({
 
     return (
         <div className="relative" ref={dropdownRef}>
-            <label htmlFor={`${listId}-input`} className="block text-xs font-medium text-gray-700 mb-1">
+            <label htmlFor={`${listId}-input`} className="block text-sm font-semibold text-gray-700 mb-1">
                 {label}
             </label>
 
             {value ? (
-                <div className="flex items-center justify-between w-full rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm shadow-sm">
+                <div className="ui-field flex items-center justify-between py-0 pr-0">
                     <div className="flex items-center gap-2 overflow-hidden">
                         <CheckIcon className="w-4 h-4 text-indigo-600 flex-shrink-0" />
                         <span className="font-semibold text-indigo-900 truncate">
@@ -142,7 +142,7 @@ export default function AutocompleteSelector<T>({
                         aria-expanded={isOpen && query.length > 1}
                         aria-controls={listId}
                         aria-activedescendant={activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}
-                        className={`w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 pl-9 pr-3 ${disabled ? 'opacity-50 cursor-not-allowed bg-gray-50' : ''}`}
+                        className="ui-field pl-9"
                         placeholder={placeholder}
                         value={query}
                         disabled={disabled}

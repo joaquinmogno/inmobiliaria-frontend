@@ -1,3 +1,7 @@
+import EmptyState from '../../components/EmptyState';
+import { useAuth } from '../../context/AuthContext';
+import { hasPermission } from '../../utils/permissions';
+import LoadingState from '../../components/LoadingState';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppSelect from '../../components/AppSelect';
@@ -52,6 +56,7 @@ const tone: Record<OperationalState, string> = {
 
 export default function MonthlyLiquidationWorkspace() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const workspace = useMonthlyLiquidationWorkspace();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<OperationalState>('TODAS');
@@ -72,33 +77,33 @@ export default function MonthlyLiquidationWorkspace() {
   const open = (row: LiquidationPreparationRow) => navigate(`/liquidaciones/contrato/${row.contratoId}?periodo=${workspace.period}`);
 
   return <section aria-labelledby="monthly-workspace-title" className="space-y-4">
-    <div className="flex flex-col gap-3 rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div><h2 id="monthly-workspace-title" className="text-xl font-black text-gray-950 sm:text-2xl">Liquidaciones de {formatMonthYear(`${workspace.period}-01`)}</h2><p className="mt-1 text-sm text-gray-600">Elegí una dirección para ver sus meses, deuda y pagos.</p></div>
-      <input aria-label="Mes de trabajo" type="month" value={workspace.period} onChange={event => workspace.setPeriod(event.target.value)} className="min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm sm:w-56" />
+      <input aria-label="Mes de trabajo" type="month" value={workspace.period} onChange={event => workspace.setPeriod(event.target.value)} className="ui-field sm:w-56" />
     </div>
 
-    {workspace.loading ? <p className="rounded-xl bg-white p-8 text-center text-gray-700">Cargando el mes…</p> : <>
+    {workspace.loading ? <LoadingState label="Cargando el mes…" /> : !workspace.preparation ? <div role="alert" className="ui-panel p-5 text-sm text-red-800">No se pudo cargar el período.<button type="button" className="ui-button ui-button-secondary ml-3" onClick={() => void workspace.load()}>Reintentar</button></div> : <>
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-        {cards.map(card => <button key={card.label} type="button" onClick={() => setFilter(card.filter)} className={`rounded-xl border bg-white p-3 text-left shadow-sm hover:border-indigo-400 ${filter === card.filter ? 'border-indigo-500 ring-2 ring-indigo-100' : 'border-gray-200'}`}><span className="block text-2xl font-black text-indigo-900">{card.value}</span><span className="mt-1 block text-xs font-bold text-gray-700">{card.label}</span></button>)}
+        {cards.map(card => <button key={card.label} type="button" onClick={() => setFilter(card.filter)} className={`rounded-xl border bg-white p-3 text-left transition-colors hover:border-indigo-400 ${filter === card.filter ? 'border-indigo-500 ring-2 ring-indigo-100' : 'border-gray-200'}`}><span className="block text-2xl font-black text-indigo-900">{card.value}</span><span className="mt-1 block text-xs font-bold text-gray-700">{card.label}</span></button>)}
       </div>
 
       <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 sm:flex-row">
-        <input aria-label="Buscar por dirección" value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar dirección…" className="min-h-11 flex-1 rounded-lg border border-gray-300 px-3 text-sm" />
+        <input aria-label="Buscar por dirección" value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar dirección…" className="ui-field flex-1" />
         <AppSelect ariaLabel="Filtrar por estado" value={filter} onChange={value => setFilter(value as OperationalState)} options={Object.entries(labels).map(([value, label]) => ({ value, label }))} className="w-full sm:w-64" />
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+      <div className="ui-panel overflow-hidden">
         <div className="divide-y divide-gray-100">
           {rows.map(row => {
             const status = stateOf(row);
             const address = [row.propiedad.direccion, row.propiedad.piso && `Piso ${row.propiedad.piso}`, row.propiedad.departamento && `Depto. ${row.propiedad.departamento}`].filter(Boolean).join(' · ');
             return <button key={row.contratoId} type="button" onClick={() => open(row)} className="grid w-full gap-3 p-4 text-left hover:bg-indigo-50/40 focus-visible:outline-indigo-500 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] sm:items-center">
               <span className="min-w-0"><span className="block break-words font-black text-gray-950">{address}</span><span className="mt-1 block text-sm text-gray-700">{row.inquilino?.nombreCompleto || 'Inquilino sin definir'} · {row.propietario?.nombreCompleto || 'Propietario sin definir'}</span></span>
-              <span className="min-w-0"><span className={`inline-flex rounded-full border px-2 py-1 text-xs font-bold ${tone[status]}`}>{labels[status]}</span>{row.moraHoy && status !== 'EN_MORA' && <span className="mt-1 block text-xs font-bold text-red-800">Tiene un mes anterior en mora</span>}{row.motivos[0] && status === 'REQUIERE_REVISION' && <span className="mt-1 block text-xs text-orange-900">{row.motivos[0]}</span>}{row.vencida && <span className="mt-1 block text-xs font-bold text-red-800">Vence {formatDate(row.fechaVencimiento)}</span>}</span>
-              <span className="flex items-center justify-between gap-4 sm:block sm:text-right"><span className="block font-black text-gray-950">{formatCurrency(Number(row.totalLiquidacion ?? row.montoAlquiler), row.moneda)}</span>{Number(row.pendiente) > 0 && <span className="block text-xs text-gray-700">Saldo {formatCurrency(Number(row.pendiente), row.moneda)}</span>}<span className="text-sm font-bold text-indigo-700">Abrir propiedad →</span></span>
+              <span className="min-w-0"><span className={`ui-status ${tone[status]}`}>{labels[status]}</span>{row.moraHoy && status !== 'EN_MORA' && <span className="mt-1 block text-xs font-bold text-red-800">Tiene un mes anterior en mora</span>}{row.motivos[0] && status === 'REQUIERE_REVISION' && <span className="mt-1 block text-xs text-orange-900">{row.motivos[0]}</span>}{row.vencida && <span className="mt-1 block text-xs font-bold text-red-800">Vence {formatDate(row.fechaVencimiento)}</span>}</span>
+              <span className="flex items-center justify-between gap-4 tabular-nums sm:block sm:text-right"><span className="block font-black text-gray-950">{formatCurrency(Number(row.totalLiquidacion ?? row.montoAlquiler), row.moneda)}</span>{Number(row.pendiente) > 0 && <span className="block text-xs text-gray-700">Saldo {formatCurrency(Number(row.pendiente), row.moneda)}</span>}<span className="text-sm font-bold text-indigo-700">Abrir propiedad →</span></span>
             </button>;
           })}
-          {!rows.length && <p className="p-10 text-center text-sm text-gray-600">No hay propiedades con estos filtros.</p>}
+          {!rows.length && <EmptyState filtered={Boolean(search.trim()) || filter !== 'TODAS'} title="No hay contratos para liquidar en este mes" description="Elegí otro período o agregá un contrato administrado para comenzar." onClear={() => { setSearch(''); setFilter('TODAS'); }} action={hasPermission(user, 'contratos.ver') && hasPermission(user, 'contratos.crear') ? { label: 'Crear un contrato', onClick: () => navigate('/contratos', { state: { openNewContractModal: true } }) } : undefined} />}
         </div>
       </div>
     </>}

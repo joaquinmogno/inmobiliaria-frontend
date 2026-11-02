@@ -27,11 +27,11 @@ export default function OperationalAlertBell() {
     }, []);
 
     return <Menu as="div" className="relative mr-1">
-        <MenuButton aria-label={`${alerts.length} alertas operativas activas`} className="relative inline-flex h-11 w-11 items-center justify-center rounded-lg text-white hover:bg-indigo-700/50">
+        <MenuButton aria-label={`${alerts.length} alertas operativas activas`} className="relative inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 transition-colors hover:bg-slate-100">
             <BellAlertIcon className="h-6 w-6" />
-            {alerts.length > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-black text-white ring-2 ring-indigo-700">{alerts.length}</span>}
+            {alerts.length > 0 && <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-700 px-1 text-[11px] font-black text-white ring-2 ring-white">{alerts.length}</span>}
         </MenuButton>
-        <MenuItems anchor="bottom end" className="z-[200] mt-2 w-[min(24rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-gray-100 bg-white p-1 shadow-xl outline-none [--anchor-gap:4px]">
+        <MenuItems transition anchor="bottom end" className="ui-popover z-[200] mt-2 w-[min(24rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border border-gray-100 bg-white p-1 shadow-xl outline-none [--anchor-gap:4px]">
             <div className="border-b border-gray-100 px-3 py-2"><p className="font-bold text-gray-950">Alertas operativas</p><p className="text-xs text-gray-600">Recordatorios activos de la cartera</p></div>
             {alerts.map(alert => <MenuItem key={alert.clave}><Link to={alert.enlace} className="block rounded-lg px-3 py-3 text-sm text-gray-800 data-focus:bg-indigo-50 data-focus:text-indigo-800"><span className="flex items-start justify-between gap-3"><span><span className="block font-bold">{alert.titulo}</span><span className="mt-0.5 block text-xs text-gray-600">{alert.gestion?.responsable ? `Responsable: ${alert.gestion.responsable.nombreCompleto}` : 'Sin responsable asignado'}</span></span><span className={`rounded-full px-2 py-0.5 text-xs font-black ${alert.prioridad === 'ALTA' ? 'bg-red-100 text-red-800' : 'bg-indigo-100 text-indigo-800'}`}>{alert.cantidad}</span></span></Link></MenuItem>)}
             {alerts.length === 0 && <p className="px-3 py-5 text-center text-sm text-gray-600">No hay alertas activas.</p>}

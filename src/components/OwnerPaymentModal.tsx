@@ -81,10 +81,10 @@ export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAm
             <Dialog as="div" className="relative z-[60]" onClose={onClose}>
                 <Transition.Child
                     as={Fragment}
-                    enter="ease-out duration-300"
+                    enter="ui-modal-enter-transition"
                     enterFrom="opacity-0"
                     enterTo="opacity-100"
-                    leave="ease-in duration-200"
+                    leave="ui-modal-leave-transition"
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
@@ -95,12 +95,12 @@ export default function OwnerPaymentModal({ isOpen, onClose, onSave, suggestedAm
                     <div className="flex h-full min-h-0 items-end justify-center text-center sm:items-center sm:p-4">
                         <Transition.Child
                             as={Fragment}
-                            enter="ease-out duration-300"
-                            enterFrom="opacity-0 scale-95"
+                            enter="ui-modal-enter-transition"
+                            enterFrom="opacity-0 scale-[0.98]"
                             enterTo="opacity-100 scale-100"
-                            leave="ease-in duration-200"
+                            leave="ui-modal-leave-transition"
                             leaveFrom="opacity-100 scale-100"
-                            leaveTo="opacity-0 scale-95"
+                            leaveTo="opacity-0 scale-[0.98]"
                         >
                             <Dialog.Panel className="flex max-h-[100dvh] w-full max-w-md transform flex-col overflow-hidden rounded-t-3xl bg-white text-left align-middle shadow-2xl transition-all border border-gray-100 sm:max-h-[90dvh] sm:rounded-3xl">
                                 <div className="flex shrink-0 justify-between items-start gap-3 border-b border-gray-100 p-5 sm:p-8 sm:pb-5">

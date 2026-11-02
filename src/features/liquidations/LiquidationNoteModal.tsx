@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
+import { DialogTitle } from '@headlessui/react';
+import { Modal as Dialog, ModalBackdrop as DialogBackdrop, ModalPanel as DialogPanel } from '../../components/Modal';
 import { XMarkIcon } from '@heroicons/react/24/outline';
 import AppSelect from '../../components/AppSelect';
 import { liquidationNoteRecipientLabels, type DestinatarioNotaLiquidacion } from '../../services/liquidaciones.service';
@@ -32,7 +33,7 @@ export default function LiquidationNoteModal({ note, recipient, confirmed, onClo
     };
 
     return <Dialog open onClose={close} className="fixed inset-0 z-[60]">
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" aria-hidden="true" />
+        <DialogBackdrop className="fixed inset-0 bg-black/30 backdrop-blur-sm" />
         <div className="fixed inset-0 overflow-hidden">
             <div className="flex h-full min-h-0 items-center justify-center p-4">
                 <DialogPanel className="modal-scroll max-h-full w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl">

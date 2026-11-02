@@ -81,12 +81,12 @@ export default function PlanLifecycleModal({ isOpen, plan, action, onClose, onCo
     return (
         <Transition appear show={isOpen} as={Fragment}>
             <Dialog as="div" className="relative z-[70]" onClose={isSubmitting ? () => undefined : onClose}>
-                <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0" enterTo="opacity-100" leave="ease-in duration-150" leaveFrom="opacity-100" leaveTo="opacity-0">
+                <Transition.Child as={Fragment} enter="ui-modal-enter-transition" enterFrom="opacity-0" enterTo="opacity-100" leave="ui-modal-leave-transition" leaveFrom="opacity-100" leaveTo="opacity-0">
                     <div className="fixed inset-0 bg-black/35 backdrop-blur-sm" />
                 </Transition.Child>
                 <div className="fixed inset-0 overflow-hidden">
                     <div className="flex h-full min-h-0 items-center justify-center p-4">
-                        <Transition.Child as={Fragment} enter="ease-out duration-200" enterFrom="opacity-0 scale-95" enterTo="opacity-100 scale-100" leave="ease-in duration-150" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-95">
+                        <Transition.Child as={Fragment} enter="ui-modal-enter-transition" enterFrom="opacity-0 scale-[0.98]" enterTo="opacity-100 scale-100" leave="ui-modal-leave-transition" leaveFrom="opacity-100 scale-100" leaveTo="opacity-0 scale-[0.98]">
                             <Dialog.Panel className="modal-scroll max-h-full w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
                                 <div className="mb-5 flex items-start justify-between gap-4 border-b border-gray-100 pb-4">
                                     <div>

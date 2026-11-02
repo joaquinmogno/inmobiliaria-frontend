@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { forwardRef, useRef, useState } from "react";
 import {
   HomeIcon,
@@ -48,9 +48,9 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
   const canViewConfiguration = user?.tipo === "ADMIN";
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex min-h-11 items-center rounded-xl py-2 transition-all duration-200 whitespace-nowrap overflow-hidden ${menuExpanded ? "gap-3 px-4" : "justify-center px-0"} ${isActive
-      ? "bg-indigo-600 text-white font-semibold shadow-md"
-      : "text-indigo-100 hover:bg-indigo-700/50 hover:text-white"
+    `flex min-h-11 items-center rounded-lg py-2 text-sm transition-colors duration-200 whitespace-nowrap overflow-hidden ${menuExpanded ? "gap-3 px-4" : "justify-center px-0"} ${isActive
+      ? "bg-indigo-600 text-white font-semibold"
+      : "text-slate-300 hover:bg-white/10 hover:text-white"
     }`;
 
   return (
@@ -92,26 +92,26 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
           setIsContratosOpen(false);
           contractsMenuButtonRef.current?.focus();
         }}
-        className={`bg-indigo-800 text-white h-full p-4 shadow-xl flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out z-40 absolute xl:relative ${
+        className={`bg-navigation text-white h-full p-4 flex-shrink-0 flex flex-col transition-[width,transform] duration-300 ease-in-out z-40 absolute left-0 top-0 xl:relative ${
           mobileOpen ? "translate-x-0 w-64" : "-translate-x-full xl:translate-x-0"
         } ${isExpanded && !mobileOpen ? "xl:w-64" : "xl:w-20"}`}
     >
       {/* Logo / Branding */}
-        <div className={`flex h-12 items-center mb-6 transition-all duration-300 ${menuExpanded ? 'px-2' : 'justify-center px-0'}`}>
+        <Link to="/home" onClick={closeMobile} title="Ir al inicio" className={`flex h-12 shrink-0 items-center mb-6 rounded-lg transition-all duration-300 ${menuExpanded ? 'px-2' : 'justify-center px-0'}`}>
           {menuExpanded ? (
-            <div className="bg-white rounded-xl shadow-md flex items-center justify-center overflow-hidden h-12 w-full">
+            <div className="bg-white rounded-lg flex items-center justify-center overflow-hidden h-12 w-full">
                <AgencyLogo inmobiliaria={user?.inmobiliaria} />
             </div>
           ) : (
-            <div className="bg-white rounded-xl shadow-md flex items-center justify-center overflow-hidden w-11 h-11 flex-shrink-0">
+            <div className="bg-white rounded-lg flex items-center justify-center overflow-hidden w-11 h-11 flex-shrink-0">
                <AgencyLogo inmobiliaria={user?.inmobiliaria} variant="icon" />
             </div>
           )}
-        </div>
+        </Link>
 
-        <hr className="border-indigo-600/50 mb-2" />
+        <hr className="border-white/10 mb-3" />
 
-        <nav className="sidebar-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden" aria-label="Navegación principal" onClick={(event) => {
+        <nav className="sidebar-scrollbar flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden" aria-label="Navegación principal" onClick={(event) => {
           if ((event.target as HTMLElement).closest("a")) closeMobile?.();
         }}>
         {/* Home */}
@@ -138,7 +138,7 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
             </span>
           </NavLink>
             {menuExpanded && (canCreateContracts || canDeleteContracts || canRestoreContracts) && (
-              <button ref={contractsMenuButtonRef} type="button" aria-label="Mostrar opciones de contratos" aria-expanded={isContratosOpen} aria-controls="contracts-submenu" onClick={() => setIsContratosOpen(prev => !prev)} className="ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-indigo-100 hover:bg-indigo-700/50">
+              <button ref={contractsMenuButtonRef} type="button" aria-label="Mostrar opciones de contratos" aria-expanded={isContratosOpen} aria-controls="contracts-submenu" onClick={() => setIsContratosOpen(prev => !prev)} className="ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-300 hover:bg-white/10">
               <ChevronDownIcon
                 className={`w-4 h-4 min-w-[16px] transition-transform duration-200 ${isContratosOpen ? "rotate-180" : ""
                   }`}
@@ -155,7 +155,7 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
                   navigate("/contratos", { state: { openNewContractModal: true } });
                   if (mobileOpen && closeMobile) closeMobile();
                 }}
-                className="w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 whitespace-nowrap overflow-hidden text-indigo-100 hover:bg-indigo-700/50 hover:text-white"
+                className="w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 whitespace-nowrap overflow-hidden text-slate-300 hover:bg-white/10 hover:text-white"
               >
                 <PlusIcon className="w-5 h-5 min-w-[20px]" />
                 <span className="text-sm">Crear Contrato</span>
@@ -216,7 +216,7 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
           </span>
         </NavLink>}
 
-        <hr className="my-1 border-indigo-600/50" />
+        <hr className="my-1 border-white/10" />
 
         {/* Configuración */}
         {canViewConfiguration && <NavLink to="/configuracion" className={linkClass}>
@@ -231,17 +231,16 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
 
         </nav>
 
-        <button type="button" onClick={toggleExpanded} className="mt-2 hidden min-h-11 items-center justify-center gap-2 rounded-lg text-indigo-100 hover:bg-indigo-700/50 xl:flex" aria-label={isExpanded ? "Contraer menú" : "Expandir menú"} title={isExpanded ? "Contraer menú" : "Expandir menú"}>
+        <button type="button" onClick={toggleExpanded} className="mt-2 hidden min-h-11 items-center justify-center gap-2 rounded-lg text-slate-300 hover:bg-white/10 xl:flex" aria-label={isExpanded ? "Contraer menú" : "Expandir menú"} title={isExpanded ? "Contraer menú" : "Expandir menú"}>
           {isExpanded ? <ChevronDoubleLeftIcon className="h-5 w-5" /> : <ChevronDoubleRightIcon className="h-5 w-5" />}
           {menuExpanded && <span className="text-sm font-medium">Contraer menú</span>}
         </button>
 
         {/* Footer de marca */}
         {menuExpanded && (
-          <div className="mt-6 pt-5 border-t border-indigo-600/30">
+          <div className="mt-4 border-t border-white/10 pt-4">
             <div className="flex flex-col items-center justify-center">
-              <span className="text-indigo-100/90 text-xs font-bold tracking-widest uppercase">PropControl</span>
-              <span className="mt-1 text-xs font-medium text-on-accent-muted">© {new Date().getFullYear()} Todos los derechos reservados</span>
+              <span className="text-xs text-slate-400">© {new Date().getFullYear()} PropControl</span>
             </div>
           </div>
         )}

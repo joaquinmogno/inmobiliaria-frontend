@@ -3,6 +3,7 @@ import { ArrowRightOnRectangleIcon, KeyIcon, ShieldCheckIcon } from '@heroicons/
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/auth.service';
+import PasswordInput from '../components/PasswordInput';
 
 const passwordIsStrong = (password: string) =>
   password.length >= 12
@@ -14,7 +15,6 @@ const passwordIsStrong = (password: string) =>
 export default function MandatoryPasswordChange() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -24,10 +24,6 @@ export default function MandatoryPasswordChange() {
     event.preventDefault();
     setError('');
 
-    if (newPassword === currentPassword) {
-      setError('La nueva contraseña debe ser diferente de la contraseña temporal.');
-      return;
-    }
     if (newPassword !== confirmPassword) {
       setError('La nueva contraseña y la confirmación no coinciden.');
       return;
@@ -39,7 +35,7 @@ export default function MandatoryPasswordChange() {
 
     setLoading(true);
     try {
-      await authService.changePassword(currentPassword, newPassword);
+      await authService.completeMandatoryPasswordChange(newPassword);
       sessionStorage.setItem('passwordChanged', 'true');
       window.dispatchEvent(new Event('logout'));
       navigate('/login', { replace: true, state: { passwordChanged: true } });
@@ -56,7 +52,7 @@ export default function MandatoryPasswordChange() {
   };
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4 py-8">
+    <main className="ui-page-enter flex min-h-screen items-center justify-center bg-slate-950 px-4 py-8">
       <section aria-labelledby="mandatory-password-title" className="w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
         <div className="bg-gradient-to-br from-indigo-600 to-violet-700 px-6 py-8 text-white sm:px-9">
           <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20">
@@ -77,20 +73,15 @@ export default function MandatoryPasswordChange() {
           <form onSubmit={submit} className="space-y-5">
             {error && <div role="alert" aria-live="assertive" className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm font-medium text-red-700">{error}</div>}
 
-            <label htmlFor="current-password" className="block text-sm font-bold text-gray-800">
-              Contraseña temporal
-              <input id="current-password" autoFocus autoComplete="current-password" required type="password" value={currentPassword} onChange={event => setCurrentPassword(event.target.value)} className="mt-2 min-h-12 w-full rounded-xl border border-gray-300 px-4 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" />
-            </label>
+            <div className="text-sm font-bold text-gray-800">
+              <label htmlFor="new-password" className="block">Nueva contraseña</label>
+              <PasswordInput id="new-password" autoFocus autoComplete="new-password" required minLength={12} maxLength={128} visibilityLabel="nueva contraseña" value={newPassword} onChange={event => setNewPassword(event.target.value)} wrapperClassName="mt-2" className="min-h-12 w-full rounded-xl border border-gray-300 px-4 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" />
+            </div>
 
-            <label htmlFor="new-password" className="block text-sm font-bold text-gray-800">
-              Nueva contraseña
-              <input id="new-password" autoComplete="new-password" required minLength={12} type="password" value={newPassword} onChange={event => setNewPassword(event.target.value)} className="mt-2 min-h-12 w-full rounded-xl border border-gray-300 px-4 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" />
-            </label>
-
-            <label htmlFor="confirm-password" className="block text-sm font-bold text-gray-800">
-              Repetir nueva contraseña
-              <input id="confirm-password" autoComplete="new-password" required minLength={12} type="password" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} className="mt-2 min-h-12 w-full rounded-xl border border-gray-300 px-4 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" />
-            </label>
+            <div className="text-sm font-bold text-gray-800">
+              <label htmlFor="confirm-password" className="block">Repetir nueva contraseña</label>
+              <PasswordInput id="confirm-password" autoComplete="new-password" required minLength={12} maxLength={128} visibilityLabel="confirmación de contraseña" value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} wrapperClassName="mt-2" className="min-h-12 w-full rounded-xl border border-gray-300 px-4 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200" />
+            </div>
 
             <p className="text-xs leading-relaxed text-content-muted">Mínimo 12 caracteres, con una mayúscula, una minúscula, un número y un símbolo.</p>
 

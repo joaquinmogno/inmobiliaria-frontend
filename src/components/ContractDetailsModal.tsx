@@ -238,10 +238,10 @@ export default function ContractDetailsModal({
             <Dialog as="div" className="relative z-50" onClose={onClose}>
                 <Transition.Child
                     as={Fragment}
-                    enter="ease-out duration-300"
+                    enter="ui-modal-enter-transition"
                     enterFrom="opacity-0"
                     enterTo="opacity-100"
-                    leave="ease-in duration-200"
+                    leave="ui-modal-leave-transition"
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
@@ -252,12 +252,12 @@ export default function ContractDetailsModal({
                     <div className="flex h-full min-h-0 items-end justify-center text-center sm:items-center sm:p-4">
                         <Transition.Child
                             as={Fragment}
-                            enter="ease-out duration-300"
-                            enterFrom="opacity-0 scale-95"
+                            enter="ui-modal-enter-transition"
+                            enterFrom="opacity-0 scale-[0.98]"
                             enterTo="opacity-100 scale-100"
-                            leave="ease-in duration-200"
+                            leave="ui-modal-leave-transition"
                             leaveFrom="opacity-100 scale-100"
-                            leaveTo="opacity-0 scale-95"
+                            leaveTo="opacity-0 scale-[0.98]"
                         >
                             <Dialog.Panel className="flex max-h-[100dvh] w-full max-w-2xl transform flex-col overflow-hidden rounded-t-2xl bg-white text-left align-middle shadow-xl transition-all sm:max-h-[90dvh] sm:rounded-2xl">
                                 <div className="shrink-0 flex justify-between items-center border-b border-gray-100 p-4 sm:p-6">
@@ -313,7 +313,7 @@ export default function ContractDetailsModal({
                                 </div>
 
                                 {activeTab === 'general' ? (
-                                    <div className="space-y-6 animate-in fade-in slide-in-from-left-4 duration-300">
+                                    <div className="space-y-6 ui-content-enter">
 
                                         <div className="space-y-6">
                                             {/* Inmueble */}
@@ -674,7 +674,7 @@ export default function ContractDetailsModal({
                                         </div>
                                     </div>
                                 ) : activeTab === 'financial' ? (
-                                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                                    <div className="space-y-6 ui-content-enter">
                                         {isLoadingHistory ? (
                                             <div className="flex flex-col items-center justify-center py-12">
                                                 <ArrowPathIcon className="w-8 h-8 text-indigo-500 animate-spin mb-2" />
@@ -734,7 +734,7 @@ export default function ContractDetailsModal({
                                         )}
                                     </div>
                                 ) : activeTab === 'cuotas' ? (
-                                    <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                                    <div className="space-y-6 ui-content-enter">
                                         <div className="flex justify-between items-center mb-4">
                                             <h4 className="text-sm font-bold text-gray-900 uppercase tracking-widest">Planes de cuotas</h4>
                                             {canEditLiquidations && (
@@ -826,7 +826,7 @@ export default function ContractDetailsModal({
                                         )}
                                     </div>
                                 ) : activeTab === 'audit' ? (
-                                    <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+                                    <div className="space-y-4 ui-content-enter">
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <div className="rounded-xl border border-gray-100 bg-gray-50 p-3">
                                                 <p className="text-xs font-bold uppercase tracking-wider text-gray-600">Creado por</p>

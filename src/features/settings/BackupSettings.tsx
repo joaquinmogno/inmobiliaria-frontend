@@ -1,3 +1,4 @@
+import LoadingState from '../../components/LoadingState';
 import { useCallback, useEffect, useState } from 'react';
 import {
     ArchiveBoxIcon,
@@ -82,7 +83,7 @@ export default function BackupSettings({ refreshToken }: { refreshToken: number 
     return (
         <section className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             <div className="space-y-6 lg:col-span-1">
-                <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-6 shadow-sm">
                     <h2 className="mb-4 flex items-center text-lg font-semibold text-gray-900">
                         <ShieldCheckIcon className="mr-2 h-5 w-5 text-indigo-600" />
                         Acciones de Respaldo
@@ -122,10 +123,10 @@ export default function BackupSettings({ refreshToken }: { refreshToken: number 
 
             <div className="lg:col-span-2">
                 <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-                    <div className="border-b border-gray-100 p-6"><h2 className="text-lg font-semibold text-gray-900">Backups Existentes</h2></div>
+                    <div className="border-b border-gray-100 p-4 sm:p-6"><h2 className="text-lg font-semibold text-gray-900">Backups Existentes</h2></div>
                     <div className="overflow-x-auto">
                         <div className="divide-y divide-gray-100 2xl:hidden">
-                            {loading ? <div className="p-6 text-content-muted">Cargando backups...</div> : backups.length === 0
+                            {loading ? <LoadingState compact label="Cargando backups…" /> : backups.length === 0
                                 ? <div className="px-6 py-12 text-center text-content-muted">No hay archivos de backup disponibles.</div>
                                 : backups.map(file => (
                                     <article key={file.name} className="p-4">
@@ -143,7 +144,7 @@ export default function BackupSettings({ refreshToken }: { refreshToken: number 
                         <table className="hidden w-full text-left 2xl:table">
                             <thead className="border-b border-gray-100 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-content-muted"><tr><th className="px-6 py-3">Archivo</th><th className="px-6 py-3">Tipo</th><th className="px-6 py-3">Tamaño</th><th className="px-6 py-3">Fecha</th><th className="sticky right-0 z-20 bg-gray-50 px-6 py-3 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">Acciones</th></tr></thead>
                             <tbody className="divide-y divide-gray-100 text-sm">
-                                {loading ? <tr><td colSpan={5} className="px-6 py-12 text-center text-content-muted">Cargando backups...</td></tr> : backups.length === 0
+                                {loading ? <tr><td colSpan={5} className="px-6 py-8"><LoadingState compact label="Cargando backups…" /></td></tr> : backups.length === 0
                                     ? <tr><td colSpan={5} className="px-6 py-12 text-center text-content-muted">No hay archivos de backup disponibles.</td></tr>
                                     : backups.map(file => (
                                         <tr key={file.name} className="transition-colors hover:bg-gray-50">

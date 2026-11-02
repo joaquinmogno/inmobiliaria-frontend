@@ -42,6 +42,10 @@ export const authService = {
         return api.post('/auth/change-password', { currentPassword, newPassword });
     },
 
+    completeMandatoryPasswordChange: async (newPassword: string) => {
+        return api.post('/auth/change-password', { newPassword });
+    },
+
     me: async (): Promise<User> => {
         return api.get<User>('/auth/me');
     },

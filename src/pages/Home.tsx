@@ -199,7 +199,7 @@ export default function Home() {
   ];
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto w-full animate-in fade-in duration-500">
+    <div className="space-y-6 max-w-6xl mx-auto w-full">
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -245,8 +245,15 @@ export default function Home() {
             { label: 'Alquileres vencidos', value: kpis.operacion.alquileresVencidos, tone: 'border-red-200 bg-red-50 text-red-900', action: () => navigate('/liquidaciones?view=HISTORIAL&vencidas=true') },
             { label: 'Cobros pendientes', value: kpis.operacion.cobrosPendientes, tone: 'border-amber-200 bg-amber-50 text-amber-900', action: () => navigate('/liquidaciones?view=HISTORIAL&soloDeuda=true') },
             { label: 'Listas para pagar al propietario', value: kpis.operacion.pagosPropietarioPendientes, tone: 'border-blue-200 bg-blue-50 text-blue-900', action: () => navigate('/liquidaciones?view=HISTORIAL&pendientePropietario=true') },
-            { label: 'Contratos próximos a vencer', value: kpis.operacion.contratosPorVencer, tone: 'border-gray-200 bg-gray-50 text-gray-900', action: () => navigate('/contratos?alerta=POR_VENCER') }
-          ].map(item => <button type="button" key={item.label} onClick={item.action} className={`rounded-xl border p-4 text-left transition hover:-translate-y-0.5 ${item.tone}`}><p className="text-2xl font-black">{item.value}</p><p className="mt-1 text-sm font-bold">{item.label}</p><p className="mt-2 text-xs font-semibold underline">Ver y resolver</p></button>)}
+            { label: 'Contratos próximos a vencer', value: kpis.operacion.contratosPorVencer, tone: 'border-amber-200 bg-amber-50 text-amber-900', action: () => navigate('/contratos?alerta=POR_VENCER') }
+          ].map(item => {
+            const hasPending = item.value > 0;
+            return <button type="button" key={item.label} onClick={item.action} className={`rounded-xl border p-4 text-left transition-colors ${hasPending ? item.tone : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'}`}>
+              <p className="text-2xl font-black">{item.value}</p>
+              <p className="mt-1 text-sm font-bold">{item.label}</p>
+              <p className="mt-2 text-xs font-semibold">{hasPending ? <span className="underline">Ver y resolver</span> : <>Sin pendientes · <span className="underline">Ver listado</span></>}</p>
+            </button>;
+          })}
         </div>
       </section>}
 

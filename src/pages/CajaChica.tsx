@@ -1,3 +1,5 @@
+import EmptyState from '../components/EmptyState';
+import LoadingState from '../components/LoadingState';
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { cajachicaService, type MovimientoCaja, type CajaChicaSummary, type CierreCaja, type CuentaCaja } from "../services/cajachica.service";
@@ -76,7 +78,8 @@ export default function CajaChica() {
     const [initialYear, initialMonth] = currentMonthInput().split("-").map(Number);
     const [selectedMonth, setSelectedMonth] = useState<number>(urlPeriod?.month ?? initialMonth);
     const [selectedYear, setSelectedYear] = useState<number>(urlPeriod?.year ?? initialYear);
-    const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
     const [selectedMovement, setSelectedMovement] = useState<MovimientoCaja | null>(null);
     const [movementForAttachments, setMovementForAttachments] = useState<MovimientoCaja | null>(null);
     const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
@@ -172,7 +175,7 @@ export default function CajaChica() {
     }, []);
 
     const refreshData = async (page: number, search: string, tipo: string, estado: 'REVERSIONES' | '', cuenta: string, mes?: number, anio?: number) => {
-        setIsLoading(true);
+        setIsLoading(true); setLoadError('');
         try {
             const response = await cajachicaService.getAll(
                 page, 
@@ -188,7 +191,7 @@ export default function CajaChica() {
             setTotal(response.meta.total);
             setTotalPages(response.meta.totalPages);
         } catch (error) {
-            console.error("Error loading caja chica:", error);
+            setLoadError("No se pudieron cargar los movimientos. Intentá nuevamente.");
         } finally {
             setIsLoading(false);
         }
@@ -265,6 +268,9 @@ export default function CajaChica() {
 
     const paymentMethodLabel = MANUAL_CASH_PAYMENT_METHOD_OPTIONS.find(option => option.value === formData.metodoPago)?.label ?? formData.metodoPago;
     const movementTypeLabel = formData.tipo === 'EGRESO' ? 'un egreso' : 'un ingreso';
+    const clearListFilters = () => { setSearchTerm(''); setTipoFilter(''); setEstadoFilter(''); setCuentaFilter(''); setCurrentPage(1); };
+    const emptyState = loadError ? <p role="alert" className="p-6 text-sm text-red-800">{loadError}</p> : <EmptyState filtered={Boolean(searchTerm.trim() || tipoFilter || estadoFilter || cuentaFilter)} title="Todavía no hay movimientos en este mes" description="Los ingresos y egresos del período aparecerán aquí." onClear={clearListFilters} action={canCreate ? { label: 'Crear el primer movimiento', onClick: () => setIsModalOpen(true) } : undefined} />;
+
     const createConfirmationMessage = `¿Está seguro que quiere registrar ${movementTypeLabel} por ${paymentMethodLabel.toLowerCase()} de ${formatCurrency(Number(formData.monto), formData.moneda)} el día ${formatDate(formData.fecha)}?${formData.comprobantes.length ? ` Se adjuntarán ${formData.comprobantes.length} comprobante(s).` : ''}`;
 
     const openAttachment = async (path: string) => {
@@ -404,7 +410,7 @@ export default function CajaChica() {
                     <h1 className="text-2xl font-bold text-gray-900">Gestión Financiera</h1>
                     <p className="text-sm text-content-muted">Caja por fecha real de movimiento. Los saldos se muestran al cierre del período elegido.</p>
                 </div>
-                <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center xl:flex-nowrap">
+                <div className="ui-page-actions xl:flex-nowrap">
                     <div className="hidden lg:flex items-center gap-4 bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100">
                          <div className="flex items-center gap-2">
                              <div className="w-2 h-2 rounded-full bg-amber-400"></div>
@@ -419,21 +425,21 @@ export default function CajaChica() {
                          </div>
                          <div className="w-px h-4 bg-gray-100"></div>
                          <div className="flex items-center gap-2">
-                             <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse"></div>
+                             <div className="w-2 h-2 rounded-full bg-red-400"></div>
                              <span className="text-xs font-bold text-gray-600">Cobros menos pagos a dueños del mes:</span>
                              <span className="text-xs font-bold text-status-danger">{formatCurrency(meta?.fondosEnCustodia || 0)}</span>
                          </div>
                     </div>
                     {canCreate && <button
                         onClick={() => setIsModalOpen(true)}
-                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition-colors cursor-pointer sm:w-auto"
+                        className="ui-button ui-button-primary w-full sm:w-auto"
                     >
                         <PlusIcon className="w-5 h-5" />
                         Nuevo Movimiento
                     </button>}
                     {canCreate && <button
                         onClick={() => setIsTransferModalOpen(true)}
-                        className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-indigo-300 bg-white px-4 py-2 text-sm font-bold text-indigo-800 shadow-sm transition-colors hover:bg-indigo-50 sm:w-auto"
+                        className="ui-button ui-button-secondary w-full sm:w-auto"
                     >
                         <ArrowsRightLeftIcon className="h-5 w-5" /> Transferir entre cuentas
                     </button>}
@@ -623,7 +629,7 @@ export default function CajaChica() {
                     </div>
                 </div>
                 <div className="bg-white p-3 rounded-xl border border-red-100 flex items-center gap-3 min-[380px]:col-span-2">
-                    <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse"></div>
+                    <div className="w-2 h-2 rounded-full bg-red-400"></div>
                     <div>
                         <p className="text-xs font-bold text-gray-600">Cobros menos pagos a dueños del mes</p>
                         <p className="text-sm font-bold text-status-danger">{formatCurrency(meta?.fondosEnCustodia || 0)}</p>
@@ -633,7 +639,7 @@ export default function CajaChica() {
 
             <FilterBar query={searchTerm} onQueryChange={setSearchTerm} resultCount={total} resultCountLabel={estadoFilter ? { singular: 'corrección', plural: 'correcciones' } : undefined} placeholder="Buscar concepto..." onClear={() => { const [year, month] = currentMonthInput().split('-').map(Number); setSearchTerm(""); setTipoFilter(""); setEstadoFilter(""); setCuentaFilter(""); setSelectedYear(year); setSelectedMonth(month); }}>
                 {/* Período */}
-                <div className="flex items-center gap-2 mr-2 bg-gray-50 px-3 py-1.5 rounded-xl border border-gray-100">
+                <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-black text-gray-600 uppercase tracking-widest">Período:</span>
                     <AppSelect
                         ariaLabel="Mes"
@@ -641,7 +647,6 @@ export default function CajaChica() {
                         onChange={(value) => setSelectedMonth(Number(value))}
                         options={["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"].map((label, index) => ({ value: String(index + 1), label }))}
                         className="w-24"
-                        buttonClassName="border-transparent bg-transparent px-2 shadow-none"
                     />
                     <AppSelect
                         ariaLabel="Año"
@@ -649,7 +654,6 @@ export default function CajaChica() {
                         onChange={(value) => setSelectedYear(Number(value))}
                         options={[2024, 2025, 2026, 2027].map(year => ({ value: String(year), label: String(year) }))}
                         className="w-28"
-                        buttonClassName="border-transparent bg-transparent px-2 shadow-none"
                     />
                 </div>
 
@@ -699,9 +703,9 @@ export default function CajaChica() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-h-[300px]">
                 <div className="divide-y divide-gray-100 2xl:hidden">
                     {isLoading ? (
-                        <div className="px-4 py-12 text-center text-sm text-gray-600 animate-pulse">Cargando movimientos...</div>
+                        <LoadingState compact label="Cargando movimientos…" />
                     ) : movimientos.length === 0 ? (
-                        <div className="px-4 py-12 text-center text-sm text-content-muted">No hay registros que coincidan con los filtros.</div>
+                        <div className="text-center">{emptyState}</div>
                     ) : (
                         movimientos.map((mov) => (
                             <article key={mov.id} className={`p-4 ${mov.anuladoEn ? "bg-gray-50" : ""}`}>
@@ -711,15 +715,15 @@ export default function CajaChica() {
                                         <h3 className="mt-1 text-sm font-black leading-snug text-gray-900">{mov.concepto}</h3>
                                         {mov.observaciones && <p className="mt-1 text-xs text-content-muted">{mov.observaciones}</p>}
                                     </div>
-                                    <span className={`shrink-0 text-sm font-black font-mono ${mov.tipo === 'INGRESO' ? 'text-status-success' : 'text-status-danger'}`}>
+                                    <span className={`shrink-0 text-sm font-black tabular-nums ${mov.tipo === 'INGRESO' ? 'text-status-success' : 'text-status-danger'}`}>
                                         {formatSignedCurrency(mov.tipo === 'INGRESO' ? Math.abs(Number(mov.monto)) : -Math.abs(Number(mov.monto)), mov.moneda, true)}
                                     </span>
                                 </div>
                                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                                    <span className={`px-2.5 py-1 text-xs font-black rounded-full uppercase tracking-widest ${mov.tipo === 'INGRESO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                    <span className={`ui-status border-transparent ${mov.tipo === 'INGRESO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                         {mov.tipo === 'INGRESO' ? 'Ingreso' : 'Egreso'}
                                     </span>
-                                    <span className={`px-2.5 py-1 text-xs font-black rounded-full uppercase tracking-widest ${mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+                                    <span className={`ui-status border-transparent ${mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
                                         {accountLabel(mov)}
                                     </span>
                                     <span className="text-xs font-medium text-content-muted">{mov.creadoPor?.nombreCompleto || 'Sistema'}</span>
@@ -748,7 +752,7 @@ export default function CajaChica() {
                     )}
                 </div>
                 <div className="hidden overflow-x-auto 2xl:block">
-                <table className="min-w-full divide-y divide-gray-100">
+                <table className="tabular-nums min-w-full divide-y divide-gray-100">
                     <thead className="bg-gray-50/50">
                         <tr>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Fecha</th>
@@ -762,9 +766,9 @@ export default function CajaChica() {
                     </thead>
                     <tbody className="divide-y divide-gray-50">
                         {isLoading ? (
-                            <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-gray-600 animate-pulse">Cargando movimientos...</td></tr>
+                            <tr><td colSpan={7} className="px-6 py-8"><LoadingState compact label="Cargando movimientos…" /></td></tr>
                         ) : movimientos.length === 0 ? (
-                            <tr><td colSpan={7} className="px-6 py-12 text-center text-sm text-content-muted">No hay registros que coincidan con los filtros.</td></tr>
+                            <tr><td colSpan={7} className="text-center">{emptyState}</td></tr>
                         ) : (
                             movimientos.map((mov) => (
                                 <tr key={mov.id} className={`transition-colors hover:bg-gray-50/50 ${mov.anuladoEn ? "bg-gray-50" : ""}`}>
@@ -779,17 +783,17 @@ export default function CajaChica() {
                                         {mov.transferenciaInternaId && <div className="mt-1 text-xs font-bold text-indigo-700">Transferencia interna #{mov.transferenciaInternaId}</div>}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2.5 py-1 text-xs font-black rounded-full uppercase tracking-widest ${mov.tipo === 'INGRESO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                        <span className={`ui-status border-transparent ${mov.tipo === 'INGRESO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                             {mov.tipo === 'INGRESO' ? 'Ingreso' : 'Egreso'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2.5 py-1 text-xs font-black rounded-full uppercase tracking-widest ${mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+                                        <span className={`ui-status border-transparent ${mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
                                             {mov.cuenta === 'BANCO' ? `🏦 ${accountLabel(mov)}` : '💵 Caja'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                                        <span className={`text-sm font-bold font-mono ${mov.tipo === 'INGRESO' ? 'text-status-success' : 'text-status-danger'}`}>
+                                        <span className={`text-sm font-bold tabular-nums ${mov.tipo === 'INGRESO' ? 'text-status-success' : 'text-status-danger'}`}>
 	                                            {formatSignedCurrency(mov.tipo === 'INGRESO' ? Math.abs(Number(mov.monto)) : -Math.abs(Number(mov.monto)), mov.moneda, true)}
                                         </span>
                                     </td>
@@ -825,8 +829,8 @@ export default function CajaChica() {
 
             {/* Modal de Nuevo Movimiento */}
             {isModalOpen && canCreate && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center sm:p-4">
-                    <div data-modal-panel className="flex max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
+                <div className="ui-backdrop-enter fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center sm:p-4">
+                    <div data-modal-panel className="ui-modal-enter flex max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
                         <div className="shrink-0 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                             <h3 className="text-lg font-bold text-gray-900">Nuevo Movimiento Manual</h3>
                             <button onClick={() => setIsModalOpen(false)} className="text-gray-600 hover:text-gray-600 cursor-pointer">✕</button>
@@ -921,8 +925,8 @@ export default function CajaChica() {
             )}
 
             {movementForAttachments && (
-                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="cash-movement-attachments-title">
-                    <div data-modal-panel className="flex max-h-[100dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
+                <div className="ui-backdrop-enter fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4" role="dialog" aria-modal="true" aria-labelledby="cash-movement-attachments-title">
+                    <div data-modal-panel className="ui-modal-enter flex max-h-[100dvh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
                         <div className="flex shrink-0 items-start justify-between border-b border-gray-100 px-5 py-4 sm:px-6">
                             <div className="min-w-0">
                                 <h3 id="cash-movement-attachments-title" className="text-lg font-bold text-gray-900">Comprobantes del movimiento</h3>
@@ -991,8 +995,8 @@ export default function CajaChica() {
             )}
 
             {isTransferModalOpen && canCreate && (
-                <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-                    <div data-modal-panel className="flex max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
+                <div className="ui-backdrop-enter fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+                    <div data-modal-panel className="ui-modal-enter flex max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
                         <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
                             <div><h3 className="text-lg font-bold text-gray-900">Transferir entre cuentas</h3><p className="mt-1 text-xs text-content-muted">Genera un egreso y un ingreso vinculados; el saldo total no cambia.</p></div>
                             <button type="button" onClick={() => setIsTransferModalOpen(false)} className="text-gray-600 hover:text-gray-900" aria-label="Cerrar">✕</button>

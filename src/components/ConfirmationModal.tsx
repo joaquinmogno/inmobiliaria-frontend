@@ -1,4 +1,5 @@
-import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
+import { DialogTitle } from '@headlessui/react';
+import { Modal as Dialog, ModalBackdrop as DialogBackdrop, ModalPanel as DialogPanel } from './Modal';
 import { ExclamationTriangleIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
 

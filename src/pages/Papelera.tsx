@@ -1,3 +1,4 @@
+import LoadingState from '../components/LoadingState';
 import { useState, useEffect } from "react";
 import { TrashIcon, InformationCircleIcon, ClockIcon } from "@heroicons/react/24/outline";
 import { contractsService, type Contract } from "../services/contracts.service";
@@ -93,7 +94,7 @@ export default function Papelera() {
       </div>
 
       {isLoading ? (
-        <div className="text-center p-10 text-content-muted">Cargando...</div>
+        <LoadingState label="Cargando papelera…" />
       ) : trashedContracts.length === 0 ? (
         /* Empty State */
         <div className="bg-white rounded-lg shadow-sm p-10 text-center">

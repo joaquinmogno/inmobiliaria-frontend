@@ -1,6 +1,8 @@
-import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
+import { DialogTitle } from '@headlessui/react';
+import { Modal as Dialog, ModalBackdrop as DialogBackdrop, ModalPanel as DialogPanel } from './Modal';
 import { useEffect, useState } from "react";
 import { resolveReauthentication } from "../services/reauthentication";
+import PasswordInput from "./PasswordInput";
 
 export default function ReauthenticationDialog() {
   const [open, setOpen] = useState(false);
@@ -19,7 +21,7 @@ export default function ReauthenticationDialog() {
         <DialogTitle className="text-lg font-bold text-gray-900">Confirmá tu identidad</DialogTitle>
         <p className="mt-2 text-sm text-gray-600">Esta operación es sensible. Ingresá nuevamente tu contraseña.</p>
         <form onSubmit={submit} className="mt-5 space-y-4">
-          <input autoFocus type="password" required value={password} onChange={e => setPassword(e.target.value)} className="min-h-11 w-full rounded-lg border border-gray-300 px-3" aria-label="Contraseña actual" />
+          <PasswordInput autoFocus autoComplete="current-password" required visibilityLabel="contraseña actual" value={password} onChange={e => setPassword(e.target.value)} className="min-h-11 w-full rounded-lg border border-gray-300 px-3" aria-label="Contraseña actual" />
           <div className="flex justify-end gap-3"><button type="button" onClick={close} className="min-h-11 px-4 text-gray-700">Cancelar</button><button className="min-h-11 rounded-lg bg-indigo-600 px-4 font-semibold text-white">Continuar</button></div>
         </form>
       </DialogPanel>

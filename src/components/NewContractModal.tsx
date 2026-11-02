@@ -1,3 +1,4 @@
+import FieldError, { useFieldValidation } from './FieldError';
 import { Fragment, useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon, BanknotesIcon, MagnifyingGlassIcon, PlusCircleIcon } from "@heroicons/react/24/outline";
@@ -30,7 +31,7 @@ import {
     createRenewalContractForm,
     CONTRACT_SERVICE_EXPENSE_SUGGESTIONS,
     emptyContractParty,
-    getContractFormError,
+    getContractFormIssue,
     selectExistingParty,
     type ContractParty,
     type ContractServiceExpense
@@ -70,6 +71,7 @@ export default function NewContractModal({
     const [searchingExistingOwner, setSearchingExistingOwner] = useState(false);
     const [searchingExistingTenant, setSearchingExistingTenant] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const validation = useFieldValidation();
     const { error: formError, setError: setFormError, reportError, formRef } = useFormError();
 
     const [owners, setOwners] = useState<ContractParty[]>([emptyContractParty()]);
@@ -81,6 +83,8 @@ export default function NewContractModal({
         if (!isOpen) return;
         void cuentasBancariasService.getAll().then(setCuentasBancarias).catch(() => setCuentasBancarias([]));
     }, [isOpen]);
+
+    useEffect(() => { validation.reset(); setFormError(''); }, [isOpen, editingContract?.id, draft?.id]);
 
     // Effect to populate form when editing
     useEffect(() => {
@@ -180,6 +184,7 @@ export default function NewContractModal({
     };
 
     const addOwner = (owner: Persona | null) => {
+        validation.clear('contract-owner-group');
         if (owner) {
             setOwners(prev => selectExistingParty(prev, owner));
         } else {
@@ -189,6 +194,7 @@ export default function NewContractModal({
     };
 
     const updateOwner = (index: number, field: string, value: string) => {
+        validation.clear('contract-owner-group');
         setOwners(prev => {
             const next = [...prev];
             next[index] = { ...next[index], [field]: value };
@@ -197,10 +203,12 @@ export default function NewContractModal({
     };
 
     const removeOwner = (index: number) => {
+        validation.clear('contract-owner-group');
         setOwners(prev => prev.filter((_, i) => i !== index));
     };
 
     const addTenant = (tenant: Persona | null) => {
+        validation.clear('contract-tenant-group');
         if (tenant) {
             setTenants(prev => selectExistingParty(prev, tenant));
         } else {
@@ -210,6 +218,7 @@ export default function NewContractModal({
     };
 
     const updateTenant = (index: number, field: string, value: string) => {
+        validation.clear('contract-tenant-group');
         setTenants(prev => {
             const next = [...prev];
             next[index] = { ...next[index], [field]: value };
@@ -218,14 +227,17 @@ export default function NewContractModal({
     };
 
     const removeTenant = (index: number) => {
+        validation.clear('contract-tenant-group');
         setTenants(prev => prev.filter((_, i) => i !== index));
     };
 
     const handleFileSelection = (files: File[]) => {
+        validation.clear('contract-main-file');
         setFormData(prev => ({ ...prev, file: files[0] || null }));
     };
 
     const handleAdditionalFilesSelection = (files: File[]) => {
+        validation.clear('contract-additional-files');
         setFormData(prev => ({
             ...prev,
             additionalFiles: [...prev.additionalFiles, ...files],
@@ -250,6 +262,7 @@ export default function NewContractModal({
     };
 
     const updateServiceExpense = (index: number, changes: Partial<ContractServiceExpense>) => {
+        validation.clear('contract-services');
         setFormData(prev => ({
             ...prev,
             serviciosGastos: prev.serviciosGastos.map((serviceExpense, currentIndex) =>
@@ -259,6 +272,7 @@ export default function NewContractModal({
     };
 
     const removeServiceExpense = (index: number) => {
+        validation.clear('contract-services');
         setFormData(prev => ({
             ...prev,
             serviciosGastos: prev.serviciosGastos.filter((_, currentIndex) => currentIndex !== index)
@@ -270,12 +284,13 @@ export default function NewContractModal({
         if (isSubmitting) return;
         setFormError("");
 
-        const validationError = getContractFormError(formData, owners, tenants);
+        const validationError = getContractFormIssue(formData, owners, tenants);
         if (validationError) {
-            setFormError(validationError);
+            validation.showErrors({ [validationError.field]: validationError.message });
             return;
         }
 
+        validation.reset();
         const dataToSave = {
             ...buildContractPayload(formData, selectedProperty, owners, tenants),
             ...(renewingContract ? { contratoAnteriorId: renewingContract.id } : {}),
@@ -332,10 +347,10 @@ export default function NewContractModal({
             <Dialog as="div" className="relative z-50" onClose={() => {}}>
                 <Transition.Child
                     as={Fragment}
-                    enter="ease-out duration-300"
+                    enter="ui-modal-enter-transition"
                     enterFrom="opacity-0"
                     enterTo="opacity-100"
-                    leave="ease-in duration-200"
+                    leave="ui-modal-leave-transition"
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
@@ -346,12 +361,12 @@ export default function NewContractModal({
                     <div className="flex h-full min-h-0 items-end justify-center text-center sm:items-center sm:p-4">
                         <Transition.Child
                             as={Fragment}
-                            enter="ease-out duration-300"
-                            enterFrom="opacity-0 scale-95"
+                            enter="ui-modal-enter-transition"
+                            enterFrom="opacity-0 scale-[0.98]"
                             enterTo="opacity-100 scale-100"
-                            leave="ease-in duration-200"
+                            leave="ui-modal-leave-transition"
                             leaveFrom="opacity-100 scale-100"
-                            leaveTo="opacity-0 scale-95"
+                            leaveTo="opacity-0 scale-[0.98]"
                         >
                             <Dialog.Panel className="flex max-h-[100dvh] w-full max-w-3xl transform flex-col overflow-hidden rounded-t-2xl bg-white text-left align-middle shadow-xl transition-all sm:max-h-[90dvh] sm:rounded-2xl">
                                 <div className="shrink-0 flex justify-between items-center border-b border-gray-100 p-4 sm:p-6">
@@ -370,7 +385,7 @@ export default function NewContractModal({
                                     </button>
                                 </div>
 
-                                <form ref={formRef} onSubmit={handleSubmit} className="modal-scroll flex-1 p-4 sm:p-6 space-y-6">
+                                <form id="contract-form" ref={formRef} onSubmit={handleSubmit} className="modal-scroll flex-1 p-4 sm:p-6 space-y-6">
                                     <FormError message={formError} />
                                     {renewingContract && (
                                         <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-950">
@@ -378,6 +393,7 @@ export default function NewContractModal({
                                             <p className="mt-1 text-indigo-800">Se copiaron el inmueble, las partes y las condiciones comerciales. Revisá las fechas e importes antes de guardar; no se trasladan liquidaciones, pagos, cuotas ni documentos.</p>
                                         </div>
                                     )}
+                                    <div><h3 className="text-base font-semibold text-slate-900">Datos principales del contrato</h3><p className="mt-1 text-sm text-slate-600">Completá los campos obligatorios (*). Después podés agregar acuerdos, observaciones y documentos.</p></div>
                                     {/* ─── Sección Inmueble ─── */}
                                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                                         <div className="flex justify-between items-center mb-3">
@@ -420,16 +436,17 @@ export default function NewContractModal({
                                                         Dirección *
                                                     </label>
                                                     <input
-                                                        id="contract-property-address"
+                                                        {...validation.inputProps('contract-property-address')}
                                                         type="text"
                                                         name="address"
                                                         required
-                                                        className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
+                                                        className="ui-field"
                                                         placeholder="Ej: Av. Corrientes 1234"
                                                         value={selectedProperty ? `${selectedProperty.direccion}` : formData.address}
                                                         onChange={handleChange}
                                                         disabled={!!selectedProperty || !!editingContract || !!renewingContract}
                                                     />
+                                                    <FieldError id="contract-property-address" message={validation.errors['contract-property-address']} />
                                                 </div>
                                                 <div className="sm:col-span-2">
                                                     <label htmlFor="contract-property-floor" className="block text-xs font-medium text-gray-700 mb-1">
@@ -439,7 +456,7 @@ export default function NewContractModal({
                                                         id="contract-property-floor"
                                                         type="text"
                                                         name="floor"
-                                                        className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
+                                                        className="ui-field"
                                                         placeholder="Ej: 3"
                                                         value={formData.floor}
                                                         onChange={handleChange}
@@ -454,7 +471,7 @@ export default function NewContractModal({
                                                         id="contract-property-unit"
                                                         type="text"
                                                         name="unit"
-                                                        className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
+                                                        className="ui-field"
                                                         placeholder="Ej: B"
                                                         value={formData.unit}
                                                         onChange={handleChange}
@@ -468,6 +485,7 @@ export default function NewContractModal({
                                     {/* ─── Propietarios & Inquilinos ─── */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         <ContractPartyFields
+                                            validation={validation}
                                             kind="owner"
                                             parties={owners}
                                             editing={!!editingContract}
@@ -478,6 +496,7 @@ export default function NewContractModal({
                                             onRemove={removeOwner}
                                         />
                                         <ContractPartyFields
+                                            validation={validation}
                                             kind="tenant"
                                             parties={tenants}
                                             editing={!!editingContract || !!renewingContract}
@@ -523,21 +542,22 @@ export default function NewContractModal({
 	                                                    Alquiler Mensual *
                                                 </label>
                                                 <NumericInput
-                                                    id="contract-rent-amount"
+                                                    {...validation.inputProps('contract-rent-amount')}
                                                     name="montoAlquiler"
                                                     required
-                                                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
+                                                    className="ui-field"
                                                     value={formData.montoAlquiler}
                                                     onChange={(val) => setFormData(prev => ({ ...prev, montoAlquiler: val.toString() }))}
                                                     icon={<BanknotesIcon className="w-5 h-5 text-gray-600" />}
                                                 />
+                                                <FieldError id="contract-rent-amount" message={validation.errors['contract-rent-amount']} />
                                             </div>
                                         </div>
                                         <div className="mt-4 rounded-xl border border-indigo-100 bg-indigo-50 p-4">
                                             <label htmlFor="contract-management-fee-rate" className="block text-sm font-bold text-indigo-950">Honorarios mensuales de gestión (%)</label>
                                             <p className="mt-1 text-xs text-indigo-900">Los abona siempre el propietario. Se calculan únicamente sobre el alquiler mensual vigente y se descuentan de su liquidación.</p>
                                             <input
-                                                id="contract-management-fee-rate"
+                                                {...validation.inputProps('contract-management-fee-rate')}
                                                 name="porcentajeHonorarios"
                                                 type="number"
                                                 required
@@ -548,6 +568,7 @@ export default function NewContractModal({
                                                 onChange={event => setFormData(current => ({ ...current, porcentajeHonorarios: event.target.value, pagaHonorarios: 'PROPIETARIO' }))}
                                                 className="mt-3 min-h-11 w-full max-w-40 rounded-lg border border-indigo-200 bg-white px-3 text-sm font-bold text-gray-900"
                                             />
+                                            <FieldError id="contract-management-fee-rate" message={validation.errors['contract-management-fee-rate']} />
                                             <output
                                                 aria-live="polite"
                                                 className="mt-3 block rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-indigo-950"
@@ -559,6 +580,154 @@ export default function NewContractModal({
                                         </div>
                                     </div>
 
+                                    {/* ─── Administración ─── */}
+                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center justify-between">
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-indigo-900 uppercase tracking-wide">
+                                                Administración
+                                            </h4>
+                                            <p className="text-xs text-content-muted">¿La inmobiliaria administra este contrato mensualmente?</p>
+                                        </div>
+                                        <div className="flex items-center">
+                                            <span className={`mr-3 text-xs font-bold ${!formData.administrado ? 'text-indigo-600' : 'text-gray-600'}`}>NO</span>
+                                            <button
+                                                type="button"
+                                                aria-label="La inmobiliaria administra el contrato"
+                                                aria-pressed={formData.administrado}
+                                                onClick={() => setFormData(prev => ({ ...prev, administrado: !prev.administrado }))}
+                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${formData.administrado ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                                            >
+                                                <span
+                                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.administrado ? 'translate-x-6' : 'translate-x-1'}`}
+                                                />
+                                            </button>
+                                            <span className={`ml-3 text-xs font-bold ${formData.administrado ? 'text-indigo-600' : 'text-gray-600'}`}>SÍ</span>
+                                        </div>
+                                    </div>
+
+                                    {/* ─── Vigencia y Fechas ─── */}
+                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                        <h4 className="text-sm font-semibold text-indigo-900 mb-3 uppercase tracking-wide">
+                                            Vigencia y Fechas *
+                                        </h4>
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                            <div>
+                                                <label htmlFor="contract-start-date" className="block text-xs font-medium text-gray-700 mb-1">
+                                                    Fecha Inicio *
+                                                </label>
+                                                <input
+                                                    {...validation.inputProps('contract-start-date')}
+                                                    type="date"
+                                                    name="startDate"
+                                                    required
+                                                    className="ui-field"
+                                                    value={formData.startDate}
+                                                    onChange={handleChange}
+                                                />
+                                                <FieldError id="contract-start-date" message={validation.errors['contract-start-date']} />
+                                            </div>
+                                            <div>
+                                                <label htmlFor="contract-end-date" className="block text-xs font-medium text-gray-700 mb-1">
+                                                    Fecha Fin *
+                                                </label>
+                                                <input
+                                                    {...validation.inputProps('contract-end-date')}
+                                                    type="date"
+                                                    name="endDate"
+                                                    required
+                                                    className="ui-field"
+                                                    value={formData.endDate}
+                                                    onChange={handleChange}
+                                                />
+                                                <FieldError id="contract-end-date" message={validation.errors['contract-end-date']} />
+                                            </div>
+                                            </div>
+                                            <div className="mt-4 flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
+                                                <div>
+                                                    <p className="text-sm font-semibold text-gray-800">Actualización de alquiler</p>
+                                                    <p className="text-xs text-content-muted">Define si este contrato tendrá una actualización programada.</p>
+                                                </div>
+                                                <div className="flex items-center">
+                                                    <span className={`mr-3 text-xs font-bold ${!formData.requiereActualizacion ? 'text-indigo-600' : 'text-gray-600'}`}>NO</span>
+                                                    <button
+                                                        type="button"
+                                                        aria-label="El contrato tiene actualización programada"
+                                                        aria-pressed={formData.requiereActualizacion}
+                                                        onClick={() => setFormData(prev => ({
+                                                            ...prev,
+                                                            requiereActualizacion: !prev.requiereActualizacion,
+                                                            updateDate: prev.requiereActualizacion ? "" : prev.updateDate,
+                                                            tipoAjuste: prev.requiereActualizacion ? "" : prev.tipoAjuste,
+                                                            porcentajeActualizacion: prev.requiereActualizacion ? "" : prev.porcentajeActualizacion
+                                                        }))}
+                                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${formData.requiereActualizacion ? 'bg-indigo-600' : 'bg-gray-200'}`}
+                                                    >
+                                                        <span
+                                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.requiereActualizacion ? 'translate-x-6' : 'translate-x-1'}`}
+                                                        />
+                                                    </button>
+                                                    <span className={`ml-3 text-xs font-bold ${formData.requiereActualizacion ? 'text-indigo-600' : 'text-gray-600'}`}>SÍ</span>
+                                                </div>
+                                            </div>
+                                            {formData.requiereActualizacion && (
+                                                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label htmlFor="contract-update-frequency" className="block text-xs font-medium text-gray-700 mb-1">
+                                                            Frecuencia Actualiz. (Meses) *
+                                                        </label>
+                                                        <NumericInput
+                                                            {...validation.inputProps('contract-update-frequency')}
+                                                            className="ui-field"
+                                                            required
+                                                            placeholder="Ej: 3"
+                                                            value={formData.frecuenciaActualizacion}
+                                                            onChange={(val) => setFormData(prev => ({ ...prev, frecuenciaActualizacion: val.toString() }))}
+                                                        />
+                                                        <FieldError id="contract-update-frequency" message={validation.errors['contract-update-frequency']} />
+                                                    </div>
+                                                    <div>
+                                                        <label htmlFor="contract-next-update" className="block text-xs font-medium text-gray-700 mb-1">
+                                                            Próxima Actualización *
+                                                        </label>
+                                                        <input
+                                                            {...validation.inputProps('contract-next-update')}
+                                                            type="date"
+                                                            name="updateDate"
+                                                            required
+                                                            className="ui-field"
+                                                            value={formData.updateDate}
+                                                            onChange={handleChange}
+                                                        />
+                                                        <FieldError id="contract-next-update" message={validation.errors['contract-next-update']} />
+                                                    </div>
+                                                </div>
+                                            )}
+		                                        </div>
+
+		                                    {/* ─── Tipo de Ajuste ─── */}
+	                                    {formData.requiereActualizacion && <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+	                                        <h4 className="text-sm font-semibold text-indigo-900 mb-3 uppercase tracking-wide">
+	                                            Tipo de Ajuste
+                                        </h4>
+                                        <div>
+                                            <label htmlFor="contract-adjustment-type" className="block text-xs font-medium text-gray-700 mb-1">
+                                                Tipo de Ajuste (Ej: IPC trimestral) *
+                                            </label>
+                                            <input
+                                                {...validation.inputProps('contract-adjustment-type')}
+                                                type="text"
+                                                name="tipoAjuste"
+                                                required
+                                                className="ui-field"
+                                                placeholder="Ej: IPC trimestral, ICL semestral..."
+                                                value={formData.tipoAjuste}
+	                                                onChange={handleChange}
+	                                            />
+	                                            <FieldError id="contract-adjustment-type" message={validation.errors['contract-adjustment-type']} />
+	                                        </div>
+	                                    </div>}
+
+                                    <div className="border-t border-slate-200 pt-6"><h3 className="text-base font-semibold text-slate-900">Acuerdos e información opcional</h3><p className="mt-1 text-sm text-slate-600">Completá sólo lo que corresponda. Si registrás un cobro o una transferencia, indicá también su medio y cuenta.</p></div>
                                     <section className="rounded-xl border border-gray-200 bg-white p-4">
                                         <h4 className="text-sm font-semibold uppercase tracking-wide text-indigo-900">Pago del alquiler y entrega al propietario</h4>
                                         <p className="mt-1 text-xs text-gray-600">Estas modalidades son las acordadas. Cada cobro y entrega conservará el medio realmente utilizado.</p>
@@ -569,14 +738,14 @@ export default function NewContractModal({
                                             <div><label className="text-sm font-medium text-gray-800">Cobro acordado con inquilino</label><AppSelect ariaLabel="Cobro acordado con inquilino" value={formData.modalidadCobroInquilino} onChange={value => setFormData(current => ({ ...current, modalidadCobroInquilino: value, cuentaCobroAcordadaId: value === 'TRANSFERENCIA' ? current.cuentaCobroAcordadaId : '' }))} options={[{ value: '', label: 'Sin acordar' }, ...PAYMENT_METHOD_OPTIONS]} className="mt-1" /></div>
                                             <div><label className="text-sm font-medium text-gray-800">Pago acordado con propietario</label><AppSelect ariaLabel="Pago acordado con propietario" value={formData.modalidadPagoPropietario} onChange={value => setFormData(current => ({ ...current, modalidadPagoPropietario: value }))} options={[{ value: '', label: 'Sin acordar' }, ...PAYMENT_METHOD_OPTIONS]} className="mt-1" /></div>
                                         </div>
-                                        {formData.modalidadCobroInquilino === 'TRANSFERENCIA' && <div className="mt-3"><label className="text-sm font-medium text-gray-800">Cuenta acordada para recibir la transferencia</label><AppSelect ariaLabel="Cuenta acordada para recibir la transferencia" value={formData.cuentaCobroAcordadaId} onChange={value => setFormData(current => ({ ...current, cuentaCobroAcordadaId: value }))} options={[{ value: '', label: 'Seleccionar cuenta bancaria' }, ...cuentasBancarias.filter(account => account.activa && account.moneda === formData.moneda).map(account => ({ value: String(account.id), label: `${account.banco} · ${account.nombre}` }))]} className="mt-1" /><p className="mt-1 text-xs text-gray-600">Se mostrará por nombre y banco en la liquidación y el comprobante.</p></div>}
+                                        {formData.modalidadCobroInquilino === 'TRANSFERENCIA' && <div className="mt-3"><label className="text-sm font-medium text-gray-800">Cuenta acordada para recibir la transferencia</label><AppSelect {...validation.ariaProps('contract-agreed-account')} ariaLabel="Cuenta acordada para recibir la transferencia" value={formData.cuentaCobroAcordadaId} onChange={value => { validation.clear('contract-agreed-account'); setFormData(current => ({ ...current, cuentaCobroAcordadaId: value })); }} options={[{ value: '', label: 'Seleccionar cuenta bancaria' }, ...cuentasBancarias.filter(account => account.activa && account.moneda === formData.moneda).map(account => ({ value: String(account.id), label: `${account.banco} · ${account.nombre}` }))]} className="mt-1" /><p className="mt-1 text-xs text-gray-600">Se mostrará por nombre y banco en la liquidación y el comprobante.</p><FieldError id="contract-agreed-account" message={validation.errors['contract-agreed-account']} /></div>}
                                     </section>
 
                                     {/* ─── Servicios y gastos ─── */}
                                     <section className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4">
                                         <div className="flex flex-wrap items-start justify-between gap-3">
                                             <div>
-                                                <h4 className="text-sm font-semibold uppercase tracking-wide text-indigo-900">Servicios y gastos</h4>
+                                                <h4 id="contract-services" tabIndex={-1} className="text-sm font-semibold uppercase tracking-wide text-indigo-900">Servicios y gastos</h4><FieldError id="contract-services" message={validation.errors['contract-services']} />
                                                 <p className="mt-1 text-xs text-indigo-800">Indicá a quién corresponde cada concepto según el contrato. Es sólo una referencia: no genera importes ni movimientos.</p>
                                             </div>
                                             <button
@@ -694,7 +863,7 @@ export default function NewContractModal({
                                                         Método de Pago *
                                                     </label>
                                                     <AppSelect
-                                                        id="contract-initial-fee-method"
+                                                        {...validation.ariaProps('contract-initial-fee-method')}
                                                         name="honorarioInicialMetodoPago"
                                                         required
                                                         ariaLabel="Método de pago del honorario inicial"
@@ -706,12 +875,13 @@ export default function NewContractModal({
                                                         ]}
                                                         buttonClassName="border-green-300 focus-visible:border-green-500 focus-visible:ring-green-100 data-open:border-green-500 data-open:ring-green-100"
                                                     />
+                                                    <FieldError id="contract-initial-fee-method" message={validation.errors['contract-initial-fee-method']} />
                                                 </div>
                                             </div>
                                             {formData.honorarioInicialMetodoPago && formData.honorarioInicialMetodoPago !== 'EFECTIVO' && <div className="mt-4">
                                                 <label htmlFor="contract-initial-fee-bank" className="block text-xs font-medium text-green-800 mb-1">Banco / cuenta donde ingresó *</label>
                                                 <AppSelect
-                                                    id="contract-initial-fee-bank"
+                                                    {...validation.ariaProps('contract-initial-fee-bank')}
                                                     ariaLabel="Cuenta bancaria del honorario inicial"
                                                     required
                                                     value={formData.honorarioInicialCuentaBancariaId}
@@ -719,151 +889,10 @@ export default function NewContractModal({
                                                     options={[{ value: '', label: cuentasBancarias.some(cuenta => cuenta.moneda === formData.monedaHonorarioInicial) ? 'Seleccionar cuenta' : 'No hay cuentas activas para esta moneda' }, ...cuentasBancarias.filter(cuenta => cuenta.moneda === formData.monedaHonorarioInicial).map(cuenta => ({ value: String(cuenta.id), label: `${cuenta.banco} — ${cuenta.nombre}` }))]}
                                                     buttonClassName="border-green-300 focus-visible:border-green-500 focus-visible:ring-green-100"
                                                 />
+                                                <FieldError id="contract-initial-fee-bank" message={validation.errors['contract-initial-fee-bank']} />
                                             </div>}
                                         </div>
                                     )}
-
-                                    {/* ─── Administración ─── */}
-                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center justify-between">
-                                        <div>
-                                            <h4 className="text-sm font-semibold text-indigo-900 uppercase tracking-wide">
-                                                Administración
-                                            </h4>
-                                            <p className="text-xs text-content-muted">¿La inmobiliaria administra este contrato mensualmente?</p>
-                                        </div>
-                                        <div className="flex items-center">
-                                            <span className={`mr-3 text-xs font-bold ${!formData.administrado ? 'text-indigo-600' : 'text-gray-600'}`}>NO</span>
-                                            <button
-                                                type="button"
-                                                aria-label="La inmobiliaria administra el contrato"
-                                                aria-pressed={formData.administrado}
-                                                onClick={() => setFormData(prev => ({ ...prev, administrado: !prev.administrado }))}
-                                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${formData.administrado ? 'bg-indigo-600' : 'bg-gray-200'}`}
-                                            >
-                                                <span
-                                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.administrado ? 'translate-x-6' : 'translate-x-1'}`}
-                                                />
-                                            </button>
-                                            <span className={`ml-3 text-xs font-bold ${formData.administrado ? 'text-indigo-600' : 'text-gray-600'}`}>SÍ</span>
-                                        </div>
-                                    </div>
-
-                                    {/* ─── Vigencia y Fechas ─── */}
-                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                                        <h4 className="text-sm font-semibold text-indigo-900 mb-3 uppercase tracking-wide">
-                                            Vigencia y Fechas *
-                                        </h4>
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                            <div>
-                                                <label htmlFor="contract-start-date" className="block text-xs font-medium text-gray-700 mb-1">
-                                                    Fecha Inicio *
-                                                </label>
-                                                <input
-                                                    id="contract-start-date"
-                                                    type="date"
-                                                    name="startDate"
-                                                    required
-                                                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
-                                                    value={formData.startDate}
-                                                    onChange={handleChange}
-                                                />
-                                            </div>
-                                            <div>
-                                                <label htmlFor="contract-end-date" className="block text-xs font-medium text-gray-700 mb-1">
-                                                    Fecha Fin *
-                                                </label>
-                                                <input
-                                                    id="contract-end-date"
-                                                    type="date"
-                                                    name="endDate"
-                                                    required
-                                                    className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
-                                                    value={formData.endDate}
-                                                    onChange={handleChange}
-                                                />
-                                            </div>
-                                            </div>
-                                            <div className="mt-4 flex items-center justify-between rounded-lg border border-gray-200 bg-white px-4 py-3">
-                                                <div>
-                                                    <p className="text-sm font-semibold text-gray-800">Actualización de alquiler</p>
-                                                    <p className="text-xs text-content-muted">Define si este contrato tendrá una actualización programada.</p>
-                                                </div>
-                                                <div className="flex items-center">
-                                                    <span className={`mr-3 text-xs font-bold ${!formData.requiereActualizacion ? 'text-indigo-600' : 'text-gray-600'}`}>NO</span>
-                                                    <button
-                                                        type="button"
-                                                        aria-label="El contrato tiene actualización programada"
-                                                        aria-pressed={formData.requiereActualizacion}
-                                                        onClick={() => setFormData(prev => ({
-                                                            ...prev,
-                                                            requiereActualizacion: !prev.requiereActualizacion,
-                                                            updateDate: prev.requiereActualizacion ? "" : prev.updateDate,
-                                                            tipoAjuste: prev.requiereActualizacion ? "" : prev.tipoAjuste,
-                                                            porcentajeActualizacion: prev.requiereActualizacion ? "" : prev.porcentajeActualizacion
-                                                        }))}
-                                                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${formData.requiereActualizacion ? 'bg-indigo-600' : 'bg-gray-200'}`}
-                                                    >
-                                                        <span
-                                                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.requiereActualizacion ? 'translate-x-6' : 'translate-x-1'}`}
-                                                        />
-                                                    </button>
-                                                    <span className={`ml-3 text-xs font-bold ${formData.requiereActualizacion ? 'text-indigo-600' : 'text-gray-600'}`}>SÍ</span>
-                                                </div>
-                                            </div>
-                                            {formData.requiereActualizacion && (
-                                                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                                    <div>
-                                                        <label htmlFor="contract-update-frequency" className="block text-xs font-medium text-gray-700 mb-1">
-                                                            Frecuencia Actualiz. (Meses) *
-                                                        </label>
-                                                        <NumericInput
-                                                            id="contract-update-frequency"
-                                                            className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
-                                                            required
-                                                            placeholder="Ej: 3"
-                                                            value={formData.frecuenciaActualizacion}
-                                                            onChange={(val) => setFormData(prev => ({ ...prev, frecuenciaActualizacion: val.toString() }))}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label htmlFor="contract-next-update" className="block text-xs font-medium text-gray-700 mb-1">
-                                                            Próxima Actualización *
-                                                        </label>
-                                                        <input
-                                                            id="contract-next-update"
-                                                            type="date"
-                                                            name="updateDate"
-                                                            required
-                                                            className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
-                                                            value={formData.updateDate}
-                                                            onChange={handleChange}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            )}
-		                                        </div>
-
-		                                    {/* ─── Tipo de Ajuste ─── */}
-	                                    {formData.requiereActualizacion && <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-	                                        <h4 className="text-sm font-semibold text-indigo-900 mb-3 uppercase tracking-wide">
-	                                            Tipo de Ajuste
-                                        </h4>
-                                        <div>
-                                            <label htmlFor="contract-adjustment-type" className="block text-xs font-medium text-gray-700 mb-1">
-                                                Tipo de Ajuste (Ej: IPC trimestral) *
-                                            </label>
-                                            <input
-                                                id="contract-adjustment-type"
-                                                type="text"
-                                                name="tipoAjuste"
-                                                required
-                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
-                                                placeholder="Ej: IPC trimestral, ICL semestral..."
-                                                value={formData.tipoAjuste}
-	                                                onChange={handleChange}
-	                                            />
-	                                        </div>
-	                                    </div>}
 
                                     {/* ─── Observaciones ─── */}
                                     <div>
@@ -874,7 +903,7 @@ export default function NewContractModal({
                                             id="contract-observations"
                                             name="observations"
                                             rows={3}
-                                            className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
+                                            className="ui-field"
                                             placeholder="Ingresá cualquier observación relevante..."
                                             value={formData.observations}
                                             onChange={handleChange}
@@ -885,24 +914,26 @@ export default function NewContractModal({
                                     <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                         <LocalizedFilePicker
                                             id="contract-main-file"
+                                            errorMessage={validation.errors['contract-main-file']}
                                             label="Contrato principal"
                                             accept={MAIN_CONTRACT_ACCEPT}
                                             formatsLabel={MAIN_CONTRACT_FORMATS_LABEL}
                                             selectedFiles={formData.file ? [formData.file] : []}
                                             onFilesSelected={handleFileSelection}
                                             validateFile={validateMainContractFile}
-                                            onValidationError={message => toast.error(message)}
+                                            onValidationError={message => validation.showErrors({ 'contract-main-file': message })}
                                             disabled={isSubmitting}
                                         />
                                         <LocalizedFilePicker
                                             id="contract-additional-files"
+                                            errorMessage={validation.errors['contract-additional-files']}
                                             label="Archivos adicionales"
                                             accept={ATTACHMENT_ACCEPT}
                                             formatsLabel={ATTACHMENT_FORMATS_LABEL}
                                             selectedFiles={formData.additionalFiles}
                                             onFilesSelected={handleAdditionalFilesSelection}
                                             validateFile={validateAttachmentFile}
-                                            onValidationError={message => toast.error(message)}
+                                            onValidationError={message => validation.showErrors({ 'contract-additional-files': message })}
                                             multiple
                                             disabled={isSubmitting}
                                         />
@@ -917,7 +948,7 @@ export default function NewContractModal({
                                                 id="contract-document-observation"
                                                 name="observacionDocumento"
                                                 rows={2}
-                                                className="w-full rounded-lg border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm py-2 px-3"
+                                                className="ui-field"
                                                 placeholder="Ej.: Reemplaza el contrato firmado el 01/03/2026"
                                                 value={formData.observacionDocumento}
                                                 onChange={handleChange}
@@ -996,8 +1027,9 @@ export default function NewContractModal({
                                         </div>
                                     )}
 
+                                </form>
                                     {/* ─── Footer Actions ─── */}
-                                    <div className="sticky bottom-0 -mx-4 -mb-4 flex justify-end gap-3 border-t border-gray-100 bg-white p-4 sm:-mx-6 sm:-mb-6 sm:p-6">
+                                    <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-gray-100 bg-white p-4 sm:flex sm:justify-end sm:px-6">
                                         <button
                                             type="button"
                                             onClick={onClose}
@@ -1018,13 +1050,13 @@ export default function NewContractModal({
                                         )}
                                         <button
                                             type="submit"
+                                            form="contract-form"
                                             disabled={isSubmitting}
-                                            className="min-h-11 flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 shadow-sm sm:flex-none"
+                                            className={`ui-button ui-button-primary ${!editingContract && !renewingContract && onSaveDraft ? 'col-span-2' : ''} sm:flex-none`}
                                         >
                                             {isSubmitting ? 'Guardando...' : editingContract ? 'Guardar cambios' : 'Guardar contrato'}
                                         </button>
                                     </div>
-                                </form>
                             </Dialog.Panel>
                         </Transition.Child>
                     </div>

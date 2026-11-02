@@ -37,10 +37,10 @@ export default function HonorariosModal({ isOpen, onClose, onSave, currentMonto,
             <Dialog as="div" className="relative z-50" onClose={onClose}>
                 <Transition.Child
                     as={Fragment}
-                    enter="ease-out duration-300"
+                    enter="ui-modal-enter-transition"
                     enterFrom="opacity-0"
                     enterTo="opacity-100"
-                    leave="ease-in duration-200"
+                    leave="ui-modal-leave-transition"
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
@@ -51,12 +51,12 @@ export default function HonorariosModal({ isOpen, onClose, onSave, currentMonto,
                     <div className="flex h-full min-h-0 items-center justify-center p-4 text-center">
                         <Transition.Child
                             as={Fragment}
-                            enter="ease-out duration-300"
-                            enterFrom="opacity-0 scale-95"
+                            enter="ui-modal-enter-transition"
+                            enterFrom="opacity-0 scale-[0.98]"
                             enterTo="opacity-100 scale-100"
-                            leave="ease-in duration-200"
+                            leave="ui-modal-leave-transition"
                             leaveFrom="opacity-100 scale-100"
-                            leaveTo="opacity-0 scale-95"
+                            leaveTo="opacity-0 scale-[0.98]"
                         >
                             <Dialog.Panel className="modal-scroll max-h-full w-full max-w-sm transform rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
                                 <div className="flex justify-between items-center mb-6">

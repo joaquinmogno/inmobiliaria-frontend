@@ -1,9 +1,10 @@
+import LoadingState from '../components/LoadingState';
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import { contractsService, type KeyDeliveryForm, type RescissionAct, type RescissionContext, type RescissionForm } from '../services/contracts.service';
 import { openAuthenticatedFile, openAuthenticatedPdf } from '../services/api';
-import { todayDateInput } from '../utils/date';
+import { todayDateInput, formatDateTime } from '../utils/date';
 import { formatCurrency } from '../utils/currency';
 import { useAuth } from '../context/AuthContext';
 import { hasPermission } from '../utils/permissions';
@@ -152,7 +153,7 @@ export default function RescisionContrato() {
         finally { setBusy(false); }
     };
 
-    if (loading) return <div className="p-8 text-gray-600">Cargando rescisión…</div>;
+    if (loading) return <LoadingState label="Cargando rescisión…" />;
     if (!context || !form) return <div className="p-8 text-red-700">{error || 'Contrato no encontrado'}</div>;
     const { contrato, saldosRegistrados } = context;
     const hasKeys = Boolean(contrato.fechaEntregaLlaves && context.actasLlaves.length);
@@ -282,7 +283,7 @@ export default function RescisionContrato() {
                 </div></section>
                 <section className={section}><h2 className="font-bold text-gray-900">Actas de cierre sin reclamos</h2><div className="mt-3 space-y-3 text-sm">
                     {context.actas.length === 0 && <p className="text-gray-600">Todavía no hay actas.</p>}
-                    {context.actas.map(act => { const signed = context.copiasFirmadas.find(item => item.versionDocumento === act.version); return <div key={act.id} className="rounded-xl border border-gray-200 p-3"><p className="font-bold">Versión {act.version} · {new Date(act.fechaEmision).toLocaleDateString('es-AR')}</p>{act.motivoRevision && <p className="text-gray-600">Motivo: {act.motivoRevision}</p>}{canViewFiles && <button type="button" className="mt-2 font-bold text-orange-700 underline" onClick={() => openAuthenticatedPdf(`/contratos/${contractId}/actas-rescision/${act.version}/pdf`).catch(err => setError(err.message))}>Ver / descargar PDF</button>}{signed && canViewFiles ? <button type="button" className="ml-3 font-bold text-blue-700 underline" onClick={() => openAuthenticatedFile(signed.rutaArchivo).catch(err => setError(err.message))}>Copia firmada</button> : !signed && canEdit && canViewFiles ? <label className="mt-2 block cursor-pointer text-blue-700 underline">Adjuntar copia firmada<input type="file" className="sr-only" accept="application/pdf,image/jpeg,image/png" disabled={busy} onChange={e => uploadSigned(act.version, e.target.files?.[0])} /></label> : null}</div>; })}
+                    {context.actas.map(act => { const signed = context.copiasFirmadas.find(item => item.versionDocumento === act.version); return <div key={act.id} className="rounded-xl border border-gray-200 p-3"><p className="font-bold">Versión {act.version} · {formatDateTime(act.fechaEmision)}</p>{act.motivoRevision && <p className="text-gray-600">Motivo: {act.motivoRevision}</p>}{canViewFiles && <button type="button" className="mt-2 font-bold text-orange-700 underline" onClick={() => openAuthenticatedPdf(`/contratos/${contractId}/actas-rescision/${act.version}/pdf`).catch(err => setError(err.message))}>Ver / descargar PDF</button>}{signed && canViewFiles ? <button type="button" className="ml-3 font-bold text-blue-700 underline" onClick={() => openAuthenticatedFile(signed.rutaArchivo).catch(err => setError(err.message))}>Copia firmada</button> : !signed && canEdit && canViewFiles ? <label className="mt-2 block cursor-pointer text-blue-700 underline">Adjuntar copia firmada<input type="file" className="sr-only" accept="application/pdf,image/jpeg,image/png" disabled={busy} onChange={e => uploadSigned(act.version, e.target.files?.[0])} /></label> : null}</div>; })}
                 </div></section>
             </div>
         </div>

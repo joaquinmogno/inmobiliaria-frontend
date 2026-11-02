@@ -1,3 +1,4 @@
+import LoadingState from '../components/LoadingState';
 import { useEffect, useState } from "react";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -97,12 +98,7 @@ export default function LiquidacionDetalle() {
         return formatMonthYear(dateStr);
     };
 
-    if (isLoading) return (
-        <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-            <p className="text-content-muted font-medium">Cargando detalle de liquidación...</p>
-        </div>
-    );
+    if (isLoading) return <LoadingState label="Cargando liquidación…" />;
 
     if (!liquidacion) return (
         <div className="text-center py-20">
@@ -172,28 +168,26 @@ export default function LiquidacionDetalle() {
             <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
                 <button
                     onClick={goToList}
-                    className="group flex self-start items-center gap-2 rounded-xl py-2 pr-4 font-medium text-content-muted transition-all hover:text-gray-900"
+                    className="ui-button ui-button-ghost self-start"
                 >
-                    <div className="bg-white p-2 rounded-lg border border-gray-200 group-hover:border-gray-300 shadow-sm transition-all">
-                        <ChevronLeftIcon className="w-4 h-4" />
-                    </div>
+                    <ChevronLeftIcon className="w-4 h-4" />
                     Volver
                 </button>
-                <div data-testid="liquidation-primary-actions" className="flex min-w-0 flex-wrap items-center gap-2 lg:ml-auto lg:justify-end">
+                <div data-testid="liquidation-primary-actions" className="ui-page-actions min-w-0 lg:ml-auto">
                     {canConfirmLiquidations && liquidacion.estado === 'BORRADOR' && (
                         <button
                             onClick={() => void handleConfirmar()}
-                            className="flex min-h-11 items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2.5 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 font-bold text-sm cursor-pointer"
+                            className="ui-button ui-button-primary"
                         >
                             <CheckIcon className="w-5 h-5" />
                             Confirmar liquidación
                         </button>
                     )}
-                    {liquidacion.estado === 'BORRADOR' && <button type="button" onClick={() => { toast.success('Borrador guardado'); navigate(`/liquidaciones/contrato/${liquidacion.contratoId}?periodo=${liquidacion.periodo.slice(0, 7)}`); }} className="min-h-11 rounded-xl border border-indigo-300 bg-white px-4 text-sm font-bold text-indigo-800">Guardar borrador</button>}
+                    {liquidacion.estado === 'BORRADOR' && <button type="button" onClick={() => { toast.success('Borrador guardado'); navigate(`/liquidaciones/contrato/${liquidacion.contratoId}?periodo=${liquidacion.periodo.slice(0, 7)}`); }} className="ui-button ui-button-secondary">Guardar borrador</button>}
                     {canCreatePayments && liquidacion.estado === 'CONFIRMADA' && tenantCollectionPending && (
                         <button
                             onClick={() => setIsPaymentModalOpen(true)}
-                            className="flex min-h-11 items-center justify-center gap-2 bg-status-success text-white px-4 py-2.5 rounded-xl hover:bg-status-success-strong transition-all shadow-md shadow-green-100 font-bold text-sm cursor-pointer"
+                            className="ui-button ui-button-primary"
                         >
                             <BanknotesIcon className="w-5 h-5" />
                             Registrar pago del inquilino
@@ -202,15 +196,15 @@ export default function LiquidacionDetalle() {
                     {canPayOwners && liquidacion.estado === 'CONFIRMADA' && ownerPaymentPending && (
                         <button
                             onClick={() => setIsOwnerPaymentModalOpen(true)}
-                            className="flex min-h-11 items-center justify-center gap-2 bg-orange-600 text-white px-4 py-2.5 rounded-xl hover:bg-orange-700 transition-all shadow-md shadow-orange-100 font-bold text-sm cursor-pointer"
+                            className={`ui-button ${canCreatePayments && tenantCollectionPending ? 'ui-button-secondary' : 'ui-button-primary'}`}
                         >
                             <BuildingOfficeIcon className="w-5 h-5" />
                             Pagar a {liquidacion.propietarioNombre || liquidacion.propietarioPago?.nombreCompleto || liquidacion.contrato?.propietarios.find(owner => owner.esPrincipal)?.persona.nombreCompleto || 'propietario'}
                         </button>
                     )}
                     <Menu as="div" className="relative">
-                        <MenuButton className="flex min-h-11 items-center gap-2 rounded-xl border border-gray-300 bg-white px-3 text-sm font-bold text-gray-700">Más opciones <ChevronDownIcon className="h-4 w-4" /></MenuButton>
-                        <MenuItems className="absolute right-0 z-30 mt-2 grid w-72 max-w-[calc(100vw-2rem)] gap-2 rounded-2xl border border-gray-200 bg-white p-3 shadow-xl focus:outline-none">
+                        <MenuButton className="ui-button ui-button-secondary w-full sm:w-auto">Más opciones <ChevronDownIcon className="h-4 w-4" /></MenuButton>
+                        <MenuItems transition className="ui-popover absolute right-0 z-30 mt-2 grid w-72 max-w-[calc(100vw-2rem)] gap-2 rounded-2xl border border-gray-200 bg-white p-3 shadow-xl focus:outline-none">
                     {canViewContracts && <MenuItem as="button" type="button" onClick={() => setShowContract(true)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-indigo-300 bg-white px-4 py-2.5 text-sm font-bold text-indigo-800">VER CONTRATO</MenuItem>}
                     {canRenewContracts && ['FINALIZADO', 'RESCINDIDO'].includes(liquidacion.contrato?.estado || '') && <MenuItem as="button" type="button" onClick={() => navigate('/contratos', { state: { renewContractId: liquidacion.contratoId } })} className="flex min-h-11 items-center justify-center rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-bold text-white">RENOVAR CONTRATO</MenuItem>}
                     {canAdjustLiquidations && liquidacion.estado === 'CONFIRMADA' && <MenuItem as="button" onClick={() => setIsAdjustmentModalOpen(true)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-sm font-bold text-indigo-700 hover:bg-indigo-50">Emitir ajuste</MenuItem>}
@@ -246,30 +240,30 @@ export default function LiquidacionDetalle() {
 
             {liquidacion.estado === 'BORRADOR' && (confirmIssues.length > 0 || confirmError) && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900"><p className="font-black">Revisá antes de confirmar</p>{confirmIssues.map(message => <p key={message}>• {message}</p>)}{confirmError && <p>• {confirmError}</p>}</div>}
 
-            <section aria-labelledby="liquidation-concepts-title" className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+            <section aria-labelledby="liquidation-concepts-title" className="ui-panel p-4 sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <h2 id="liquidation-concepts-title" className="text-base font-black text-gray-900">Conceptos y cálculo detallado</h2>
                     <div className="flex flex-wrap items-center gap-2">
-                        {canEditNote && <button type="button" onClick={() => setIsNoteModalOpen(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-indigo-200 px-3 text-sm font-bold text-indigo-700 hover:bg-indigo-50"><DocumentTextIcon className="h-5 w-5" />Nota para liquidación</button>}
-                        {esEditable && canEditLiquidations && <button type="button" onClick={() => setIsMovimientoModalOpen(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-indigo-50 px-3 text-sm font-bold text-indigo-700 hover:bg-indigo-100"><PlusIcon className="h-5 w-5" />Agregar movimiento</button>}
+                        {canEditNote && <button type="button" onClick={() => setIsNoteModalOpen(true)} className="ui-button ui-button-ghost"><DocumentTextIcon className="h-5 w-5" />Nota para liquidación</button>}
+                        {esEditable && canEditLiquidations && <button type="button" onClick={() => setIsMovimientoModalOpen(true)} className="ui-button ui-button-secondary"><PlusIcon className="h-5 w-5" />Agregar movimiento</button>}
                     </div>
                 </div>
                 <div className="mt-3 grid grid-cols-1 gap-5 lg:grid-cols-2">
                 {/* Ingresos Column */}
                 <div className="space-y-4">
                     <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
-                            <div className="w-1.5 h-6 bg-green-500 rounded-full" />
+                        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                            <div className="h-2 w-2 rounded-full bg-emerald-600" />
                             Ingresos
                         </h3>
 
                     </div>
                     <div className="space-y-2 lg:hidden">
-                        {ingresos.map(m => <article key={m.id} className="rounded-2xl border border-gray-200 p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="break-words text-sm font-bold text-gray-900">{m.concepto}</p>{m.observaciones && <p className="mt-1 break-words text-xs text-gray-700">{m.observaciones}</p>}</div><p className="shrink-0 text-sm font-black text-gray-950">{formatCurrency(m.monto, m.moneda)}</p></div>{esEditable && canEditLiquidations && <button type="button" onClick={() => setMovimientoAEliminar(m.id)} data-danger-trigger="true" className="mt-3 min-h-11 rounded-xl border border-red-300 px-3 text-sm font-bold text-red-800">Eliminar concepto</button>}</article>)}
-                        {ingresos.length === 0 && <p className="rounded-2xl border border-gray-200 p-4 text-sm text-gray-700">No hay ingresos registrados.</p>}
+                        {ingresos.map(m => <article key={m.id} className="border-b border-slate-100 py-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="break-words text-sm font-bold text-gray-900">{m.concepto}</p>{m.observaciones && <p className="mt-1 break-words text-xs text-gray-700">{m.observaciones}</p>}</div><p className="shrink-0 text-sm font-black text-gray-950">{formatCurrency(m.monto, m.moneda)}</p></div>{esEditable && canEditLiquidations && <button type="button" onClick={() => setMovimientoAEliminar(m.id)} data-danger-trigger="true" className="mt-3 min-h-11 rounded-xl border border-red-300 px-3 text-sm font-bold text-red-800">Eliminar concepto</button>}</article>)}
+                        {ingresos.length === 0 && <p className="border-b border-slate-100 py-4 text-sm text-gray-700">No hay ingresos registrados.</p>}
                     </div>
-                    <div className="hidden overflow-x-auto rounded-3xl border border-gray-100 bg-white shadow-sm lg:block">
-                        <table className="w-full table-fixed">
+                    <div className="hidden overflow-x-auto border-y border-slate-100 lg:block">
+                        <table className="tabular-nums w-full table-fixed">
                             <thead>
                                 <tr className="bg-gray-50/50 border-b border-gray-100">
                                     <th className="text-left py-2 px-3 text-xs font-black text-gray-600 uppercase tracking-widest">Concepto</th>
@@ -284,7 +278,7 @@ export default function LiquidacionDetalle() {
                                             <p className="break-words text-sm font-bold text-gray-900 [overflow-wrap:anywhere]">{m.concepto}</p>
                                             {m.observaciones && <p className="mt-0.5 break-words text-xs text-gray-600 [overflow-wrap:anywhere]">{m.observaciones}</p>}
                                         </td>
-                                        <td className="py-2 px-3 text-right font-mono font-black text-gray-900 text-sm">
+                                        <td className="py-2 px-3 text-right tabular-nums font-black text-gray-900 text-sm">
                                             {formatCurrency(m.monto, m.moneda)}
                                         </td>
                                         {esEditable && canEditLiquidations && (
@@ -321,17 +315,17 @@ export default function LiquidacionDetalle() {
                 {/* Descuentos Column */}
                 <div className="space-y-4">
                     <div className="flex justify-between items-center">
-                        <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight flex items-center gap-2">
-                            <div className="w-1.5 h-6 bg-red-500 rounded-full" />
+                        <h3 className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                            <div className="h-2 w-2 rounded-full bg-red-600" />
                             Egresos / Descuentos
                         </h3>
                     </div>
                     <div className="space-y-2 lg:hidden">
-                        {descuentos.map(m => <article key={m.id} className="rounded-2xl border border-gray-200 p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="break-words text-sm font-bold text-gray-900">{m.concepto}</p>{m.observaciones && <p className="mt-1 break-words text-xs text-gray-700">{m.observaciones}</p>}</div><p className="shrink-0 text-sm font-black text-red-800">({formatCurrency(m.monto, m.moneda)})</p></div>{esEditable && canEditLiquidations && <button type="button" onClick={() => setMovimientoAEliminar(m.id)} data-danger-trigger="true" className="mt-3 min-h-11 rounded-xl border border-red-300 px-3 text-sm font-bold text-red-800">Eliminar concepto</button>}</article>)}
-                        {descuentos.length === 0 && <p className="rounded-2xl border border-gray-200 p-4 text-sm text-gray-700">No hay descuentos registrados.</p>}
+                        {descuentos.map(m => <article key={m.id} className="border-b border-slate-100 py-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="break-words text-sm font-bold text-gray-900">{m.concepto}</p>{m.observaciones && <p className="mt-1 break-words text-xs text-gray-700">{m.observaciones}</p>}</div><p className="shrink-0 text-sm font-black text-red-800">({formatCurrency(m.monto, m.moneda)})</p></div>{esEditable && canEditLiquidations && <button type="button" onClick={() => setMovimientoAEliminar(m.id)} data-danger-trigger="true" className="mt-3 min-h-11 rounded-xl border border-red-300 px-3 text-sm font-bold text-red-800">Eliminar concepto</button>}</article>)}
+                        {descuentos.length === 0 && <p className="border-b border-slate-100 py-4 text-sm text-gray-700">No hay descuentos registrados.</p>}
                     </div>
-                    <div className="hidden overflow-x-auto rounded-3xl border border-gray-100 bg-white shadow-sm lg:block">
-                        <table className="w-full table-fixed">
+                    <div className="hidden overflow-x-auto border-y border-slate-100 lg:block">
+                        <table className="tabular-nums w-full table-fixed">
                             <thead>
                                 <tr className="bg-gray-50/50 border-b border-gray-100">
                                     <th className="text-left py-2 px-3 text-xs font-black text-gray-600 uppercase tracking-widest">Concepto</th>
@@ -346,7 +340,7 @@ export default function LiquidacionDetalle() {
                                             <p className="break-words text-sm font-bold text-gray-900 [overflow-wrap:anywhere]">{m.concepto}</p>
                                             {m.observaciones && <p className="mt-0.5 break-words text-xs text-gray-600 [overflow-wrap:anywhere]">{m.observaciones}</p>}
                                         </td>
-                                        <td className="py-2 px-3 text-right font-mono font-black text-status-danger text-sm">
+                                        <td className="py-2 px-3 text-right tabular-nums font-black text-status-danger text-sm">
                                             ({formatCurrency(m.monto, m.moneda)})
                                         </td>
                                         {esEditable && canEditLiquidations && (
@@ -391,15 +385,15 @@ export default function LiquidacionDetalle() {
                 <p className="mt-3 text-xs font-semibold text-indigo-800">PDF: {liquidationNoteRecipientLabels[liquidacion.destinatarioNotaLiquidacion || 'AMBOS']}</p>
             </section>}
 
-            <details className="rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm">
+            <details className="ui-panel p-4">
                 <summary className="flex min-h-11 cursor-pointer flex-wrap items-center justify-between gap-2 font-black text-gray-950"><span>Cobros de inquilinos</span><span className="text-xs font-semibold text-indigo-800">{settlementStatusLabel(liquidacion.estadoCobroInquilino)} · {liquidacion.pagos?.length || 0} cobros <ChevronDownIcon className="ml-2 inline h-4 w-4" /></span></summary>
             {(liquidacion.pagos?.length || 0) > 0 && (
                 <div className="mt-3 space-y-4">
                     <div className="space-y-2 lg:hidden">
-                        {liquidacion.pagos?.map(p => <article key={p.id} className="rounded-2xl border border-gray-200 bg-white p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-bold text-gray-950">{formatDate(p.fechaPago)} · {p.metodoPago.toLocaleLowerCase()}</p><p className="mt-1 break-words text-sm text-gray-700">{p.comprobante || p.observaciones || 'Sin referencia'} · {p.movimientoCaja?.cuentaBancaria ? `${p.movimientoCaja.cuentaBancaria.banco} · ${p.movimientoCaja.cuentaBancaria.nombre}` : p.movimientoCaja?.cuenta || 'Caja'} · registró {p.creadoPor?.nombreCompleto || 'Sistema'}</p>{p.imputacionesCuotas?.map(item => <p key={item.cuotaId} className="text-xs text-blue-800">{item.cuota.plan.concepto} · cuota {item.cuota.numeroCuota}: {formatCurrency(Number(item.monto), p.moneda)}</p>)}</div><p className="shrink-0 font-black text-green-800">{formatCurrency(Number(p.monto), p.moneda)}</p></div>{canReverseTenantPayments && liquidacion.estado === 'CONFIRMADA' && <button type="button" data-danger-trigger="true" onClick={() => setTenantPaymentToReverse(p.id)} className="mt-3 min-h-11 rounded-xl border border-red-300 px-3 text-sm font-bold text-red-800">Anular cobro</button>}</article>)}
+                        {liquidacion.pagos?.map(p => <article key={p.id} className="border-b border-slate-100 py-4"><div className="flex items-start justify-between gap-3"><div><p className="font-bold text-gray-950">{formatDate(p.fechaPago)} · {p.metodoPago.toLocaleLowerCase()}</p><p className="mt-1 break-words text-sm text-gray-700">{p.comprobante || p.observaciones || 'Sin referencia'} · {p.movimientoCaja?.cuentaBancaria ? `${p.movimientoCaja.cuentaBancaria.banco} · ${p.movimientoCaja.cuentaBancaria.nombre}` : p.movimientoCaja?.cuenta || 'Caja'} · registró {p.creadoPor?.nombreCompleto || 'Sistema'}</p>{p.imputacionesCuotas?.map(item => <p key={item.cuotaId} className="text-xs text-blue-800">{item.cuota.plan.concepto} · cuota {item.cuota.numeroCuota}: {formatCurrency(Number(item.monto), p.moneda)}</p>)}</div><p className="shrink-0 font-black text-green-800">{formatCurrency(Number(p.monto), p.moneda)}</p></div>{canReverseTenantPayments && liquidacion.estado === 'CONFIRMADA' && <button type="button" data-danger-trigger="true" onClick={() => setTenantPaymentToReverse(p.id)} className="mt-3 min-h-11 rounded-xl border border-red-300 px-3 text-sm font-bold text-red-800">Anular cobro</button>}</article>)}
                     </div>
-                    <div className="hidden overflow-x-auto rounded-3xl border border-gray-100 bg-white shadow-sm lg:block">
-                        <table className="w-full min-w-[48rem]">
+                    <div className="hidden overflow-x-auto border-y border-slate-100 lg:block">
+                        <table className="tabular-nums w-full min-w-[48rem]">
                             <thead>
                                 <tr className="bg-gray-50/50 border-b border-gray-100">
                                     <th className="text-left py-4 px-6 text-xs font-black text-gray-600 uppercase tracking-widest">Fecha</th>
@@ -429,7 +423,7 @@ export default function LiquidacionDetalle() {
                                         <td className="break-words py-4 px-6 text-sm font-medium text-content-muted [overflow-wrap:anywhere]">
                                             {p.creadoPor?.nombreCompleto || "Sistema"}
                                         </td>
-                                        <td className="py-4 px-6 text-right font-mono font-black text-status-success text-sm">
+                                        <td className="py-4 px-6 text-right tabular-nums font-black text-status-success text-sm">
                                             {formatCurrency(Number(p.monto), p.moneda)}
                                         </td>
                                     </tr>
@@ -463,7 +457,7 @@ export default function LiquidacionDetalle() {
                 {!(liquidacion.pagos?.length) && <p className="py-3 text-sm text-gray-600">Todavía no hay cobros registrados en esta liquidación.</p>}
             </details>
 
-            <details className="rounded-2xl border border-orange-100 bg-white p-4 shadow-sm" aria-labelledby="owner-payment-history-title">
+            <details className="ui-panel p-4" aria-labelledby="owner-payment-history-title">
                 <summary className="flex min-h-11 cursor-pointer flex-wrap items-center justify-between gap-2 font-black text-gray-950"><span id="owner-payment-history-title">Pagos al propietario</span><span className="text-xs font-semibold text-orange-800">{settlementStatusLabel(liquidacion.estadoPagoPropietario)} · {ownerPaymentHistory.length} movimientos <ChevronDownIcon className="ml-2 inline h-4 w-4" /></span></summary>
                 <div className="mt-4 flex w-full gap-1 rounded-xl bg-orange-100/70 p-1 sm:w-fit" role="tablist" aria-label="Pagos al propietario">
                     <button
@@ -487,7 +481,7 @@ export default function LiquidacionDetalle() {
                 </div>
 
                 {ownerPaymentTab === 'RESUMEN' ? (
-                    <div role="tabpanel" className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div role="tabpanel" className="ui-content-enter mt-4 grid gap-3 md:grid-cols-2">
                         {currencySummaries.filter(summary => summary.montoPropietario > 0 || summary.pagadoPropietario > 0).map(summary => (
                             <div key={summary.moneda} className="rounded-2xl border border-orange-100 bg-white p-4">
                                 <p className="text-xs font-black uppercase tracking-wide text-orange-800">{summary.moneda} · pagos al propietario</p>
@@ -500,7 +494,7 @@ export default function LiquidacionDetalle() {
                         ))}
                     </div>
                 ) : (
-                    <div role="tabpanel" className="mt-4">
+                    <div role="tabpanel" className="ui-content-enter mt-4">
                         {ownerPaymentHistory.length === 0 ? (
                             <div className="rounded-2xl border border-dashed border-orange-200 bg-white p-6 text-center text-sm text-gray-700">
                                 Todavía no hay entregas ni reversiones al propietario para esta liquidación.
@@ -538,7 +532,7 @@ export default function LiquidacionDetalle() {
                                     })}
                                 </div>
                                 <div className="hidden overflow-x-auto rounded-2xl border border-orange-100 bg-white lg:block">
-                                    <table className="w-full min-w-[66rem]">
+                                    <table className="tabular-nums w-full min-w-[66rem]">
                                         <thead>
                                             <tr className="border-b border-orange-100 bg-orange-50/70">
                                                 <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-gray-600">Fecha</th>
@@ -561,8 +555,8 @@ export default function LiquidacionDetalle() {
                                                         <td className="px-4 py-4 text-sm text-gray-700"><p className="font-semibold">{movement.metodoPago}</p><p className="text-xs text-gray-600">{movement.cuenta}</p></td>
                                                         <td className="px-4 py-4 text-sm font-bold text-indigo-700">{movement.comprobante}</td>
                                                         <td className="max-w-64 px-4 py-4 text-sm text-gray-700"><p>{movement.creadoPor?.nombreCompleto || 'Sistema'}</p><p className="mt-1 text-xs text-gray-600">{movement.reversionDeId ? `Revierte asiento #${movement.reversionDeId}` : movement.reversionId ? `Revertido por asiento #${movement.reversionId}` : movement.observaciones || 'Sin observaciones'}</p>{movement.montoAdelantoPropio > 0 && <p className="mt-1 text-xs font-bold text-rose-800">Adelanto {formatCurrency(movement.montoAdelantoPropio, movement.moneda || liquidacion.moneda)}</p>}{canReverseOwnerPayments && movement.tipo === 'PAGO' && movement.estado === 'VIGENTE' && <button type="button" data-danger-trigger="true" onClick={() => setOwnerPaymentToReverse(movement.pagoPropietarioId)} className="mt-2 rounded-lg border border-red-300 px-2 py-1 text-xs font-bold text-red-800">Anular</button>}</td>
-                                                        <td className={`whitespace-nowrap px-4 py-4 text-right font-mono text-sm font-black ${isReversal ? 'text-status-success' : 'text-orange-700'}`}>{isReversal ? '+' : '-'}{formatCurrency(movement.monto, movement.moneda || liquidacion.moneda)}</td>
-                                                        <td className="whitespace-nowrap px-4 py-4 text-right font-mono text-sm font-black text-gray-900">{formatCurrency(movement.saldoPosterior, movement.moneda || liquidacion.moneda)}</td>
+                                                        <td className={`whitespace-nowrap px-4 py-4 text-right tabular-nums text-sm font-black ${isReversal ? 'text-status-success' : 'text-orange-700'}`}>{isReversal ? '+' : '-'}{formatCurrency(movement.monto, movement.moneda || liquidacion.moneda)}</td>
+                                                        <td className="whitespace-nowrap px-4 py-4 text-right tabular-nums text-sm font-black text-gray-900">{formatCurrency(movement.saldoPosterior, movement.moneda || liquidacion.moneda)}</td>
                                                     </tr>
                                                 );
                                             })}
@@ -575,7 +569,7 @@ export default function LiquidacionDetalle() {
                 )}
             </details>
 
-            <details className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm">
+            <details className="ui-panel p-4">
                 <summary className="flex min-h-11 cursor-pointer items-center justify-between font-black text-gray-950">Datos del contrato y del período <ChevronDownIcon className="h-4 w-4 text-gray-600" /></summary>
                 <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
                     <div><dt className="text-xs font-bold text-gray-600">Próxima actualización</dt><dd>{liquidacion.contrato?.requiereActualizacion ? formatDate(liquidacion.contrato.fechaProximaActualizacion) : 'No programada'}</dd></div>
@@ -611,7 +605,7 @@ export default function LiquidacionDetalle() {
 
             {deudaResumen && deudaResumen.totalDeuda > 0 && <section data-testid="historical-debt" className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><h2 className="font-black text-amber-950">Saldo pendiente de otros períodos: {formatMoney(deudaResumen.totalDeuda, deudaResumen.moneda)}</h2><p className="mt-1 text-sm text-amber-900">Se muestra como referencia para decidir cómo cobrarlo. No se agrega dos veces a esta liquidación.</p><div className="mt-3 flex flex-wrap gap-2">{deudaResumen.detalle.map(item => <button key={item.id} type="button" onClick={() => navigate(`/liquidaciones/${item.id}`)} className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-left text-xs font-bold text-amber-950">{formatMonthYear(item.periodo)} · debe {formatMoney(item.deuda, item.moneda)} →</button>)}</div></section>}
 
-            <details className="rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm" aria-label="Historial de este contrato"><summary className="flex min-h-11 cursor-pointer items-center justify-between font-black text-gray-950">Meses anteriores de esta propiedad <ChevronDownIcon className="h-4 w-4 text-gray-600" /></summary><div className="mt-2"><button type="button" onClick={() => navigate(`/liquidaciones/contrato/${liquidacion.contratoId}?periodo=${liquidacion.periodo.slice(0, 7)}`)} className="text-sm font-bold text-indigo-700">Ver todos los meses →</button></div><div className="mt-3 flex gap-2 overflow-x-auto">{earlierPeriods.length ? earlierPeriods.slice(0, 8).map(item => <button key={item.periodo} type="button" onClick={() => navigate(`/liquidaciones/${item.liquidacionId}`)} className="min-w-40 rounded-lg border border-gray-200 p-2 text-left text-xs hover:bg-indigo-50"><span className="block font-bold capitalize">{formatMonthYear(item.periodo)}</span><span className="block">{item.estado === 'EN_MORA' ? 'En mora' : item.estado.toLowerCase().replaceAll('_', ' ')}</span><span className="block">Saldo {formatMoney(item.saldoInquilino, liquidacion.moneda)}</span><span className="block">{item.ajustes.length} ajuste(s) · {item.cuotas.length} cuota(s)</span></button>) : <p className="text-sm text-gray-600">No hay liquidaciones anteriores.</p>}</div></details>
+            <details className="ui-panel p-4" aria-label="Historial de este contrato"><summary className="flex min-h-11 cursor-pointer items-center justify-between font-black text-gray-950">Meses anteriores de esta propiedad <ChevronDownIcon className="h-4 w-4 text-gray-600" /></summary><div className="mt-2"><button type="button" onClick={() => navigate(`/liquidaciones/contrato/${liquidacion.contratoId}?periodo=${liquidacion.periodo.slice(0, 7)}`)} className="text-sm font-bold text-indigo-700">Ver todos los meses →</button></div><div className="mt-3 flex gap-2 overflow-x-auto">{earlierPeriods.length ? earlierPeriods.slice(0, 8).map(item => <button key={item.periodo} type="button" onClick={() => navigate(`/liquidaciones/${item.liquidacionId}`)} className="min-w-40 rounded-lg border border-gray-200 p-2 text-left text-xs hover:bg-indigo-50"><span className="block font-bold capitalize">{formatMonthYear(item.periodo)}</span><span className="block">{item.estado === 'EN_MORA' ? 'En mora' : item.estado.toLowerCase().replaceAll('_', ' ')}</span><span className="block">Saldo {formatMoney(item.saldoInquilino, liquidacion.moneda)}</span><span className="block">{item.ajustes.length} ajuste(s) · {item.cuotas.length} cuota(s)</span></button>) : <p className="text-sm text-gray-600">No hay liquidaciones anteriores.</p>}</div></details>
 
             {liquidacion.comprobantes && liquidacion.comprobantes.length > 0 && (
                 <details data-testid="liquidation-vouchers" className="rounded-3xl border border-indigo-100 bg-indigo-50/40 p-4 shadow-sm" aria-labelledby="liquidation-vouchers-title">
@@ -701,18 +695,18 @@ export default function LiquidacionDetalle() {
                 </section>
             )}
 
-            <details className="space-y-4 rounded-2xl border border-gray-200 bg-white p-4 shadow-sm print:hidden">
+            <details className="space-y-4 ui-panel p-4 print:hidden">
                 <summary className="flex min-h-11 cursor-pointer items-center justify-between font-black text-gray-950">Auditoría <ChevronDownIcon className="h-4 w-4 text-gray-600" /></summary>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <div className="border-t border-slate-100 py-3">
                         <p className="text-xs font-black uppercase tracking-wider text-gray-600">Creada por</p>
                         <p className="break-words text-sm font-semibold text-gray-800 [overflow-wrap:anywhere]">{liquidacion.creadoPor?.nombreCompleto || "Sin dato"}</p>
                     </div>
-                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <div className="border-t border-slate-100 py-3">
                         <p className="text-xs font-black uppercase tracking-wider text-gray-600">Cerrada por</p>
                         <p className="break-words text-sm font-semibold text-gray-800 [overflow-wrap:anywhere]">{liquidacion.cerradoPor?.nombreCompleto || "Todavía no cerrada"}</p>
                     </div>
-                    <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+                    <div className="border-t border-slate-100 py-3">
                         <p className="text-xs font-black uppercase tracking-wider text-gray-600">Confirmada por</p>
                         <p className="break-words text-sm font-semibold text-gray-800 [overflow-wrap:anywhere]">{liquidacion.confirmadoPor?.nombreCompleto || "Todavía no confirmada"}</p>
                         {liquidacion.fechaConfirmacion && <p className="mt-1 text-xs text-gray-600">{formatDateTime(liquidacion.fechaConfirmacion)}</p>}

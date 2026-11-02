@@ -150,64 +150,68 @@ export const createRenewalContractForm = (contract: Contract): ContractFormData 
     };
 };
 
-export const getContractFormError = (
+export const getContractFormIssue = (
     form: ContractFormData,
     owners: ContractParty[],
     tenants: ContractParty[]
-): string | null => {
+): { field: string; message: string } | null => {
     if (owners.length === 0 || owners.some(owner => !owner.nombreCompleto.trim())) {
-        return 'Agregá al menos un propietario con nombre completo.';
+        return { field: 'contract-owner-group', message: 'Agregá al menos un propietario con nombre completo.' };
     }
     if (tenants.length === 0 || tenants.some(tenant => !tenant.nombreCompleto.trim())) {
-        return 'Agregá al menos un inquilino con nombre completo.';
+        return { field: 'contract-tenant-group', message: 'Agregá al menos un inquilino con nombre completo.' };
     }
     const ownerIds = owners.flatMap(owner => owner.id ? [owner.id] : []);
     const tenantIds = tenants.flatMap(tenant => tenant.id ? [tenant.id] : []);
     if (new Set(ownerIds).size !== ownerIds.length) {
-        return 'No se puede repetir una persona entre los propietarios del mismo contrato.';
+        return { field: 'contract-owner-group', message: 'No se puede repetir una persona entre los propietarios del mismo contrato.' };
     }
     if (new Set(tenantIds).size !== tenantIds.length) {
-        return 'No se puede repetir una persona entre los inquilinos del mismo contrato.';
+        return { field: 'contract-tenant-group', message: 'No se puede repetir una persona entre los inquilinos del mismo contrato.' };
     }
     if (ownerIds.some(id => tenantIds.includes(id))) {
-        return 'Una persona no puede ser a la vez propietario e inquilino del mismo contrato.';
+        return { field: 'contract-tenant-group', message: 'Una persona no puede ser a la vez propietario e inquilino del mismo contrato.' };
     }
-    if (!form.startDate || !form.endDate) return 'Las fechas de inicio y fin son obligatorias.';
+    if (!form.startDate || !form.endDate) return { field: 'contract-start-date', message: 'Las fechas de inicio y fin son obligatorias.' };
     if (form.porcentajeHonorarios === '' || !Number.isFinite(Number(form.porcentajeHonorarios)) || Number(form.porcentajeHonorarios) < 0 || Number(form.porcentajeHonorarios) > 100) {
-        return 'Indicá un porcentaje de honorarios entre 0 y 100.';
+        return { field: 'contract-management-fee-rate', message: 'Indicá un porcentaje de honorarios entre 0 y 100.' };
     }
     if (form.requiereActualizacion && !form.updateDate) {
-        return 'La próxima actualización es obligatoria si el contrato tiene actualización programada.';
+        return { field: 'contract-next-update', message: 'La próxima actualización es obligatoria si el contrato tiene actualización programada.' };
     }
     if (form.requiereActualizacion && (!Number.isInteger(Number(form.frecuenciaActualizacion)) || Number(form.frecuenciaActualizacion) < 1 || Number(form.frecuenciaActualizacion) > 120)) {
-        return 'Indicá la frecuencia de actualización del contrato en meses (entre 1 y 120).';
+        return { field: 'contract-update-frequency', message: 'Indicá la frecuencia de actualización del contrato en meses (entre 1 y 120).' };
     }
     const emptyServiceExpense = form.serviciosGastos.find(serviceExpense => !serviceExpense.concepto.trim());
-    if (emptyServiceExpense) return 'Indicá el nombre de cada servicio o gasto que agregaste.';
+    if (emptyServiceExpense) return { field: 'contract-services', message: 'Indicá el nombre de cada servicio o gasto que agregaste.' };
     const normalizedServiceExpenses = form.serviciosGastos.map(serviceExpense => serviceExpense.concepto
         .trim()
         .normalize('NFD')
         .replace(/[\u0300-\u036f]/g, '')
         .toLocaleUpperCase('es-AR'));
     if (new Set(normalizedServiceExpenses).size !== normalizedServiceExpenses.length) {
-        return 'No se puede repetir un servicio o gasto en el mismo contrato.';
+        return { field: 'contract-services', message: 'No se puede repetir un servicio o gasto en el mismo contrato.' };
     }
     if (form.honorarioInicial && !form.honorarioInicialMetodoPago) {
-        return 'Seleccioná un método de pago para el honorario inicial.';
+        return { field: 'contract-initial-fee-method', message: 'Seleccioná un método de pago para el honorario inicial.' };
     }
     if (form.modalidadCobroInquilino === 'TRANSFERENCIA' && !form.cuentaCobroAcordadaId) {
-        return 'Seleccioná la cuenta acordada para cobrar las transferencias del inquilino.';
+        return { field: 'contract-agreed-account', message: 'Seleccioná la cuenta acordada para cobrar las transferencias del inquilino.' };
     }
     if (Number(form.honorarioInicial) > 0 && form.honorarioInicialMetodoPago && form.honorarioInicialMetodoPago !== 'EFECTIVO' && !form.honorarioInicialCuentaBancariaId) {
-        return 'Seleccioná la cuenta bancaria donde ingresó el honorario inicial.';
+        return { field: 'contract-initial-fee-bank', message: 'Seleccioná la cuenta bancaria donde ingresó el honorario inicial.' };
     }
     if (form.file) {
         const error = validateMainContractFile(form.file);
-        if (error) return error;
+        if (error) return { field: 'contract-main-file', message: error };
     }
     const invalidAttachment = form.additionalFiles.find(file => validateAttachmentFile(file));
-    return invalidAttachment ? validateAttachmentFile(invalidAttachment) || 'Formato no permitido' : null;
+    return invalidAttachment ? { field: 'contract-additional-files', message: validateAttachmentFile(invalidAttachment) || 'Formato no permitido' } : null;
 };
+
+/** Compatibility helper for callers that only need the message. */
+export const getContractFormError = (form: ContractFormData, owners: ContractParty[], tenants: ContractParty[]): string | null =>
+    getContractFormIssue(form, owners, tenants)?.message ?? null;
 
 export const buildContractPayload = (
     form: ContractFormData,

@@ -102,6 +102,10 @@ async function request<T>(endpoint: string, options: RequestOptions = {}, retrie
 
     const isLoginRequest = endpoint === '/auth/login';
     if (response.status === 401 && !isLoginRequest) {
+        const errorData = await response.json().catch(() => ({}));
+        if (errorData.code === 'RECENT_LOGIN_REQUIRED') {
+            sessionStorage.setItem('passwordChangeLoginRequired', 'true');
+        }
         localStorage.removeItem('user');
         if (endpoint !== '/auth/logout') {
             window.dispatchEvent(new Event('logout'));

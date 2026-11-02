@@ -1,5 +1,7 @@
+import LoadingState from './LoadingState';
 import { useEffect, useState } from 'react';
-import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
+import { DialogTitle } from '@headlessui/react';
+import { Modal as Dialog, ModalBackdrop as DialogBackdrop, ModalPanel as DialogPanel } from './Modal';
 import { contractsService, type Contract } from '../services/contracts.service';
 import { openAuthenticatedFile } from '../services/api';
 import { getDocumentActionLabel } from '../utils/documentFiles';
@@ -36,7 +38,7 @@ export default function LiquidationContractModal({ contractId, onClose }: Props)
     };
 
     return <Dialog open={contractId !== null} onClose={onClose} className="relative z-50">
-        <div className="fixed inset-0 bg-gray-950/55" aria-hidden="true" />
+        <DialogBackdrop className="fixed inset-0 bg-gray-950/55" />
         <div className="fixed inset-0 overflow-hidden p-4 sm:p-8">
             <div className="flex h-full min-h-0 items-center justify-center">
                 <DialogPanel className="modal-scroll max-h-full w-full max-w-3xl space-y-5 rounded-2xl bg-white p-5 shadow-xl sm:p-7">
@@ -45,7 +47,7 @@ export default function LiquidationContractModal({ contractId, onClose }: Props)
                             <p className="mt-1 text-sm text-gray-600">Contrato #{contractId} · se abre el documento asociado a este período, aunque luego haya una renovación u otro inquilino.</p></div>
                         <button type="button" onClick={onClose} className="rounded-lg border px-3 py-2 text-sm font-semibold">Cerrar</button>
                     </div>
-                    {loading && <p className="text-sm text-gray-600">Cargando contrato…</p>}
+                    {loading && <LoadingState compact label="Cargando contrato…" />}
                     {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-800">{error}</p>}
                     {!loading && contract && <>
                         <div className="grid gap-3 rounded-xl bg-indigo-50 p-4 text-sm sm:grid-cols-2">

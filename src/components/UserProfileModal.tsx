@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { XMarkIcon, KeyIcon, LockClosedIcon, EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
+import { XMarkIcon, KeyIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 import { authService } from "../services/auth.service";
+import PasswordInput from "./PasswordInput";
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -15,9 +16,6 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   if (!isOpen) return null;
 
@@ -62,8 +60,8 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div data-modal-panel className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90dvh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 ui-backdrop-enter">
+      <div data-modal-panel className="ui-modal-enter bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90dvh]">
         {/* Header */}
         <div className="flex-shrink-0 px-6 py-4 flex items-center justify-between border-b gap-4">
           <div className="flex items-center gap-3">
@@ -108,73 +106,46 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
 
             <div>
               <label htmlFor="profile-current-password" className="block text-sm font-medium text-gray-700 mb-1">Contraseña Actual</label>
-              <div className="relative">
-                <input
-                  id="profile-current-password"
-                  type={showCurrentPassword ? "text" : "password"}
-                  required
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  className="w-full px-4 py-2 pr-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                  placeholder="Ingresá tu contraseña actual"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrentPassword((prev) => !prev)}
-                  className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-600 hover:text-gray-700 transition-colors"
-                  aria-label={showCurrentPassword ? "Ocultar contraseña actual" : "Mostrar contraseña actual"}
-                >
-                  {showCurrentPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-                </button>
-              </div>
+              <PasswordInput
+                id="profile-current-password"
+                autoComplete="current-password"
+                visibilityLabel="contraseña actual"
+                required
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                placeholder="Ingresá tu contraseña actual"
+              />
             </div>
 
             <div>
               <label htmlFor="profile-new-password" className="block text-sm font-medium text-gray-700 mb-1">Nueva contraseña</label>
-              <div className="relative">
-                <input
-                  id="profile-new-password"
-                  type={showNewPassword ? "text" : "password"}
-                  required
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-4 py-2 pr-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                  placeholder="12+ con mayúscula, minúscula, número y símbolo"
-                  minLength={12}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowNewPassword((prev) => !prev)}
-                  className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-600 hover:text-gray-700 transition-colors"
-                  aria-label={showNewPassword ? "Ocultar nueva contraseña" : "Mostrar nueva contraseña"}
-                >
-                  {showNewPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-                </button>
-              </div>
+              <PasswordInput
+                id="profile-new-password"
+                autoComplete="new-password"
+                visibilityLabel="nueva contraseña"
+                required
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                placeholder="12+ con mayúscula, minúscula, número y símbolo"
+                minLength={12}
+              />
             </div>
 
             <div>
               <label htmlFor="profile-confirm-password" className="block text-sm font-medium text-gray-700 mb-1">Confirmar nueva contraseña</label>
-              <div className="relative">
-                <input
-                  id="profile-confirm-password"
-                  type={showConfirmPassword ? "text" : "password"}
-                  required
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-4 py-2 pr-11 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                  placeholder="Repite la nueva contraseña"
-                  minLength={12}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPassword((prev) => !prev)}
-                  className="absolute inset-y-0 right-0 px-3 flex items-center text-gray-600 hover:text-gray-700 transition-colors"
-                  aria-label={showConfirmPassword ? "Ocultar confirmación de contraseña" : "Mostrar confirmación de contraseña"}
-                >
-                  {showConfirmPassword ? <EyeSlashIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
-                </button>
-              </div>
+              <PasswordInput
+                id="profile-confirm-password"
+                autoComplete="new-password"
+                visibilityLabel="confirmación de contraseña"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                placeholder="Repite la nueva contraseña"
+                minLength={12}
+              />
             </div>
 
             <div className="pt-4 flex justify-end gap-3">
