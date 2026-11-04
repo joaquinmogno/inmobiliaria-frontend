@@ -6,7 +6,7 @@ import { useState, type ReactNode } from 'react';
 import LocalizedFilePicker from '../../components/LocalizedFilePicker';
 import AppSelect from '../../components/AppSelect';
 import InternalAmountInput from './InternalAmountInput';
-import { controlInternoService, type InternalMovement, type InternalMovementInput, type InternalOptions } from '../../services/control-interno.service';
+import { controlInternoService, type InternalControlService, type InternalMovement, type InternalMovementInput, type InternalOptions } from '../../services/control-interno.service';
 import { formatCurrencyWithCents as formatCurrency, type Moneda } from '../../utils/currency';
 import { formatDateTime, todayDateInput } from '../../utils/date';
 
@@ -30,8 +30,8 @@ export function InternalDialog({ title, busy, close, children, footer }: { title
     </Dialog>;
 }
 
-interface Props { record: InternalMovement | null; period: string; options: InternalOptions; close: () => void; saved: () => void }
-export default function InternalMovementModal({ record, period, options, close, saved }: Props) {
+interface Props { service?: InternalControlService; movementLabel?: string; record: InternalMovement | null; period: string; options: InternalOptions; close: () => void; saved: () => void }
+export default function InternalMovementModal({ service = controlInternoService, movementLabel = 'movimiento interno', record, period, options, close, saved }: Props) {
     const today = todayDateInput();
     const [data, setData] = useState<InternalMovementInput>({
         fecha: record?.fecha.slice(0, 10) || (today.slice(0, 7) === period ? today : `${period}-01`),
@@ -60,13 +60,13 @@ export default function InternalMovementModal({ record, period, options, close, 
         validation.reset(); setFileError(''); setBusy(true); setError('');
         try {
             const normalized = { ...data, monto: data.monto.replace(/\.$/, ''), detalle: data.detalle.trim(), categoria: data.categoria?.trim(), metodoPago: data.metodoPago?.trim(), cuentaPago: data.cuentaPago?.trim(), observaciones: data.observaciones?.trim() };
-            if (record) await controlInternoService.update(record.id, record.version, normalized);
-            else await controlInternoService.create(normalized, files);
+            if (record) await service.update(record.id, record.version, normalized);
+            else await service.create(normalized, files);
             saved(); close();
         } catch (cause) { setError(cause instanceof Error ? cause.message : 'No se pudo guardar el movimiento'); }
         finally { setBusy(false); }
     };
-    return <InternalDialog title={record ? 'Editar movimiento interno' : 'Agregar movimiento interno'} busy={busy} close={close} footer={<>
+    return <InternalDialog title={`${record ? 'Editar' : 'Agregar'} ${movementLabel}`} busy={busy} close={close} footer={<>
         <button type="button" disabled={busy} onClick={close} className="ui-button ui-button-secondary min-w-0 flex-1 sm:flex-none">Cancelar</button>
         <button type="submit" form="internal-movement-form" disabled={busy} className="ui-button ui-button-primary min-w-0 flex-1 sm:flex-none">{busy ? 'Guardando…' : 'Guardar movimiento'}</button>
     </>}>

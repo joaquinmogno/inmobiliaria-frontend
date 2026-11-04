@@ -27,7 +27,7 @@ export default function Header({ toggleMobileMenu, mobileMenuOpen = false, menuB
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const sectionName = ({ home: "Inicio", contratos: "Contratos", liquidaciones: "Liquidaciones", cajachica: "Gestión financiera", pagos: "Cobros de inquilinos", "control-interno": "Control interno", personas: "Personas", usuarios: "Usuarios y roles", configuracion: "Configuración", "mi-acceso": "Mi acceso" } as Record<string, string>)[pathname.split("/")[1]] || "Administración";
+  const sectionName = ({ home: "Inicio", contratos: "Contratos", liquidaciones: "Liquidaciones", cajachica: "Gestión financiera", pagos: "Cobros de inquilinos", "control-interno": "Control interno", teodoro: "Teodoro", daniel: "Daniel", personas: "Personas", usuarios: "Usuarios y roles", configuracion: "Configuración", "mi-acceso": "Mi acceso" } as Record<string, string>)[pathname.split("/")[1]] || "Administración";
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const canManageUsers = user?.tipo === "ADMIN";

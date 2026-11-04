@@ -45,6 +45,8 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
   const canViewCash = hasPermission(user, "caja_chica.ver");
   const canViewPayments = hasPermission(user, "pagos.ver");
   const canViewInternalControl = hasPermission(user, "control_interno.ver");
+  const canViewTeodoro = hasPermission(user, "teodoro.ver");
+  const canViewDaniel = hasPermission(user, "daniel.ver");
   const canViewConfiguration = user?.tipo === "ADMIN";
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
@@ -204,6 +206,16 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
         {canViewInternalControl && <NavLink to="/control-interno" className={linkClass} title={!menuExpanded ? "Control interno" : undefined}>
           <ClipboardDocumentListIcon className="h-6 w-6 min-w-[24px]" />
           <span className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"}`}>Control interno</span>
+        </NavLink>}
+
+        {canViewTeodoro && <NavLink to="/teodoro" className={linkClass} title={!menuExpanded ? "Teodoro" : undefined}>
+          <ClipboardDocumentListIcon className="h-6 w-6 min-w-[24px]" />
+          <span className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"}`}>Teodoro</span>
+        </NavLink>}
+
+        {canViewDaniel && <NavLink to="/daniel" className={linkClass} title={!menuExpanded ? "Daniel" : undefined}>
+          <ClipboardDocumentListIcon className="h-6 w-6 min-w-[24px]" />
+          <span className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"}`}>Daniel</span>
         </NavLink>}
 
         {canViewPeople && <NavLink to="/personas" className={linkClass}>

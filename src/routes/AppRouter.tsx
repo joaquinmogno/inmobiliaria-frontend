@@ -18,7 +18,7 @@ const ContratoLiquidaciones = lazy(() => import("../pages/ContratoLiquidaciones"
 const HistorialPagos = lazy(() => import("../pages/HistorialPagos"));
 const Configuracion = lazy(() => import("../pages/Configuracion"));
 const CajaChica = lazy(() => import("../pages/CajaChica"));
-const ControlInterno = lazy(() => import("../pages/ControlInterno"));
+const ControlMovimientos = lazy(() => import("../pages/ControlMovimientos"));
 const MiAcceso = lazy(() => import("../pages/MiAcceso"));
 const MandatoryPasswordChange = lazy(() => import("../pages/MandatoryPasswordChange"));
 const NotFound = lazy(() => import("../pages/NotFound"));
@@ -45,7 +45,9 @@ export default function AppRouter() {
           <Route path="/liquidaciones/:id" element={<PermissionGuard permission="liquidaciones.ver"><LiquidacionDetalle /></PermissionGuard>} />
           <Route path="/pagos" element={<PermissionGuard permission="pagos.ver"><HistorialPagos /></PermissionGuard>} />
           <Route path="/cajachica" element={<PermissionGuard permission="caja_chica.ver"><CajaChica /></PermissionGuard>} />
-          <Route path="/control-interno" element={<PermissionGuard permission="control_interno.ver"><ControlInterno /></PermissionGuard>} />
+          <Route path="/control-interno" element={<PermissionGuard permission="control_interno.ver"><ControlMovimientos /></PermissionGuard>} />
+          <Route path="/teodoro" element={<PermissionGuard permission="teodoro.ver"><ControlMovimientos ambito="TEODORO" /></PermissionGuard>} />
+          <Route path="/daniel" element={<PermissionGuard permission="daniel.ver"><ControlMovimientos ambito="DANIEL" /></PermissionGuard>} />
           <Route path="/configuracion" element={<PermissionGuard adminOnly><Configuracion /></PermissionGuard>} />
         </Route>
       </Route>

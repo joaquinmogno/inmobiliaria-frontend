@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import LocalizedFilePicker from '../../components/LocalizedFilePicker';
-import { controlInternoService, type InternalMovement } from '../../services/control-interno.service';
+import { controlInternoService, type InternalControlService, type InternalMovement } from '../../services/control-interno.service';
 import { formatDateTime } from '../../utils/date';
 import { InternalDialog, internalFileValidation, internalInputClass } from './InternalMovementModal';
 
-export function InternalReceiptsModal({ record: original, canEdit, close, changed }: { record: InternalMovement; canEdit: boolean; close: () => void; changed: () => void }) {
+export function InternalReceiptsModal({ service = controlInternoService, record: original, canEdit, close, changed }: { service?: InternalControlService; record: InternalMovement; canEdit: boolean; close: () => void; changed: () => void }) {
     const [record, setRecord] = useState(original);
     const [files, setFiles] = useState<File[]>([]);
     const [busy, setBusy] = useState(false);
@@ -13,13 +13,13 @@ export function InternalReceiptsModal({ record: original, canEdit, close, change
         if (busy || !files.length) return;
         if (files.length > 10) { setError('Seleccioná hasta 10 comprobantes por carga.'); return; }
         setBusy(true); setError('');
-        try { setRecord(await controlInternoService.attach(record, files)); setFiles([]); changed(); }
+        try { setRecord(await service.attach(record, files)); setFiles([]); changed(); }
         catch (cause) { setError(cause instanceof Error ? cause.message : 'No se pudieron adjuntar los archivos'); }
         finally { setBusy(false); }
     };
     const open = (index: number, download: boolean) => {
         setError('');
-        void controlInternoService.openAttachment(record.adjuntos[index], download).catch(cause => setError(cause instanceof Error ? cause.message : 'No se pudo abrir el comprobante'));
+        void service.openAttachment(record.adjuntos[index], download).catch(cause => setError(cause instanceof Error ? cause.message : 'No se pudo abrir el comprobante'));
     };
     return <InternalDialog title={`Comprobantes del movimiento #${record.id}`} busy={busy} close={close} footer={<>
         <button type="button" onClick={close} disabled={busy} className="min-h-11 rounded-xl border border-gray-300 px-4 text-sm font-bold text-gray-700">Cerrar</button>
@@ -38,7 +38,7 @@ export function InternalReceiptsModal({ record: original, canEdit, close, change
     </InternalDialog>;
 }
 
-export function InternalCancelModal({ record, close, changed }: { record: InternalMovement; close: () => void; changed: () => void }) {
+export function InternalCancelModal({ service = controlInternoService, movementLabel = 'movimiento interno', totalsLabel = 'del control interno', record, close, changed }: { service?: InternalControlService; movementLabel?: string; totalsLabel?: string; record: InternalMovement; close: () => void; changed: () => void }) {
     const [reason, setReason] = useState('');
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
@@ -46,16 +46,16 @@ export function InternalCancelModal({ record, close, changed }: { record: Intern
         event.preventDefault();
         if (busy || reason.trim().length < 5) return;
         setBusy(true); setError('');
-        try { await controlInternoService.cancel(record, reason.trim()); changed(); close(); }
+        try { await service.cancel(record, reason.trim()); changed(); close(); }
         catch (cause) { setError(cause instanceof Error ? cause.message : 'No se pudo anular el registro'); }
         finally { setBusy(false); }
     };
-    return <InternalDialog title="Anular movimiento interno" busy={busy} close={close} footer={<>
+    return <InternalDialog title={`Anular ${movementLabel}`} busy={busy} close={close} footer={<>
         <button type="button" onClick={close} disabled={busy} className="min-h-11 rounded-xl border border-gray-300 px-4 text-sm font-bold text-gray-700">Cancelar</button>
         <button type="submit" form="cancel-internal-form" disabled={busy || reason.trim().length < 5} className="min-h-11 rounded-xl bg-red-700 px-4 text-sm font-bold text-white disabled:opacity-50">{busy ? 'Anulando…' : 'Confirmar anulación'}</button>
     </>}>
         <form id="cancel-internal-form" onSubmit={event => void submit(event)} className="space-y-4">
-            <p className="text-sm text-gray-700">El movimiento «{record.detalle}» y sus comprobantes quedarán guardados para consulta. Su importe se excluirá de los totales del control interno.</p>
+            <p className="text-sm text-gray-700">El movimiento «{record.detalle}» y sus comprobantes quedarán guardados para consulta. Su importe se excluirá de los totales {totalsLabel}.</p>
             <label className="block text-sm font-bold text-gray-800">Motivo de la anulación *<textarea required minLength={5} maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} rows={3} className={internalInputClass} /></label>
             {error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-800">{error}</p>}
         </form>

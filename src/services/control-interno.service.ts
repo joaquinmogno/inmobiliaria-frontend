@@ -77,37 +77,45 @@ const downloadResponse = async (response: Response, fallbackName: string) => {
     window.setTimeout(() => URL.revokeObjectURL(url), 60000);
 };
 
-export const controlInternoService = {
-    list: (filters: InternalFilters, page: number) => api.get<InternalList>('/control-interno', { params: { ...filters, page, limit: 25 } }),
-    options: () => api.get<InternalOptions>('/control-interno/opciones'),
-    create: (data: InternalMovementInput, files: File[]) => {
-        const form = new FormData();
-        Object.entries(data).forEach(([key, value]) => { if (value !== undefined) form.append(key, value); });
-        files.forEach(file => form.append('comprobantes', file));
-        return api.post<InternalMovement>('/control-interno', form);
-    },
-    update: (id: number, version: number, data: InternalMovementInput) => api.put<InternalMovement>(`/control-interno/${id}`, { ...data, version }),
-    attach: (record: InternalMovement, files: File[]) => {
-        const form = new FormData();
-        form.append('version', String(record.version));
-        files.forEach(file => form.append('comprobantes', file));
-        return api.post<InternalMovement>(`/control-interno/${record.id}/adjuntos`, form);
-    },
-    cancel: (record: InternalMovement, motivo: string) => api.post<InternalMovement>(`/control-interno/${record.id}/anular`, { version: record.version, motivo }),
-    export: async (format: 'excel' | 'pdf', filters: InternalFilters) => {
-        const response = await binaryResponse(`/control-interno/reportes/${format}?${internalQueryString(filters)}`);
-        await downloadResponse(response, `control-interno-${filters.periodo}.${format === 'excel' ? 'xlsx' : 'pdf'}`);
-    },
-    printPdf: (filters: InternalFilters) => openAuthenticatedPdf(`/control-interno/reportes/pdf?${internalQueryString(filters)}`),
-    openAttachment: async (attachment: InternalAttachment, download = false) => {
-        const tab = download ? null : window.open('', '_blank');
-        try {
-            const response = await binaryResponse(`/control-interno/adjuntos/${attachment.id}/archivo${download ? '?descargar=1' : ''}`);
-            if (download) { await downloadResponse(response, attachment.nombreArchivo); return; }
-            const blob = URL.createObjectURL(await response.blob());
-            if (tab) tab.location.href = blob;
-            else window.open(blob, '_blank', 'noopener,noreferrer');
-            window.setTimeout(() => URL.revokeObjectURL(blob), 60000);
-        } catch (error) { tab?.close(); throw error; }
-    }
-};
+function createInternalControlService(slug: 'control-interno' | 'teodoro' | 'daniel') {
+    const basePath = `/${slug}`;
+    return {
+        list: (filters: InternalFilters, page: number) => api.get<InternalList>(basePath, { params: { ...filters, page, limit: 25 } }),
+        options: () => api.get<InternalOptions>(`${basePath}/opciones`),
+        create: (data: InternalMovementInput, files: File[]) => {
+            const form = new FormData();
+            Object.entries(data).forEach(([key, value]) => { if (value !== undefined) form.append(key, value); });
+            files.forEach(file => form.append('comprobantes', file));
+            return api.post<InternalMovement>(basePath, form);
+        },
+        update: (id: number, version: number, data: InternalMovementInput) => api.put<InternalMovement>(`${basePath}/${id}`, { ...data, version }),
+        attach: (record: InternalMovement, files: File[]) => {
+            const form = new FormData();
+            form.append('version', String(record.version));
+            files.forEach(file => form.append('comprobantes', file));
+            return api.post<InternalMovement>(`${basePath}/${record.id}/adjuntos`, form);
+        },
+        cancel: (record: InternalMovement, motivo: string) => api.post<InternalMovement>(`${basePath}/${record.id}/anular`, { version: record.version, motivo }),
+        export: async (format: 'excel' | 'pdf', filters: InternalFilters) => {
+            const response = await binaryResponse(`${basePath}/reportes/${format}?${internalQueryString(filters)}`);
+            await downloadResponse(response, `${slug}-${filters.periodo}.${format === 'excel' ? 'xlsx' : 'pdf'}`);
+        },
+        printPdf: (filters: InternalFilters) => openAuthenticatedPdf(`${basePath}/reportes/pdf?${internalQueryString(filters)}`),
+        openAttachment: async (attachment: InternalAttachment, download = false) => {
+            const tab = download ? null : window.open('', '_blank');
+            try {
+                const response = await binaryResponse(`${basePath}/adjuntos/${attachment.id}/archivo${download ? '?descargar=1' : ''}`);
+                if (download) { await downloadResponse(response, attachment.nombreArchivo); return; }
+                const blob = URL.createObjectURL(await response.blob());
+                if (tab) tab.location.href = blob;
+                else window.open(blob, '_blank', 'noopener,noreferrer');
+                window.setTimeout(() => URL.revokeObjectURL(blob), 60000);
+            } catch (error) { tab?.close(); throw error; }
+        }
+    };
+}
+
+export const controlInternoService = createInternalControlService('control-interno');
+export const teodoroService = createInternalControlService('teodoro');
+export const danielService = createInternalControlService('daniel');
+export type InternalControlService = typeof controlInternoService;
