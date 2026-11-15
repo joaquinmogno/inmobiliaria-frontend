@@ -40,6 +40,7 @@ import LiquidationContractModal from "../components/LiquidationContractModal";
 import LiquidationSummary from "../features/liquidations/LiquidationSummary";
 import LiquidationTermsModal from "../features/liquidations/LiquidationTermsModal";
 import LiquidationNoteModal from "../features/liquidations/LiquidationNoteModal";
+import ContractInternalNote from "../features/liquidations/ContractInternalNote";
 
 const ownerMovementStatus = {
     VIGENTE: { label: 'Vigente', className: 'bg-emerald-100 text-emerald-800' },
@@ -81,7 +82,7 @@ export default function LiquidacionDetalle() {
         isAdjustmentModalOpen, setIsAdjustmentModalOpen,
         creditToApply, setCreditToApply,
         tenantPaymentToReverse, setTenantPaymentToReverse,
-        loadAuditPage, handleAddMovimiento, handleSaveNote, handleDeleteMovimiento, handleConfirmar,
+        loadAuditPage, handleAddMovimiento, handleSaveNote, handleSaveInternalNote, handleDeleteMovimiento, handleConfirmar,
         handleSavePayment, handleUpdateHonorarios, handleUpdateAlquiler, handleCreateAdjustment, handleApplyTenantCredit, handleSaveOwnerPayment, handleReverseOwnerPayment, handleReverseTenantPayment, handleDelete, goToList
     } = useLiquidationDetailController(id);
 
@@ -237,6 +238,8 @@ export default function LiquidacionDetalle() {
             </div>
 
             <LiquidationSummary liquidacion={liquidacion} summaries={currencySummaries} canEdit={esEditable && canEditLiquidations} onEditRent={() => setTermsMode('ALQUILER')} onEditFees={() => setTermsMode('HONORARIOS')} />
+
+            <ContractInternalNote key={liquidacion.contratoId} note={liquidacion.notaInternaContrato} canEdit={canEditLiquidations} onSave={handleSaveInternalNote} />
 
             {liquidacion.estado === 'BORRADOR' && (confirmIssues.length > 0 || confirmError) && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900"><p className="font-black">Revisá antes de confirmar</p>{confirmIssues.map(message => <p key={message}>• {message}</p>)}{confirmError && <p>• {confirmError}</p>}</div>}
 

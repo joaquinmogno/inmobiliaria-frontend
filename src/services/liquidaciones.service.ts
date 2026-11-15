@@ -11,6 +11,13 @@ export type EstadoPagoPropietario = 'PENDIENTE' | 'PARCIAL' | 'PAGADO' | 'NO_APL
 export type TipoMovimiento = 'INGRESO' | 'DESCUENTO';
 export type DestinatarioNotaLiquidacion = 'INQUILINO' | 'PROPIETARIO' | 'AMBOS';
 
+export interface ContractInternalNote {
+    texto: string | null;
+    version: number;
+    actualizadaEn: string | null;
+    actualizadaPor: { id: number; nombreCompleto: string } | null;
+}
+
 export const liquidationNoteRecipientLabels: Record<DestinatarioNotaLiquidacion, string> = {
     INQUILINO: 'Inquilino', PROPIETARIO: 'Propietario', AMBOS: 'Propietario e inquilino'
 };
@@ -72,6 +79,7 @@ export interface Liquidacion {
     alquilerExcepcional?: boolean;
     motivoCambioAlquiler?: string | null;
     notaLiquidacion?: string | null;
+    notaInternaContrato?: ContractInternalNote;
     destinatarioNotaLiquidacion?: DestinatarioNotaLiquidacion;
     montoPropietario: number;
     montoPagadoPropietario?: number;
@@ -375,6 +383,9 @@ export const liquidacionesService = {
         destinatarioNotaLiquidacion: DestinatarioNotaLiquidacion;
         expectedVersion: number;
     }) => api.patch<{ liquidacion: Liquidacion; comprobanteVersion: number | null }>(`/liquidaciones/${id}/nota`, data),
+
+    updateInternalNote: (id: number, data: { texto: string | null; expectedVersion: number }) =>
+        api.patch<ContractInternalNote>(`/liquidaciones/${id}/nota-interna`, data),
 
     updateAlquiler: async (id: number, data: {
         montoNuevo: number;

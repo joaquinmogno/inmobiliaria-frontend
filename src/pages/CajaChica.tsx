@@ -1,5 +1,6 @@
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
+import MovementReceiptModal from '../components/MovementReceiptModal';
 import { useState, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { cajachicaService, type MovimientoCaja, type CajaChicaSummary, type CierreCaja, type CuentaCaja } from "../services/cajachica.service";
@@ -82,6 +83,7 @@ export default function CajaChica() {
   const [isLoading, setIsLoading] = useState(true);
     const [selectedMovement, setSelectedMovement] = useState<MovimientoCaja | null>(null);
     const [movementForAttachments, setMovementForAttachments] = useState<MovimientoCaja | null>(null);
+    const [receiptMovement, setReceiptMovement] = useState<number | null>(null);
     const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
     const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
     const [cierres, setCierres] = useState<CierreCaja[]>([]);
@@ -729,6 +731,7 @@ export default function CajaChica() {
                                     <span className="text-xs font-medium text-content-muted">{mov.creadoPor?.nombreCompleto || 'Sistema'}</span>
                                 </div>
                                 {mov.transferenciaInternaId && <p className="mt-2 text-xs font-bold text-indigo-700">Transferencia interna #{mov.transferenciaInternaId}</p>}
+                                {!mov.transferenciaInternaId && !mov.reversionDeId && <button type="button" onClick={() => setReceiptMovement(mov.id)} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 px-3 py-2 text-sm font-bold text-indigo-800 hover:bg-indigo-50"><DocumentTextIcon className="h-4 w-4" aria-hidden="true" /> Recibo PDF</button>}
                                 {((mov.adjuntos?.length || 0) > 0 || (canCreate && !mov.anuladoEn)) && (
                                     <button type="button" onClick={() => { setMovementForAttachments(mov); setPendingAttachments([]); }} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-800 hover:bg-indigo-100">
                                         <PaperClipIcon className="h-4 w-4" /> {mov.adjuntos?.length ? `Comprobantes (${mov.adjuntos.length})` : 'Adjuntar comprobantes'}
@@ -801,6 +804,7 @@ export default function CajaChica() {
                                         {mov.creadoPor?.nombreCompleto || 'Sistema'}
                                     </td>
                                     <td className={`sticky right-0 z-10 px-6 py-4 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)] ${mov.anuladoEn ? "bg-gray-50" : "bg-white"}`}>
+                                        {!mov.transferenciaInternaId && !mov.reversionDeId && <button type="button" onClick={() => setReceiptMovement(mov.id)} className="mr-2 inline-flex min-h-11 items-center gap-1 rounded-lg px-3 py-2 text-sm font-bold text-indigo-800 hover:bg-indigo-50"><DocumentTextIcon className="h-4 w-4" aria-hidden="true" /> Recibo PDF</button>}
                                         {((mov.adjuntos?.length || 0) > 0 || (canCreate && !mov.anuladoEn)) && (
                                             <button type="button" onClick={() => { setMovementForAttachments(mov); setPendingAttachments([]); }} className="mr-2 inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-bold text-indigo-700 hover:bg-indigo-50">
                                                 <PaperClipIcon className="h-4 w-4" /> {mov.adjuntos?.length || 'Adjuntar'}
@@ -1017,6 +1021,8 @@ export default function CajaChica() {
                     </div>
                 </div>
             )}
+
+            {receiptMovement !== null && <MovementReceiptModal key={receiptMovement} module="cajachica" movementId={receiptMovement} canIssue={canCreate} close={() => setReceiptMovement(null)} />}
 
             <ReversalModal
                 isOpen={Boolean(selectedMovement)}

@@ -1,8 +1,9 @@
 import FilterBar from '../components/FilterBar';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
+import MovementReceiptModal from '../components/MovementReceiptModal';
 import { useEffect, useState } from 'react';
-import { PlusIcon, DocumentArrowDownIcon, PrinterIcon, ClipboardDocumentListIcon, PaperClipIcon, PencilSquareIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, DocumentArrowDownIcon, DocumentTextIcon, PrinterIcon, ClipboardDocumentListIcon, PaperClipIcon, PencilSquareIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { hasPermission } from '../utils/permissions';
@@ -20,19 +21,19 @@ const sections = {
     INTERNO: {
         title: 'Control interno', description: 'Gastos y movimientos de control personal, organizados por mes.',
         totalsLabel: 'del control interno', movementLabel: 'movimiento interno', listLabel: 'Planilla de movimientos internos',
-        service: controlInternoService,
+        service: controlInternoService, receiptModule: 'control-interno',
         permissions: { create: 'control_interno.crear', edit: 'control_interno.editar', cancel: 'control_interno.anular', report: 'control_interno.reportes' }
     },
     TEODORO: {
         title: 'Teodoro', description: 'Ingresos, gastos y pagos de Teodoro, organizados por mes.',
         totalsLabel: 'de Teodoro', movementLabel: 'movimiento de Teodoro', listLabel: 'Planilla de movimientos de Teodoro',
-        service: teodoroService,
+        service: teodoroService, receiptModule: 'teodoro',
         permissions: { create: 'teodoro.crear', edit: 'teodoro.editar', cancel: 'teodoro.anular', report: 'teodoro.reportes' }
     },
     DANIEL: {
         title: 'Daniel', description: 'Ingresos, gastos y pagos de Daniel, organizados por mes.',
         totalsLabel: 'de Daniel', movementLabel: 'movimiento de Daniel', listLabel: 'Planilla de movimientos de Daniel',
-        service: danielService,
+        service: danielService, receiptModule: 'daniel',
         permissions: { create: 'daniel.crear', edit: 'daniel.editar', cancel: 'daniel.anular', report: 'daniel.reportes' }
     }
 } as const;
@@ -62,6 +63,7 @@ function MovementControlPage({ ambito }: { ambito: MovementControlScope }) {
     const [reportBusy, setReportBusy] = useState('');
     const [editor, setEditor] = useState<{ record: InternalMovement | null } | null>(null);
     const [receipts, setReceipts] = useState<InternalMovement | null>(null);
+    const [receiptMovement, setReceiptMovement] = useState<number | null>(null);
     const [cancelRecord, setCancelRecord] = useState<InternalMovement | null>(null);
     const change = (key: keyof InternalFilters, value: string) => { setFilters(current => ({ ...current, [key]: value })); setPage(1); };
     const activeFilterCount = [filters.tipo, filters.moneda, filters.categoria, filters.metodoPago, filters.creadoPorId, filters.estado !== 'TODOS' ? filters.estado : ''].filter(Boolean).length;
@@ -99,6 +101,7 @@ function MovementControlPage({ ambito }: { ambito: MovementControlScope }) {
     };
 
     const actions = (record: InternalMovement) => <div className="flex flex-nowrap gap-1.5">
+        <button type="button" onClick={() => setReceiptMovement(record.id)} aria-label="Recibo PDF" title="Emitir o consultar recibo PDF" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-indigo-200 text-indigo-800 hover:bg-indigo-50 focus-visible:ring-2 focus-visible:ring-indigo-500"><DocumentTextIcon className="h-5 w-5" aria-hidden="true" /></button>
         <button type="button" onClick={() => setReceipts(record)} aria-label={`Comprobantes (${record.adjuntos.length})`} title={`Ver comprobantes (${record.adjuntos.length})`} className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-indigo-200 text-indigo-800 hover:bg-indigo-50 focus-visible:ring-2 focus-visible:ring-indigo-500"><PaperClipIcon className="h-5 w-5" aria-hidden="true" /></button>
         {canEdit && !record.anuladoEn && <button type="button" onClick={() => setEditor({ record })} aria-label="Editar" title="Editar movimiento" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-indigo-500"><PencilSquareIcon className="h-5 w-5" aria-hidden="true" /></button>}
         {canCancel && !record.anuladoEn && <button type="button" data-danger-trigger="true" onClick={() => setCancelRecord(record)} aria-label="Anular" title="Anular movimiento" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-red-200 text-red-800 hover:bg-red-50 focus-visible:ring-2 focus-visible:ring-red-500"><XCircleIcon className="h-5 w-5" aria-hidden="true" /></button>}
@@ -160,6 +163,7 @@ function MovementControlPage({ ambito }: { ambito: MovementControlScope }) {
 
         {editor && <InternalMovementModal service={service} movementLabel={section.movementLabel} key={editor.record?.id || 'new'} record={editor.record} period={filters.periodo} options={options} close={() => setEditor(null)} saved={() => { toast.success(editor.record ? 'Movimiento actualizado' : 'Movimiento guardado'); changed(); }} />}
         {receipts && <InternalReceiptsModal service={service} key={receipts.id} record={receipts} canEdit={canEdit} close={() => setReceipts(null)} changed={changed} />}
+        {receiptMovement !== null && <MovementReceiptModal key={receiptMovement} module={section.receiptModule} movementId={receiptMovement} canIssue={canCreate || canEdit} close={() => setReceiptMovement(null)} />}
         {cancelRecord && <InternalCancelModal service={service} movementLabel={section.movementLabel} totalsLabel={section.totalsLabel} record={cancelRecord} close={() => setCancelRecord(null)} changed={() => { toast.success('Movimiento anulado'); changed(); }} />}
     </div>;
 }

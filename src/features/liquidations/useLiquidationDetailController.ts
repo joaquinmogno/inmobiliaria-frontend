@@ -82,6 +82,13 @@ export const useLiquidationDetailController = (id?: string) => {
         }
     };
 
+    const handleSaveInternalNote = async (texto: string | null, expectedVersion: number) => {
+        const note = await liquidacionesService.updateInternalNote(liquidationId, { texto, expectedVersion });
+        setLiquidacion(current => current?.id === liquidationId ? { ...current, notaInternaContrato: note } : current);
+        toast.success(texto ? 'Nota interna guardada para este contrato y sus próximos meses' : 'Nota interna eliminada');
+        await loadAuditPage(1);
+    };
+
     const handleDeleteMovimiento = async (movementId: number) => {
         try {
             await liquidacionesService.deleteMovimiento(movementId);
@@ -242,7 +249,7 @@ export const useLiquidationDetailController = (id?: string) => {
         isAdjustmentModalOpen, setIsAdjustmentModalOpen,
         creditToApply, setCreditToApply,
         tenantPaymentToReverse, setTenantPaymentToReverse,
-        loadAuditPage, handleAddMovimiento, handleSaveNote, handleDeleteMovimiento, handleConfirmar,
+        loadAuditPage, handleAddMovimiento, handleSaveNote, handleSaveInternalNote, handleDeleteMovimiento, handleConfirmar,
         handleSavePayment, handleUpdateHonorarios, handleUpdateAlquiler, handleCreateAdjustment, handleApplyTenantCredit, handleSaveOwnerPayment, handleReverseOwnerPayment, handleReverseTenantPayment, handleDelete,
         goToList: () => navigate('/liquidaciones')
     };
