@@ -3,6 +3,7 @@ import type { TipoMovimiento } from './liquidaciones.service';
 import type { Moneda } from '../utils/currency';
 
 export interface PlanCuotas {
+    resumen?: InstallmentPlanSummary;
     id: number;
     concepto: string;
 	    montoTotal: number;
@@ -20,6 +21,33 @@ export interface PlanCuotas {
     cerradoPor?: { id: number; nombreCompleto: string } | null;
     cuotas?: CuotaPlan[];
     _count?: { cuotas: number };
+}
+
+export interface InstallmentPlanSummary {
+    sumaCuotas: string;
+    montoCuotasPagadas: string;
+    montoPendiente: string;
+    montoPendienteDisponible: string;
+    montoPendienteVinculado: string;
+    cantidadPendienteDisponible: number;
+    cantidadPendienteVinculada: number;
+}
+
+export interface InstallmentPreviewInput {
+    contratoId: number;
+    planId?: number;
+    montoTotal: number;
+    cantidadCuotas: number;
+    fechaPrimeraCuota: string;
+}
+
+export interface InstallmentPreview {
+    moneda: Moneda;
+    montoTotal: string;
+    sumaCuotas: string;
+    cuotas: Array<{ numeroCuota: number; monto: string; fechaVencimiento: string }>;
+    resumen?: InstallmentPlanSummary;
+    estadoPlan?: PlanCuotas['estado'];
 }
 
 export interface CuotaPlan {
@@ -43,6 +71,9 @@ export interface CuotaPlan {
 }
 
 export const planesCuotasService = {
+    preview(data: InstallmentPreviewInput) {
+        return api.post<InstallmentPreview>('/planes-cuotas/vista-previa', data);
+    },
     async create(data: {
         contratoId: number;
         concepto: string;
@@ -75,6 +106,7 @@ export const planesCuotasService = {
 
     async reprogramar(id: number, data: {
         motivo: string;
+        montoPendienteEsperado?: number;
         montoTotal: number;
         cantidadCuotas: number;
         fechaPrimeraCuota: string;

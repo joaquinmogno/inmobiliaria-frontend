@@ -63,7 +63,7 @@ export default function HonorariosModal({ isOpen, onClose, onSave, currentMonto,
                                     <Dialog.Title as="h3" className="text-lg font-bold text-gray-900">
                                         Editar honorarios
                                     </Dialog.Title>
-                                    <button onClick={onClose} className="text-gray-600 hover:text-content-muted">
+                                    <button type="button" onClick={onClose} className="text-gray-600 hover:text-content-muted" aria-label="Cerrar ventana">
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
                                 </div>
@@ -73,6 +73,8 @@ export default function HonorariosModal({ isOpen, onClose, onSave, currentMonto,
                                         <label htmlFor="fee-percentage" className="block text-xs font-bold text-gray-700 uppercase mb-1">Porcentaje (%)</label>
                                         <NumericInput
                                             id="fee-percentage"
+                                            min={0}
+                                            max={100}
                                             className="w-full rounded-lg border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 text-sm"
                                             value={porcentaje}
                                             onChange={(val) => setPorcentaje(val.toString())}

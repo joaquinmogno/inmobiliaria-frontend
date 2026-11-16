@@ -99,6 +99,10 @@ test('stack real: instalación única, readiness, CSP, sesión y CSRF', async ({
   for (const route of ['/home', '/configuracion']) {
     await page.goto(route);
     await expect(page.locator('main')).toBeVisible();
+    // Esta verificación mide la pantalla completa; el fallback de carga se
+    // evalúa por separado para no depender de la velocidad de descarga del chunk.
+    await expect(page.getByText('Cargando página…', { exact: true })).toBeHidden();
+    await page.waitForLoadState('networkidle');
     const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();
     expect(results.violations, `${route}: ${results.violations.map(item => item.id).join(', ')}`).toEqual([]);
   }

@@ -10,7 +10,7 @@ interface Props {
 
 export default function EmptyState({ filtered, title, description, onClear, action }: Props) {
   const Icon = filtered ? MagnifyingGlassIcon : InboxIcon;
-  return <div className="px-4 py-10 text-center">
+  return <div className="px-4 py-10 text-center" role="status">
     <Icon className="mx-auto mb-3 h-9 w-9 text-slate-400" aria-hidden="true" />
     <p className="font-semibold text-slate-800">{filtered ? 'No hay resultados con estos filtros' : title}</p>
     <p className="mx-auto mt-2 max-w-md text-sm text-slate-600">{filtered ? 'Probá otra búsqueda o limpiá los filtros para ver los registros disponibles.' : description}</p>

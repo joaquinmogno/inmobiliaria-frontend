@@ -1,7 +1,9 @@
+import { installmentOutstanding } from '../utils/installments';
+import CurrencyAmounts from '../components/CurrencyAmounts';
 import LoadingState from '../components/LoadingState';
 import { useEffect, useState } from "react";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { liquidacionesService, liquidationNoteRecipientLabels, settlementStatusLabel, type ContractLiquidationTimeline } from "../services/liquidaciones.service";
 import {
@@ -27,11 +29,13 @@ import TenantCreditApplicationModal from "../components/TenantCreditApplicationM
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
 import AuditTrail from "../components/AuditTrail";
-import { formatCurrency as formatMoney, type Moneda } from "../utils/currency";
+import { formatCurrency as formatMoney, type Moneda , formatCurrencyWithCents } from "../utils/currency";
 import { formatDate, formatDateTime, formatMonthYear } from "../utils/date";
 import {
     getOwnerNetAmount,
+    getCurrencySummaries,
     getTenantPaidTotal,
+    getPeriodCurrencySummaries,
     getTenantRemainingBalance,
     isLiquidationEditable
 } from "../features/liquidations/liquidation-detail.model";
@@ -51,6 +55,7 @@ const ownerMovementStatus = {
 
 export default function LiquidacionDetalle() {
     const navigate = useNavigate();
+    const location = useLocation();
     const { user } = useAuth();
     const canEditLiquidations = hasPermission(user, "liquidaciones.editar");
     const canEditContracts = hasPermission(user, "contratos.editar");
@@ -93,6 +98,18 @@ export default function LiquidacionDetalle() {
         return () => { active = false; };
     }, [liquidacion?.contratoId]);
 
+    useEffect(() => {
+        if (isLoading || location.hash !== '#comprobantes') return;
+        const frame = window.requestAnimationFrame(() => {
+            const section = document.getElementById('liquidation-vouchers') as HTMLDetailsElement | null;
+            if (!section) return;
+            section.open = true;
+            section.scrollIntoView({ block: 'start' });
+            section.querySelector('summary')?.focus({ preventScroll: true });
+        });
+        return () => window.cancelAnimationFrame(frame);
+    }, [isLoading, location.hash, id]);
+
     const formatCurrency = (monto: number, moneda: Moneda = liquidacion?.moneda || "ARS") => formatMoney(monto, moneda);
 
     const formatPeriod = (dateStr: string) => {
@@ -119,21 +136,7 @@ export default function LiquidacionDetalle() {
     const ingresos = liquidacion.movimientos?.filter(m => m.tipo === 'INGRESO') || [];
     const descuentos = liquidacion.movimientos?.filter(m => m.tipo === 'DESCUENTO') || [];
     const ownerPaymentHistory = liquidacion.historialPagosPropietario || [];
-    const currencySummaries = liquidacion.resumenMonedas?.length ? liquidacion.resumenMonedas.filter(summary =>
-        summary.moneda === liquidacion.moneda || summary.netoACobrar > 0 || summary.montoPropietario > 0 || summary.cobradoInquilino > 0 || summary.pagadoPropietario > 0
-    ) : [{
-        moneda: liquidacion.moneda,
-        totalIngresos: Number(liquidacion.totalIngresos || 0),
-        totalDescuentos: Number(liquidacion.totalDescuentos || 0),
-        netoACobrar: Number(liquidacion.netoACobrar || 0),
-        montoPropietario: Number(liquidacion.montoPropietario || 0),
-        cobradoInquilino: Number(liquidacion.resumenOperativo?.cobradoInquilino ?? getTenantPaidTotal(liquidacion)),
-        creditoAplicadoInquilino: Number(liquidacion.resumenOperativo?.creditoAplicadoInquilino || 0),
-        saldoInquilino: getTenantRemainingBalance(liquidacion),
-        pagadoPropietario: Number(liquidacion.resumenOperativo?.pagadoPropietario ?? liquidacion.montoPagadoPropietario ?? 0),
-        saldoPropietario: Math.max(0, Number(liquidacion.montoPropietario || 0) - Number(liquidacion.resumenOperativo?.pagadoPropietario ?? liquidacion.montoPagadoPropietario ?? 0)),
-        capitalPropioExpuesto: Number(liquidacion.resumenOperativo?.capitalPropioExpuesto || 0)
-    }];
+    const currencySummaries = getCurrencySummaries(liquidacion);
     const contractCurrencySummary = currencySummaries.find(summary => summary.moneda === liquidacion.moneda) || currencySummaries[0];
     const ownerPaid = contractCurrencySummary.pagadoPropietario;
     const ownerTotal = contractCurrencySummary.montoPropietario;
@@ -241,7 +244,7 @@ export default function LiquidacionDetalle() {
 
             <ContractInternalNote key={liquidacion.contratoId} note={liquidacion.notaInternaContrato} canEdit={canEditLiquidations} onSave={handleSaveInternalNote} />
 
-            {liquidacion.estado === 'BORRADOR' && (confirmIssues.length > 0 || confirmError) && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900"><p className="font-black">Revisá antes de confirmar</p>{confirmIssues.map(message => <p key={message}>• {message}</p>)}{confirmError && <p>• {confirmError}</p>}</div>}
+            {((liquidacion.estado === 'BORRADOR' && confirmIssues.length > 0) || confirmError) && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900"><p className="font-black">{liquidacion.estado === 'BORRADOR' ? 'Revisá antes de confirmar' : 'Revisá el estado actualizado'}</p>{liquidacion.estado === 'BORRADOR' && confirmIssues.map(message => <p key={message}>• {message}</p>)}{confirmError && <p>• {confirmError}</p>}</div>}
 
             <section aria-labelledby="liquidation-concepts-title" className="ui-panel p-4 sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -585,7 +588,7 @@ export default function LiquidacionDetalle() {
                 {liquidacion.motivoCambioAlquiler && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-950"><strong>{liquidacion.alquilerExcepcional ? 'Alquiler excepcional: ' : 'Actualización del alquiler: '}</strong>{liquidacion.motivoCambioAlquiler}</p>}
             </details>
 
-            {liquidacion.cuotas && liquidacion.cuotas.length > 0 && <details className="rounded-2xl border border-blue-200 bg-blue-50 p-4"><summary className="min-h-11 cursor-pointer font-black text-blue-950">Cuotas incorporadas ({liquidacion.cuotas.length})</summary><div className="mt-2 grid gap-2 sm:grid-cols-2">{liquidacion.cuotas.map(cuota => <div key={cuota.id} className="rounded-lg bg-white p-3 text-sm"><p className="font-bold">{cuota.plan.concepto} · cuota {cuota.numeroCuota}/{cuota.plan._count.cuotas}</p><p>{formatCurrency(Number(cuota.monto))} · {cuota.estado.toLowerCase()}</p><p>Saldo propio: {formatCurrency(Math.max(0, Number(cuota.monto) - cuota.imputacionesPago.reduce((sum, item) => sum + Number(item.monto), 0)))}</p></div>)}</div></details>}
+            {liquidacion.cuotas && liquidacion.cuotas.length > 0 && <details className="rounded-2xl border border-blue-200 bg-blue-50 p-4"><summary className="min-h-11 cursor-pointer font-black text-blue-950">Cuotas incorporadas ({liquidacion.cuotas.length})</summary><div className="mt-2 grid gap-2 sm:grid-cols-2">{liquidacion.cuotas.map(cuota => <div key={cuota.id} className="rounded-lg bg-white p-3 text-sm"><p className="font-bold">{cuota.plan.concepto} · cuota {cuota.numeroCuota}/{cuota.plan._count.cuotas}</p><p>{formatCurrencyWithCents(cuota.monto, cuota.moneda || liquidacion.moneda)} · {cuota.estado.toLowerCase()}</p><p>Saldo propio: {formatCurrencyWithCents(installmentOutstanding(cuota), cuota.moneda || liquidacion.moneda)}</p></div>)}</div></details>}
 
             {(liquidacion.contrato?.serviciosGastos || []).length > 0 && (
                 <details className="rounded-2xl border border-sky-200 bg-sky-50 px-5 py-4">
@@ -606,16 +609,18 @@ export default function LiquidacionDetalle() {
                 </details>
             )}
 
-            {deudaResumen && deudaResumen.totalDeuda > 0 && <section data-testid="historical-debt" className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><h2 className="font-black text-amber-950">Saldo pendiente de otros períodos: {formatMoney(deudaResumen.totalDeuda, deudaResumen.moneda)}</h2><p className="mt-1 text-sm text-amber-900">Se muestra como referencia para decidir cómo cobrarlo. No se agrega dos veces a esta liquidación.</p><div className="mt-3 flex flex-wrap gap-2">{deudaResumen.detalle.map(item => <button key={item.id} type="button" onClick={() => navigate(`/liquidaciones/${item.id}`)} className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-left text-xs font-bold text-amber-950">{formatMonthYear(item.periodo)} · debe {formatMoney(item.deuda, item.moneda)} →</button>)}</div></section>}
+            {deudaResumen && (deudaResumen.porMoneda?.some(item => item.monto > 0) ?? deudaResumen.totalDeuda > 0) && <section data-testid="historical-debt" className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><h2 className="font-black text-amber-950">Saldo pendiente de otros períodos: <CurrencyAmounts amounts={deudaResumen.porMoneda?.filter(item => item.monto > 0) || [{ moneda: deudaResumen.moneda, monto: deudaResumen.totalDeuda }]} /></h2><p className="mt-1 text-sm text-amber-900">Se muestra como referencia para decidir cómo cobrarlo. No se agrega dos veces a esta liquidación.</p><div className="mt-3 flex flex-wrap gap-2">{deudaResumen.detalle.map(item => <button key={`${item.id}-${item.moneda}`} type="button" onClick={() => navigate(`/liquidaciones/${item.id}`)} className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-left text-xs font-bold text-amber-950">{formatMonthYear(item.periodo)} · debe {formatMoney(item.deuda, item.moneda)} →</button>)}</div></section>}
 
-            <details className="ui-panel p-4" aria-label="Historial de este contrato"><summary className="flex min-h-11 cursor-pointer items-center justify-between font-black text-gray-950">Meses anteriores de esta propiedad <ChevronDownIcon className="h-4 w-4 text-gray-600" /></summary><div className="mt-2"><button type="button" onClick={() => navigate(`/liquidaciones/contrato/${liquidacion.contratoId}?periodo=${liquidacion.periodo.slice(0, 7)}`)} className="text-sm font-bold text-indigo-700">Ver todos los meses →</button></div><div className="mt-3 flex gap-2 overflow-x-auto">{earlierPeriods.length ? earlierPeriods.slice(0, 8).map(item => <button key={item.periodo} type="button" onClick={() => navigate(`/liquidaciones/${item.liquidacionId}`)} className="min-w-40 rounded-lg border border-gray-200 p-2 text-left text-xs hover:bg-indigo-50"><span className="block font-bold capitalize">{formatMonthYear(item.periodo)}</span><span className="block">{item.estado === 'EN_MORA' ? 'En mora' : item.estado.toLowerCase().replaceAll('_', ' ')}</span><span className="block">Saldo {formatMoney(item.saldoInquilino, liquidacion.moneda)}</span><span className="block">{item.ajustes.length} ajuste(s) · {item.cuotas.length} cuota(s)</span></button>) : <p className="text-sm text-gray-600">No hay liquidaciones anteriores.</p>}</div></details>
+            <details className="ui-panel p-4" aria-label="Historial de este contrato"><summary className="flex min-h-11 cursor-pointer items-center justify-between font-black text-gray-950">Meses anteriores de esta propiedad <ChevronDownIcon className="h-4 w-4 text-gray-600" /></summary><div className="mt-2"><button type="button" onClick={() => navigate(`/liquidaciones/contrato/${liquidacion.contratoId}?periodo=${liquidacion.periodo.slice(0, 7)}`)} className="text-sm font-bold text-indigo-700">Ver todos los meses →</button></div><div className="mt-3 flex gap-2 overflow-x-auto">{earlierPeriods.length ? earlierPeriods.slice(0, 8).map(item => <button key={item.periodo} type="button" onClick={() => navigate(`/liquidaciones/${item.liquidacionId}`)} className="min-w-40 rounded-lg border border-gray-200 p-2 text-left text-xs hover:bg-indigo-50"><span className="block font-bold capitalize">{formatMonthYear(item.periodo)}</span><span className="block">{item.estado === 'EN_MORA' ? 'En mora' : item.estado.toLowerCase().replaceAll('_', ' ')}</span><span className="block">Saldo <CurrencyAmounts amounts={getPeriodCurrencySummaries(item, liquidacion.moneda).map(summary => ({ moneda: summary.moneda, monto: summary.saldoInquilino }))} /></span><span className="block">{item.ajustes.length} ajuste(s) · {item.cuotas.length} cuota(s)</span></button>) : <p className="text-sm text-gray-600">No hay liquidaciones anteriores.</p>}</div></details>
 
-            {liquidacion.comprobantes && liquidacion.comprobantes.length > 0 && (
-                <details data-testid="liquidation-vouchers" className="rounded-3xl border border-indigo-100 bg-indigo-50/40 p-4 shadow-sm" aria-labelledby="liquidation-vouchers-title">
-                    <summary id="liquidation-vouchers-title" className="flex min-h-11 cursor-pointer items-center justify-between gap-2 font-black text-indigo-950">Comprobantes emitidos <span className="text-xs font-semibold">{liquidacion.comprobantes.length} versiones <ChevronDownIcon className="ml-2 inline h-4 w-4" /></span></summary>
+            {(Boolean(liquidacion.comprobantes?.length) || location.hash === '#comprobantes') && (
+                <details id="liquidation-vouchers" data-testid="liquidation-vouchers" className="rounded-3xl border border-indigo-100 bg-indigo-50/40 p-4 shadow-sm" aria-labelledby="liquidation-vouchers-title">
+                    <summary id="liquidation-vouchers-title" className="flex min-h-11 cursor-pointer items-center justify-between gap-2 font-black text-indigo-950">Comprobantes emitidos <span className="text-xs font-semibold">{liquidacion.comprobantes?.length || 0} versiones <ChevronDownIcon className="ml-2 inline h-4 w-4" /></span></summary>
                     <div className="mt-4 space-y-3">
-                        {liquidacion.comprobantes.map(comprobante => {
+                        {!liquidacion.comprobantes?.length && <p className="text-sm text-gray-600">Todavía no hay comprobantes emitidos para esta liquidación.</p>}
+                        {(liquidacion.comprobantes || []).map(comprobante => {
                             const tieneAjustes = comprobante.ajustes.length > 0;
+                            const voucherAmounts = comprobante.importesPorMoneda?.length ? comprobante.importesPorMoneda : [comprobante];
                             return (
                                 <article key={comprobante.id} className="rounded-2xl border border-indigo-100 bg-white p-4">
                                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -634,8 +639,8 @@ export default function LiquidacionDetalle() {
                                         </div>
                                     </div>
                                     <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-                                        <p className="rounded-lg bg-gray-50 px-3 py-2 text-gray-700">Inquilino: <span className="font-bold">{formatMoney(comprobante.importeOriginal, comprobante.moneda)}</span>{tieneAjustes && <> → <span className="font-bold text-indigo-700">{formatMoney(comprobante.importeCorregido, comprobante.moneda)}</span></>}</p>
-                                        <p className="rounded-lg bg-gray-50 px-3 py-2 text-gray-700">Propietario: <span className="font-bold">{formatMoney(comprobante.importePropietarioOriginal, comprobante.moneda)}</span>{tieneAjustes && <> → <span className="font-bold text-indigo-700">{formatMoney(comprobante.importePropietarioCorregido, comprobante.moneda)}</span></>}</p>
+                                        <p className="rounded-lg bg-gray-50 px-3 py-2 text-gray-700">Inquilino: <span className="font-bold"><CurrencyAmounts amounts={voucherAmounts.map(amount => ({ moneda: amount.moneda, monto: amount.importeOriginal }))} /></span>{tieneAjustes && <> → <span className="font-bold text-indigo-700"><CurrencyAmounts amounts={voucherAmounts.map(amount => ({ moneda: amount.moneda, monto: amount.importeCorregido }))} /></span></>}</p>
+                                        <p className="rounded-lg bg-gray-50 px-3 py-2 text-gray-700">Propietario: <span className="font-bold"><CurrencyAmounts amounts={voucherAmounts.map(amount => ({ moneda: amount.moneda, monto: amount.importePropietarioOriginal }))} /></span>{tieneAjustes && <> → <span className="font-bold text-indigo-700"><CurrencyAmounts amounts={voucherAmounts.map(amount => ({ moneda: amount.moneda, monto: amount.importePropietarioCorregido }))} /></span></>}</p>
                                     </div>
                                     {tieneAjustes && (
                                         <ul className="mt-3 space-y-2 border-t border-gray-100 pt-3">
@@ -706,8 +711,8 @@ export default function LiquidacionDetalle() {
                         <p className="break-words text-sm font-semibold text-gray-800 [overflow-wrap:anywhere]">{liquidacion.creadoPor?.nombreCompleto || "Sin dato"}</p>
                     </div>
                     <div className="border-t border-slate-100 py-3">
-                        <p className="text-xs font-black uppercase tracking-wider text-gray-600">Cerrada por</p>
-                        <p className="break-words text-sm font-semibold text-gray-800 [overflow-wrap:anywhere]">{liquidacion.cerradoPor?.nombreCompleto || "Todavía no cerrada"}</p>
+                        <p className="text-xs font-black uppercase tracking-wider text-gray-600">Cierre administrativo registrado por</p>
+                        <p className="break-words text-sm font-semibold text-gray-800 [overflow-wrap:anywhere]">{liquidacion.cerradoPor?.nombreCompleto || "Sin responsable de cierre registrado"}</p>
                     </div>
                     <div className="border-t border-slate-100 py-3">
                         <p className="text-xs font-black uppercase tracking-wider text-gray-600">Confirmada por</p>
@@ -776,6 +781,7 @@ export default function LiquidacionDetalle() {
             <LiquidationContractModal contractId={showContract ? liquidacion.contratoId : null} onClose={() => setShowContract(false)} />
 
             <PaymentModal
+                operationScope={String(liquidacion.id)}
                 isOpen={isPaymentModalOpen}
                 onClose={() => setIsPaymentModalOpen(false)}
 	                onSave={handleSavePayment}
@@ -783,12 +789,14 @@ export default function LiquidacionDetalle() {
 	                moneda={liquidacion.moneda}
 	                targetLabel={`la liquidación de ${formatPeriod(liquidacion.periodo)}`}
                 otherDebtAmount={deudaResumen?.totalDeuda || 0}
+                otherDebtAmounts={deudaResumen?.porMoneda}
                 agreedMethod={liquidacion.contrato?.modalidadCobroInquilino || null}
-                installments={liquidacion.cuotas?.map(cuota => ({ id: cuota.id, numeroCuota: cuota.numeroCuota, concepto: cuota.plan.concepto, total: Number(cuota.monto), saldo: Math.max(0, Number(cuota.monto) - cuota.imputacionesPago.reduce((sum, item) => sum + Number(item.monto), 0)) })) || []}
+                installments={liquidacion.cuotas?.map(cuota => ({ id: cuota.id, numeroCuota: cuota.numeroCuota, concepto: cuota.plan.concepto, total: Number(cuota.monto), saldo: installmentOutstanding(cuota) })) || []}
                 currencyBalances={currencySummaries.map(summary => ({ moneda: summary.moneda, saldo: summary.saldoInquilino }))}
 	            />
 
             <OwnerPaymentModal
+                operationEndpoint={`/liquidaciones/${liquidacion.id}/pagar-propietario`}
                 isOpen={isOwnerPaymentModalOpen}
                 onClose={() => setIsOwnerPaymentModalOpen(false)}
 	                onSave={handleSaveOwnerPayment}

@@ -16,8 +16,8 @@ export function formatCurrency(amount: number | string | null | undefined, moned
   const sign = numericAmount < 0 ? "-" : "";
 
   return `${sign}${symbol}${Math.abs(numericAmount).toLocaleString("es-AR", {
-    minimumFractionDigits: moneda === "USD" ? 2 : 0,
-    maximumFractionDigits: moneda === "USD" ? 2 : 0,
+    minimumFractionDigits: moneda === "USD" || !Number.isInteger(numericAmount) ? 2 : 0,
+    maximumFractionDigits: 2,
   })}`;
 }
 

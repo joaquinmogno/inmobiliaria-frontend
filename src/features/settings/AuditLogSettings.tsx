@@ -1,3 +1,5 @@
+import AuditDetailContent from '../../components/AuditDetail';
+import EmptyState from '../../components/EmptyState';
 import LoadingState from '../../components/LoadingState';
 import { useCallback, useEffect, useState } from 'react';
 import { ListBulletIcon } from '@heroicons/react/24/outline';
@@ -39,7 +41,7 @@ const parsePermissionDetail = (log: AuditLog): PermissionAuditDetail | null => {
 
 const AuditDetail = ({ log }: { log: AuditLog }) => {
     const detail = parsePermissionDetail(log);
-    if (!detail) return <>{log.detalle || '-'}</>;
+    if (!detail) return <AuditDetailContent detail={log.detalle} />;
     return (
         <div className="space-y-3">
             <p className="text-sm font-semibold text-gray-800">Usuario afectado: <span className="text-indigo-700">{detail.usuarioAfectado || '-'}</span></p>
@@ -54,6 +56,8 @@ const AuditDetail = ({ log }: { log: AuditLog }) => {
 export default function AuditLogSettings({ refreshToken }: { refreshToken: number }) {
     const [logs, setLogs] = useState<AuditLog[]>([]);
     const [loading, setLoading] = useState(false);
+    const [loadError, setLoadError] = useState(false);
+    const [filtered, setFiltered] = useState(false);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
     const [action, setAction] = useState('');
@@ -65,6 +69,7 @@ export default function AuditLogSettings({ refreshToken }: { refreshToken: numbe
 
     const loadLogs = useCallback(async (requestedPage = 1, clearFilters = false) => {
         setLoading(true);
+        setLoadError(false);
         try {
             const response = await auditService.getLogs({
                 page: requestedPage,
@@ -77,9 +82,11 @@ export default function AuditLogSettings({ refreshToken }: { refreshToken: numbe
                 requestId: clearFilters ? undefined : requestId || undefined
             });
             setLogs(response.data);
+            setFiltered(!clearFilters && Boolean(action || dateFrom || dateTo || user || result || requestId));
             setTotal(response.meta.total);
             setPage(response.meta.page);
         } catch (error) {
+            setLoadError(true);
             console.error('Error loading logs:', error);
         } finally {
             setLoading(false);
@@ -93,11 +100,14 @@ export default function AuditLogSettings({ refreshToken }: { refreshToken: numbe
         void loadLogs(1, true);
     };
 
+    const empty = <EmptyState filtered={filtered} title="Todavía no hay eventos de auditoría" description="Las operaciones registradas aparecerán aquí." onClear={clearFilters} />;
+    const failure = <div role="alert" className="p-4 text-sm text-red-800">No se pudo cargar la auditoría. Los filtros se conservaron.<button type="button" onClick={() => void loadLogs(page)} className="ui-button ui-button-secondary ml-3">Reintentar</button></div>;
     return (
         <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-gray-100 p-4 sm:p-6">
-                <h2 className="flex items-center text-lg font-semibold text-gray-900"><ListBulletIcon className="mr-2 h-5 w-5 text-indigo-600" />Registro de Actividad (Auditoría)</h2>
+                <h2 className="flex items-center text-lg font-semibold text-gray-900"><ListBulletIcon className="mr-2 h-5 w-5 text-indigo-600" />Registro de actividad (auditoría)</h2>
             </div>
+            <p className="px-4 pt-3 text-xs text-gray-600">Fechas y horas de Buenos Aires · formato de 24 horas.</p>
             <div className="flex flex-wrap items-end gap-4 border-b border-gray-100 bg-gray-50 p-4">
                 <div className="min-w-[200px] flex-1"><label htmlFor="audit-action" className="mb-1 block text-xs font-bold uppercase text-content-muted">Acción (ej. CREAR_CONTRATO)</label><input id="audit-action" type="text" value={action} onChange={event => setAction(event.target.value.toUpperCase())} placeholder="Buscar por acción..." className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
                 <div className="min-w-[180px] flex-1"><label htmlFor="audit-user" className="mb-1 block text-xs font-bold uppercase text-content-muted">Usuario</label><input id="audit-user" type="text" value={user} onChange={event => setUser(event.target.value)} placeholder="Nombre o email" className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" /></div>
@@ -108,22 +118,22 @@ export default function AuditLogSettings({ refreshToken }: { refreshToken: numbe
                 <div className="flex gap-2"><button onClick={() => void loadLogs(1)} className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-indigo-700">Filtrar</button><button onClick={clearFilters} className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-50">Limpiar</button></div>
             </div>
             <div className="divide-y divide-gray-100 2xl:hidden">
-                {loading ? <LoadingState compact label="Cargando auditoría…" /> : logs.length === 0 ? <div className="px-6 py-12 text-center italic text-gray-600">No se han registrado acciones críticas aún.</div> : logs.map(log => (
-                    <article key={log.id} className="p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-black uppercase tracking-wider text-indigo-700">{log.accion.replace(/_/g, ' ')}</p><h3 className="mt-1 text-sm font-bold text-gray-900">{log.usuario?.nombreCompleto || 'Sistema'}</h3></div><span className={`shrink-0 rounded-full px-2 py-1 text-xs font-bold ${log.resultado === 'FALLIDO' ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{log.resultado === 'FALLIDO' ? 'Fallido' : 'Éxito'}</span></div><div className="mt-2 text-sm text-gray-600"><AuditDetail log={log} /></div>{log.entidadId && <p className="mt-1 text-xs text-gray-600">{log.entidad} #{log.entidadId}</p>}<p className="mt-2 break-all text-xs text-gray-600">IP: {log.ipAddress || '-'} · Solicitud: {log.requestId || '-'}</p></article>
+                {loading ? <LoadingState compact label="Cargando auditoría…" /> : loadError ? failure : logs.length === 0 ? empty : logs.map(log => (
+                    <article key={log.id} className="p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-black uppercase tracking-wider text-indigo-700">{log.accion.replace(/_/g, ' ')}</p><h3 className="mt-1 text-sm font-bold text-gray-900">{log.usuario?.nombreCompleto || 'Sistema'}</h3></div><span className={`shrink-0 rounded-full px-2 py-1 text-xs font-bold ${log.resultado === 'FALLIDO' ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{log.resultado === 'FALLIDO' ? 'Fallido' : 'Éxito'}</span></div><p className="mt-2 text-xs text-gray-600">{formatDateTime(log.fechaCreacion)}</p><div className="mt-2 text-sm text-gray-600"><AuditDetail log={log} /></div>{log.entidadId && <p className="mt-1 text-xs text-gray-600">{log.entidad} #{log.entidadId}</p>}<p className="mt-2 break-all text-xs text-gray-600">IP: {log.ipAddress || '-'} · Solicitud: {log.requestId || '-'}</p></article>
                 ))}
             </div>
             <table className="tabular-nums hidden w-full text-left 2xl:table">
                 <thead className="border-b border-gray-100 bg-gray-50 text-xs font-semibold uppercase tracking-wider text-content-muted"><tr><th className="px-6 py-3">Acción</th><th className="px-6 py-3">Usuario</th><th className="px-6 py-3">Resultado</th><th className="px-6 py-3">Detalle</th><th className="px-6 py-3">Fecha</th></tr></thead>
                 <tbody className="divide-y divide-gray-100 text-sm">
-                    {loading ? <tr><td colSpan={5} className="px-6 py-8"><LoadingState compact label="Cargando auditoría…" /></td></tr> : logs.length === 0 ? <tr><td colSpan={5} className="px-6 py-12 text-center italic text-gray-600">No se han registrado acciones críticas aún.</td></tr> : logs.map(log => (
+                    {loading ? <tr><td colSpan={5} className="px-6 py-8"><LoadingState compact label="Cargando auditoría…" /></td></tr> : loadError ? <tr><td colSpan={5}>{failure}</td></tr> : logs.length === 0 ? <tr><td colSpan={5}>{empty}</td></tr> : logs.map(log => (
                         <tr key={log.id} className="hover:bg-gray-50"><td className="whitespace-nowrap px-6 py-4"><span className="rounded border border-indigo-100 bg-indigo-50 px-2 py-0.5 text-xs font-bold text-indigo-700">{log.accion.replace(/_/g, ' ')}</span></td><td className="px-6 py-4 font-medium text-gray-900">{log.usuario?.nombreCompleto || 'Sistema'}</td><td className="px-6 py-4"><span className={`rounded-full px-2 py-1 text-xs font-bold ${log.resultado === 'FALLIDO' ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{log.resultado === 'FALLIDO' ? 'Fallido' : 'Éxito'}</span></td><td className="px-6 py-4 text-gray-600"><AuditDetail log={log} />{log.entidadId && <span className="ml-2 text-xs text-gray-600">({log.entidad} #{log.entidadId})</span>}<p className="mt-1 break-all text-xs text-gray-600">IP: {log.ipAddress || '-'} · Solicitud: {log.requestId || '-'}</p></td><td className="whitespace-nowrap px-6 py-4 text-content-muted">{formatDateTime(log.fechaCreacion)}</td></tr>
                     ))}
                 </tbody>
             </table>
-            <div className="flex flex-col gap-3 border-t border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+            {!loadError && <div className="flex flex-col gap-3 border-t border-gray-100 bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm font-medium text-content-muted">Mostrando página <strong>{page}</strong> de {Math.max(1, Math.ceil(total / PAGE_SIZE))} <span className="mx-2">·</span>{total} registros en total</p>
                 <div className="flex gap-2"><button onClick={() => void loadLogs(page - 1)} disabled={page <= 1 || loading} className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-600 disabled:opacity-50">Anterior</button><button onClick={() => void loadLogs(page + 1)} disabled={page * PAGE_SIZE >= total || loading} className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-bold text-gray-600 disabled:opacity-50">Siguiente</button></div>
-            </div>
+            </div>}
         </section>
     );
 }

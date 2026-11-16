@@ -1,12 +1,16 @@
-import { useState } from "react";
-import { XMarkIcon, KeyIcon, LockClosedIcon } from "@heroicons/react/24/outline";
+import { useEffect, useRef, useState } from "react";
+import { DialogTitle } from "@headlessui/react";
+import { XMarkIcon, KeyIcon } from "@heroicons/react/24/outline";
 import { authService } from "../services/auth.service";
 import PasswordInput from "./PasswordInput";
+import { Modal, ModalBackdrop, ModalPanel } from "./Modal";
+import FieldError, { useFieldValidation } from "./FieldError";
+import FormError from "./FormError";
 
 interface UserProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
-  user: any;
+  user: { email?: string } | null;
 }
 
 export default function UserProfileModal({ isOpen, onClose, user }: UserProfileModalProps) {
@@ -14,159 +18,81 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const fields = useFieldValidation();
+  const formRef = useRef<HTMLFormElement>(null);
+  const busy = loading || Boolean(success);
+  const close = () => { if (!busy) onClose(); };
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+      setError(""); setSuccess(""); fields.reset();
+    }
+  }, [isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(null);
-
-    if (newPassword !== confirmPassword) {
-      setError("La nueva contraseña y la confirmación no coinciden.");
-      return;
+    if (busy) return;
+    setError("");
+    fields.reset();
+    const invalid: Record<string, string> = {};
+    if (newPassword.length < 12 || !/[a-z]/.test(newPassword) || !/[A-Z]/.test(newPassword) || !/[0-9]/.test(newPassword) || !/[^A-Za-z0-9]/.test(newPassword)) {
+      invalid['profile-new-password'] = 'Usá al menos 12 caracteres e incluí mayúscula, minúscula, número y símbolo.';
     }
-
-    if (
-      newPassword.length < 12 ||
-      !/[a-z]/.test(newPassword) ||
-      !/[A-Z]/.test(newPassword) ||
-      !/[0-9]/.test(newPassword) ||
-      !/[^A-Za-z0-9]/.test(newPassword)
-    ) {
-      setError("La nueva contraseña debe tener al menos 12 caracteres e incluir mayúscula, minúscula, número y símbolo.");
-      return;
-    }
+    if (newPassword !== confirmPassword) invalid['profile-confirm-password'] = 'La confirmación no coincide con la nueva contraseña.';
+    if (Object.keys(invalid).length) { fields.showErrors(invalid); return; }
 
     setLoading(true);
     try {
       await authService.changePassword(currentPassword, newPassword);
       setSuccess("Contraseña actualizada. Volvé a iniciar sesión.");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmPassword("");
-      setTimeout(() => {
-        onClose();
-        setSuccess(null);
-        window.dispatchEvent(new Event("logout"));
-      }, 2000);
-    } catch (err: any) {
-      setError(err.message || "Error al cambiar la contraseña. Verifica tu contraseña actual.");
-    } finally {
-      setLoading(false);
-    }
+      setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
+      setTimeout(() => { onClose(); window.dispatchEvent(new Event("logout")); }, 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo cambiar la contraseña. Revisá tu contraseña actual e intentá nuevamente.");
+      requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[role="alert"]')?.focus());
+    } finally { setLoading(false); }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 ui-backdrop-enter">
-      <div data-modal-panel className="ui-modal-enter bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col max-h-[90dvh]">
-        {/* Header */}
-        <div className="flex-shrink-0 px-6 py-4 flex items-center justify-between border-b gap-4">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-50 rounded-lg text-indigo-600">
-              <KeyIcon className="w-6 h-6" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                Mi Perfil
-              </h2>
-              <p className="text-sm font-medium text-gray-600">{user?.email}</p>
-            </div>
+  return <Modal open={isOpen} onClose={close} className="fixed inset-0 z-[100]">
+    <ModalBackdrop className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
+    <div className="fixed inset-0 flex min-h-0 items-center justify-center overflow-hidden p-3 sm:p-4">
+      <ModalPanel data-modal-panel className="flex max-h-full w-full max-w-md flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b px-5 py-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <KeyIcon aria-hidden="true" className="h-6 w-6 shrink-0 text-indigo-600" />
+            <div className="min-w-0"><DialogTitle className="text-xl font-bold text-gray-900">Mi perfil</DialogTitle><p className="break-words text-sm text-gray-600">{user?.email}</p></div>
           </div>
-          <button
-            onClick={onClose}
-            className="flex h-11 w-11 items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <XMarkIcon className="w-5 h-5 text-content-muted" />
-          </button>
+          <button type="button" onClick={close} disabled={busy} aria-label="Cerrar mi perfil" className="ui-button ui-button-ghost h-11 w-11 shrink-0 p-0"><XMarkIcon aria-hidden="true" className="h-5 w-5" /></button>
         </div>
-
-        {/* Content */}
-        <div className="modal-scroll flex-1 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <LockClosedIcon className="w-5 h-5 text-indigo-500" />
-            Cambiar Contraseña
-          </h3>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="p-3 bg-red-50 text-status-danger rounded-lg text-sm font-medium border border-red-100">
-                {error}
-              </div>
-            )}
-            
-            {success && (
-              <div className="p-3 bg-green-50 text-status-success rounded-lg text-sm font-medium border border-green-100 flex justify-between items-center">
-                <span>{success}</span>
-                <span className="text-xs">Cerrando...</span>
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="profile-current-password" className="block text-sm font-medium text-gray-700 mb-1">Contraseña Actual</label>
-              <PasswordInput
-                id="profile-current-password"
-                autoComplete="current-password"
-                visibilityLabel="contraseña actual"
-                required
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                placeholder="Ingresá tu contraseña actual"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="profile-new-password" className="block text-sm font-medium text-gray-700 mb-1">Nueva contraseña</label>
-              <PasswordInput
-                id="profile-new-password"
-                autoComplete="new-password"
-                visibilityLabel="nueva contraseña"
-                required
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                placeholder="12+ con mayúscula, minúscula, número y símbolo"
-                minLength={12}
-              />
-            </div>
-
-            <div>
-              <label htmlFor="profile-confirm-password" className="block text-sm font-medium text-gray-700 mb-1">Confirmar nueva contraseña</label>
-              <PasswordInput
-                id="profile-confirm-password"
-                autoComplete="new-password"
-                visibilityLabel="confirmación de contraseña"
-                required
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                placeholder="Repite la nueva contraseña"
-                minLength={12}
-              />
-            </div>
-
-            <div className="pt-4 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-5 py-2.5 rounded-xl font-medium text-gray-600 hover:bg-gray-100 transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-5 py-2.5 rounded-xl font-semibold bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 transition-all disabled:opacity-50 disabled:active:scale-100"
-              >
-                {loading ? "Cambiando..." : "Actualizar Contraseña"}
-              </button>
-            </div>
-          </form>
+        <form id="profile-password-form" ref={formRef} onSubmit={handleSubmit} aria-busy={loading} className="modal-scroll min-h-0 flex-1 space-y-4 p-5">
+          <h3 className="text-lg font-semibold text-gray-900">Cambiar contraseña</h3>
+          <FormError message={error} />
+          {success && <p role="status" className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-800">{success}</p>}
+          <div>
+            <label htmlFor="profile-current-password" className="mb-1 block text-sm font-medium text-gray-700">Contraseña actual</label>
+            <PasswordInput {...fields.inputProps('profile-current-password')} data-autofocus autoComplete="current-password" visibilityLabel="contraseña actual" required disabled={busy} value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} className="ui-field" />
+            <FieldError id="profile-current-password" message={fields.errors['profile-current-password']} />
+          </div>
+          <div>
+            <label htmlFor="profile-new-password" className="mb-1 block text-sm font-medium text-gray-700">Nueva contraseña</label>
+            <PasswordInput {...fields.inputProps('profile-new-password')} aria-describedby={['profile-password-help', fields.errors['profile-new-password'] && 'profile-new-password-error'].filter(Boolean).join(' ')} autoComplete="new-password" visibilityLabel="nueva contraseña" required minLength={12} disabled={busy} value={newPassword} onChange={e => setNewPassword(e.target.value)} className="ui-field" />
+            <p id="profile-password-help" className="mt-1 text-xs text-gray-600">Al menos 12 caracteres, con mayúscula, minúscula, número y símbolo.</p>
+            <FieldError id="profile-new-password" message={fields.errors['profile-new-password']} />
+          </div>
+          <div>
+            <label htmlFor="profile-confirm-password" className="mb-1 block text-sm font-medium text-gray-700">Confirmar nueva contraseña</label>
+            <PasswordInput {...fields.inputProps('profile-confirm-password')} autoComplete="new-password" visibilityLabel="confirmación de contraseña" required minLength={12} disabled={busy} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="ui-field" />
+            <FieldError id="profile-confirm-password" message={fields.errors['profile-confirm-password']} />
+          </div>
+        </form>
+        <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t bg-gray-50 px-5 py-3">
+          <button type="button" onClick={close} disabled={busy} className="ui-button ui-button-secondary">Cancelar</button>
+          <button type="submit" form="profile-password-form" disabled={busy} className="ui-button ui-button-primary">{loading ? 'Actualizando…' : 'Actualizar contraseña'}</button>
         </div>
-      </div>
+      </ModalPanel>
     </div>
-  );
+  </Modal>;
 }

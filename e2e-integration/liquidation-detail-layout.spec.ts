@@ -14,12 +14,12 @@ test('el detalle separa el ciclo de la deuda y contiene textos largos sin colisi
 
   await page.goto('/liquidaciones');
   await page.getByRole('button', { name: 'Historial', exact: true }).click();
-  const firstHistoryAction = page.getByRole('table', { name: 'Historial de liquidaciones' }).getByRole('row').nth(1).getByRole('button');
+  const firstHistoryAction = page.getByRole('table', { name: 'Historial de liquidaciones' }).getByRole('row').nth(1).getByRole('link').first();
   await expect(firstHistoryAction).toBeVisible();
   await firstHistoryAction.click();
-  await expect(page).toHaveURL(/\/liquidaciones\/\d+$/);
+  await expect(page).toHaveURL(/\/liquidaciones\/\d+(?:#.*)?$/);
 
-  const liquidationId = page.url().split('/').at(-1);
+  const liquidationId = new URL(page.url()).pathname.split('/').at(-1);
   const longToken = 'AdministracionInmobiliariaSinEspaciosQueNoDebeSuperponerse';
   await page.route(`**/api/liquidaciones/${liquidationId}*`, async route => {
     const response = await route.fetch();

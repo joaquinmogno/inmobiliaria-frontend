@@ -1,6 +1,6 @@
 export const ARGENTINA_TIME_ZONE = "America/Argentina/Buenos_Aires";
 
-const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})/;
+const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})(?:$|T)/;
 
 interface DateParts {
     year: string;
@@ -25,6 +25,8 @@ function civilParts(value?: string | null): DateParts | null {
     const match = DATE_ONLY_PATTERN.exec(value);
     if (!match) return null;
     const [, year, month, day] = match;
+    const date = new Date(`${year}-${month}-${day}T00:00:00.000Z`);
+    if (Number.isNaN(date.getTime()) || date.getUTCMonth() + 1 !== Number(month) || date.getUTCDate() !== Number(day)) return null;
     return { year, month, day };
 }
 

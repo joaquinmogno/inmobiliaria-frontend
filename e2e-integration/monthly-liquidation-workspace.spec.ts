@@ -13,8 +13,8 @@ test('el espacio mensual guía la preparación y funciona con teclado y mobile',
 
   await expect(page.getByRole('heading', { name: /Liquidaciones de/i })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Trabajo del mes', exact: true })).toHaveAttribute('aria-current', 'page');
-  await expect(page.getByRole('button', { name: /Propiedades administradas/i })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Propiedades en mora hoy/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Contratos administrados del mes/i })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Contratos con mora hoy/i })).toBeVisible();
   await expect(page.getByRole('button', { name: /Pendientes de liquidar/i })).toBeVisible();
   await expect(page.getByLabel('Buscar por dirección')).toBeVisible();
   await expect(page.getByLabel('Filtrar por estado')).toBeVisible();

@@ -1,3 +1,4 @@
+import LiquidationStates from './LiquidationStates';
 import { PencilSquareIcon } from '@heroicons/react/24/outline';
 import { getLiquidationStatusLabel } from './liquidation-detail.model';
 import { settlementStatusLabel, type Liquidacion } from '../../services/liquidaciones.service';
@@ -34,10 +35,11 @@ export default function LiquidationSummary({ liquidacion, summaries, canEdit, on
                 Resumen de liquidación <span className="capitalize">· {formatMonthYear(liquidacion.periodo)}</span>
             </h1>
             <span className={`rounded-full px-3 py-1 text-xs font-bold ${liquidacion.estado === 'BORRADOR' ? 'bg-amber-100 text-amber-900' : liquidacion.estado === 'CONFIRMADA' ? 'bg-emerald-100 text-emerald-900' : 'bg-gray-100 text-gray-700'}`}>
-                {getLiquidationStatusLabel(liquidacion.estado)} · N° {String(liquidacion.id).padStart(6, '0')}
+                Documento: {getLiquidationStatusLabel(liquidacion.estado)} · N° {String(liquidacion.id).padStart(6, '0')}
             </span>
         </div>
-        <dl className="mt-4 grid gap-4 border-y border-slate-100 py-4 text-sm sm:grid-cols-2 xl:grid-cols-[1.4fr_1fr_1fr_auto]">
+        <LiquidationStates documentState={liquidacion.estado} tenantState={liquidacion.estadoCobroInquilino} ownerState={liquidacion.estadoPagoPropietario} closedAt={liquidacion.fechaLiquidacion} closedById={liquidacion.cerradoPorId ?? liquidacion.cerradoPor?.id} className="mt-2" />
+        <dl className="mt-3 grid gap-4 border-y border-slate-100 py-3 text-sm sm:grid-cols-2 xl:grid-cols-[1.4fr_1fr_1fr_auto]">
             <div className="min-w-0"><dt className="text-xs font-bold text-gray-600">Inmueble</dt><dd data-testid="liquidation-fact-value" className="break-words font-black text-gray-950">{address}</dd></div>
             <div className="min-w-0"><dt className="text-xs font-bold text-gray-600">Propietario</dt><dd data-testid="liquidation-fact-value" className="break-words font-bold text-gray-900">{owner}</dd></div>
             <div className="min-w-0"><dt className="text-xs font-bold text-gray-600">Inquilino</dt><dd data-testid="liquidation-fact-value" className="break-words font-bold text-gray-900">{tenant}</dd></div>

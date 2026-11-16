@@ -1,29 +1,35 @@
-import { useState, Fragment, useEffect } from "react";
+import FinancialRetryNotice from './FinancialRetryNotice';
+import CurrencyAmounts from './CurrencyAmounts';
+import { useState, Fragment, useEffect, useRef } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon, BanknotesIcon, CalendarIcon, CreditCardIcon, ChatBubbleBottomCenterTextIcon } from "@heroicons/react/24/outline";
 import NumericInput from "./NumericInput";
 import { PAYMENT_METHOD_OPTIONS, type MetodoPago } from "../services/pagos.service";
-import { formatCurrency, MONEDA_LABELS, type Moneda } from "../utils/currency";
+import { formatCurrency, MONEDA_LABELS, type Moneda , formatCurrencyWithCents } from "../utils/currency";
 import FormError, { useFormError } from "./FormError";
 import AppSelect from "./AppSelect";
 import { todayDateInput } from "../utils/date";
 import { cuentasBancariasService, type CuentaBancaria } from "../services/cuentas-bancarias.service";
 
 interface PaymentModalProps {
+    operationScope?: string;
     isOpen: boolean;
     onClose: () => void;
-    onSave: (p: { monto: number, moneda: Moneda, fechaPago: string, metodoPago: MetodoPago, cuentaBancariaId?: number, comprobante?: string, observaciones?: string, cuotasImputadas?: Array<{ cuotaId: number; monto: number }> }) => void;
+    onSave: (p: { monto: number, moneda: Moneda, fechaPago: string, metodoPago: MetodoPago, cuentaBancariaId?: number, comprobante?: string, observaciones?: string, cuotasImputadas?: Array<{ cuotaId: number; monto: number }> }) => Promise<boolean>;
     suggestedAmount?: number;
     moneda?: Moneda;
     targetLabel?: string;
     otherDebtAmount?: number;
+    otherDebtAmounts?: Array<{ moneda: Moneda; monto: number }>;
     agreedMethod?: MetodoPago | null;
     installments?: Array<{ id: number; numeroCuota: number; concepto: string; saldo: number; total: number }>;
     currencyBalances?: Array<{ moneda: Moneda; saldo: number }>;
 }
 
-export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount, moneda = "ARS", targetLabel, otherDebtAmount = 0, agreedMethod, installments = [], currencyBalances }: PaymentModalProps) {
+export default function PaymentModal({ operationScope, isOpen, onClose, onSave, suggestedAmount, moneda = "ARS", targetLabel, otherDebtAmount = 0, otherDebtAmounts, agreedMethod, installments = [], currencyBalances }: PaymentModalProps) {
     const { error: formError, setError: setFormError, formRef } = useFormError();
+    const [submitting, setSubmitting] = useState(false);
+    const sending = useRef(false);
     const [monto, setMonto] = useState("");
     const [fechaPago, setFechaPago] = useState(() => todayDateInput());
     const [metodoPago, setMetodoPago] = useState<MetodoPago>("EFECTIVO");
@@ -46,8 +52,9 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
     useEffect(() => { if (isOpen && agreedMethod) setMetodoPago(agreedMethod); }, [isOpen, agreedMethod]);
     useEffect(() => { if (isOpen) cuentasBancariasService.getAll().then(setCuentas).catch(() => setCuentas([])); }, [isOpen]);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (sending.current) return;
         const amount = Number(monto);
         setFormError("");
         if (!Number.isFinite(amount) || amount <= 0) return setFormError("El monto debe ser mayor a cero.");
@@ -56,7 +63,7 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
         const cuotasImputadas = Object.entries(quotaAmounts).filter(([, value]) => Number(value) > 0).map(([cuotaId, value]) => ({ cuotaId: Number(cuotaId), monto: Number(value) }));
         if (cuotasImputadas.reduce((total, item) => total + item.monto, 0) > amount + 0.001) return setFormError('La suma asignada a cuotas supera el importe recibido.');
         if (cuotasImputadas.some(item => item.monto > (installments.find(cuota => cuota.id === item.cuotaId)?.saldo || 0))) return setFormError('Una cuota supera su saldo pendiente.');
-        onSave({
+        await savePayment({
             monto: amount,
             moneda: monedaPago,
             fechaPago,
@@ -66,16 +73,25 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
             cuotasImputadas,
             observaciones: observaciones || undefined
         });
+    };
+
+    const savePayment = async (payment: Parameters<typeof onSave>[0]) => {
+        if (sending.current) return;
+        sending.current = true; setSubmitting(true);
+        try {
+        const saved = await onSave(payment);
+        if (!saved) return;
         // Reset
         setMonto("");
         setObservaciones("");
         setComprobante("");
         setQuotaAmounts({});
+        } finally { sending.current = false; setSubmitting(false); }
     };
 
     return (
         <Transition appear show={isOpen} as={Fragment}>
-            <Dialog as="div" className="relative z-[60]" onClose={onClose}>
+            <Dialog as="div" className="relative z-[60]" onClose={submitting ? () => undefined : onClose}>
                 <Transition.Child
                     as={Fragment}
                     enter="ui-modal-enter-transition"
@@ -99,8 +115,8 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-[0.98]"
                         >
-                            <Dialog.Panel className="flex max-h-[100dvh] w-full max-w-md transform flex-col overflow-hidden rounded-t-3xl border border-gray-100 bg-white text-left align-middle shadow-2xl transition-all sm:max-h-[90dvh] sm:rounded-3xl">
-                                <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-100 p-5 sm:p-8 sm:pb-5">
+                            <Dialog.Panel className="flex max-h-[100dvh] w-full max-w-md sm:max-w-xl transform flex-col overflow-hidden rounded-t-3xl border border-gray-100 bg-white text-left align-middle shadow-2xl transition-all sm:max-h-[90dvh] sm:rounded-3xl">
+                                <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-100 p-4">
                                     <div>
                                         <Dialog.Title as="h3" className="text-2xl font-black leading-6 text-gray-900 tracking-tight">
                                             Registrar pago
@@ -109,17 +125,20 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
                                     </div>
                                     <button
                                         type="button"
-                                        onClick={onClose}
+                                        onClick={onClose} disabled={submitting}
+                                        aria-label="Cerrar ventana"
                                         className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-gray-600 transition-all hover:bg-gray-100 hover:text-gray-900 focus:outline-none"
                                     >
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
                                 </div>
 
-                                <form ref={formRef} onSubmit={handleSubmit} className="modal-scroll flex-1 space-y-6 p-5 sm:p-8 sm:pt-5">
+                                <form id="tenant-payment-form" ref={formRef} onSubmit={handleSubmit} className="modal-scroll flex-1 space-y-4 p-4">
+                                    <fieldset disabled={submitting} className="contents">
+                                    <FinancialRetryNotice endpoint="/pagos" scope={operationScope} disabled={submitting} onRetry={body => void savePayment(JSON.parse(body))} />
                                     <FormError message={formError} />
                                     {/* Amount Input */}
-	                                    <div className="bg-indigo-50/50 p-6 rounded-2xl border border-indigo-100/50">
+	                                    <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50">
                                         {availableCurrencies.length > 1 && (
                                             <label htmlFor="tenant-payment-currency" className="mb-3 block text-xs font-black uppercase tracking-widest text-indigo-600">Moneda
                                                 <AppSelect
@@ -147,9 +166,9 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
 	                                            <div className="mb-4 rounded-xl border border-indigo-200 bg-white p-3 text-sm text-indigo-950">
 	                                                <p className="font-bold">Este pago se aplicará únicamente a {targetLabel}.</p>
 	                                                <p className="mt-1 text-xs text-indigo-700">No se imputará automáticamente a liquidaciones anteriores.</p>
-	                                                {otherDebtAmount > 0 && (
+	                                                {(otherDebtAmounts?.some(item => item.monto > 0) ?? otherDebtAmount > 0) && (
 	                                                    <p className="mt-2 text-xs font-semibold text-amber-800">
-                                                        El contrato además registra {formatCurrency(otherDebtAmount, moneda)} de deuda en otros períodos.
+                                                        El contrato además registra deuda en otros períodos: <CurrencyAmounts amounts={otherDebtAmounts?.filter(item => item.monto > 0) || [{ moneda, monto: otherDebtAmount }]} />
 	                                                    </p>
 	                                                )}
 	                                            </div>
@@ -214,7 +233,7 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
                                         <AppSelect id="tenant-payment-bank" required ariaLabel="Cuenta bancaria" value={cuentaBancariaId} onChange={setCuentaBancariaId} options={[{ value: '', label: 'Seleccionar cuenta' }, ...cuentas.filter(c => c.moneda === monedaPago).map(c => ({ value: String(c.id), label: `${c.banco} — ${c.nombre}` }))]} buttonClassName="border-transparent bg-gray-50 font-bold" />
                                     </div>}
 
-                                    {installments.length > 0 && monedaPago === moneda && <div className="rounded-xl border border-blue-200 bg-blue-50 p-4"><p className="font-bold text-blue-950">Imputar a cuotas</p><p className="mt-1 text-xs text-blue-900">Indicá cuánto del cobro corresponde a cada cuota. El resto queda aplicado a los demás conceptos de la liquidación.</p><div className="mt-3 space-y-2">{installments.filter(cuota => cuota.saldo > 0).map(cuota => <label key={cuota.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white p-2 text-sm"><span>{cuota.concepto} · cuota {cuota.numeroCuota} · saldo {formatCurrency(cuota.saldo, moneda)}</span><input type="number" min="0" max={cuota.saldo} step="0.01" aria-label={`Importe para cuota ${cuota.numeroCuota} de ${cuota.concepto}`} value={quotaAmounts[cuota.id] || ''} onChange={event => setQuotaAmounts(current => ({ ...current, [cuota.id]: event.target.value }))} className="w-28 rounded-lg border border-gray-300 px-2 py-1 text-right" placeholder="0,00" /></label>)}</div></div>}
+                                    {installments.length > 0 && monedaPago === moneda && <div className="rounded-xl border border-blue-200 bg-blue-50 p-4"><p className="font-bold text-blue-950">Imputar a cuotas</p><p className="mt-1 text-xs text-blue-900">Indicá cuánto del cobro corresponde a cada cuota. El resto queda aplicado a los demás conceptos de la liquidación.</p><div className="mt-3 space-y-2">{installments.filter(cuota => cuota.saldo > 0).map(cuota => <label key={cuota.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white p-2 text-sm"><span>{cuota.concepto} · cuota {cuota.numeroCuota} · saldo {formatCurrencyWithCents(cuota.saldo, moneda)}</span><input type="number" min="0" max={cuota.saldo} step="0.01" aria-label={`Importe para cuota ${cuota.numeroCuota} de ${cuota.concepto}`} value={quotaAmounts[cuota.id] || ''} onChange={event => setQuotaAmounts(current => ({ ...current, [cuota.id]: event.target.value }))} className="w-28 rounded-lg border border-gray-300 px-2 py-1 text-right" placeholder="0,00" /></label>)}</div></div>}
 
                                     {/* Observations */}
                                     <div>
@@ -238,22 +257,23 @@ export default function PaymentModal({ isOpen, onClose, onSave, suggestedAmount,
                                         </div>
                                     </div>
 
-                                    <div className="pt-6 flex flex-col gap-3">
-                                        <button
-                                            type="submit"
-                                            className="w-full py-4 text-base font-black text-white bg-indigo-600 rounded-2xl hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-100 cursor-pointer flex items-center justify-center gap-2"
-                                        >
-                                            Confirmar Ingreso de Pago
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={onClose}
-                                            className="w-full py-3 text-sm font-bold text-gray-600 hover:text-gray-600 transition-colors"
-                                        >
-                                            Cancelar
-                                        </button>
-                                    </div>
+                                </fieldset>
                                 </form>
+                                <div className="ui-dialog-footer">
+                                    <button
+                                        type="submit" form="tenant-payment-form" disabled={submitting}
+                                        className="ui-button ui-button-primary flex-1"
+                                    >
+                                        {submitting ? "Registrando…" : "Confirmar Ingreso de Pago"}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={onClose} disabled={submitting}
+                                        className="ui-button ui-button-secondary"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
                             </Dialog.Panel>
                         </Transition.Child>
                     </div>

@@ -3,7 +3,7 @@ import { Modal as Dialog, ModalBackdrop as DialogBackdrop, ModalPanel as DialogP
 import { ArrowTopRightOnSquareIcon, ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
 import type { LiquidationPreparationRow } from '../../services/liquidaciones.service';
-import { formatCurrency } from '../../utils/currency';
+import { formatCurrencyWithCents } from '../../utils/currency';
 import { formatDate } from '../../utils/date';
 
 type Props = {
@@ -58,7 +58,7 @@ export default function ExceptionReviewDialog({ row, busy, canCreate, onClose, o
                 {row.cuotasVencidas.map(installment => <label key={installment.id} className="flex min-h-12 cursor-pointer items-start gap-3 rounded-xl border border-gray-200 p-3 hover:border-indigo-300 hover:bg-indigo-50/40">
                   <input type="checkbox" className="mt-0.5 h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" checked={selectedOverdue.includes(installment.id)} onChange={() => setSelectedOverdue(current => current.includes(installment.id) ? current.filter(id => id !== installment.id) : [...current, installment.id])} />
                   <span className="min-w-0 flex-1"><span className="block break-words text-sm font-bold text-gray-900">{installment.concepto} · cuota {installment.numeroCuota}</span><span className="block text-xs text-gray-700">Venció el {formatDate(installment.fechaVencimiento)}</span></span>
-                  <span className="shrink-0 text-sm font-black text-gray-900">{formatCurrency(Number(installment.monto), installment.moneda)}</span>
+                  <span className="shrink-0 text-sm font-black text-gray-900">{formatCurrencyWithCents(Number(installment.monto), installment.moneda)}</span>
                 </label>)}
               </div>
             </fieldset>}

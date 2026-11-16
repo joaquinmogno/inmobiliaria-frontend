@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import type { Moneda } from '../utils/currency';
 import { PAYMENT_METHOD_OPTIONS, type MetodoPago } from '../services/pagos.service';
-import { todayDateInput } from '../utils/date';
+import { todayDateInput, formatMonthYear } from '../utils/date';
 import { cuentasBancariasService, type CuentaBancaria } from '../services/cuentas-bancarias.service';
 
 type CreditDestination = 'DEVOLUCION' | 'SALDO_A_FAVOR' | 'COMPENSACION';
@@ -130,7 +130,7 @@ export default function LiquidationAdjustmentModal({
                       <label className="block text-sm font-bold">Liquidación a compensar
                         <select required value={liquidacionDestinoId} onChange={event => setLiquidacionDestinoId(event.target.value)} className="mt-1 w-full rounded-lg border bg-white p-2">
                           <option value="">Seleccionar liquidación</option>
-                          {compensationTargets.map(target => <option key={target.id} value={target.id}>Período {target.periodo.slice(0, 7)} · pendiente {moneda} {target.deuda.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</option>)}
+                          {compensationTargets.map(target => <option key={target.id} value={target.id}>Período {formatMonthYear(target.periodo)} · pendiente {moneda} {target.deuda.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</option>)}
                         </select>
                       </label>
                     )}

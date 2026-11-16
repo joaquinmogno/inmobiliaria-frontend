@@ -6,6 +6,7 @@ import { planesCuotasService } from "../services/planes-cuotas.service";
 import { toast } from "react-hot-toast";
 import type { Moneda } from "../utils/currency";
 import FormError, { useFormError } from "./FormError";
+import InstallmentPreviewPanel, { useInstallmentPreview } from "../features/contracts/InstallmentPreview";
 import { currentMonthInput } from "../utils/date";
 
 interface NewPlanCuotasModalProps {
@@ -26,9 +27,13 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { error: formError, setError: setFormError, reportError, formRef } = useFormError();
 
+    const quote = useInstallmentPreview(isOpen, {
+        contratoId, montoTotal: Number(montoTotal), cantidadCuotas: Number(cantidadCuotas), fechaPrimeraCuota: `${fechaPrimeraCuota}-01`
+    });
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!concepto || !montoTotal || !cantidadCuotas || !fechaPrimeraCuota) return;
+        if (isSubmitting || !quote.preview || !concepto.trim() || !montoTotal || !cantidadCuotas || !fechaPrimeraCuota) return;
         setFormError("");
 
         setIsSubmitting(true);
@@ -61,7 +66,7 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
 
     return (
         <Transition appear show={isOpen} as={Fragment}>
-            <Dialog as="div" className="relative z-[60]" onClose={onClose}>
+            <Dialog as="div" className="relative z-[60]" onClose={isSubmitting ? () => undefined : onClose}>
                 <Transition.Child
                     as={Fragment}
                     enter="ui-modal-enter-transition"
@@ -85,20 +90,22 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-[0.98]"
                         >
-                            <Dialog.Panel className="modal-scroll max-h-full w-full max-w-md transform rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                                <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                            <Dialog.Panel className="flex max-h-full w-full max-w-lg flex-col transform rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                                <div className="flex shrink-0 justify-between items-center mb-4 border-b border-gray-100 pb-4">
                                     <Dialog.Title as="h3" className="text-xl font-bold leading-6 text-gray-900">
                                         Nuevo Plan de Cuotas
                                     </Dialog.Title>
-                                    <button
+                                    <button type="button"
                                         onClick={onClose}
+                                        disabled={isSubmitting}
                                         className="text-gray-600 hover:text-content-muted transition-colors focus:outline-none"
-                                    >
+                                     aria-label="Cerrar ventana">
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
                                 </div>
 
-                                <form ref={formRef} onSubmit={handleSubmit} className="space-y-4">
+                                <form ref={formRef} onSubmit={handleSubmit} className="flex min-h-0 flex-col">
+                                    <div className="modal-scroll -mx-6 min-h-0 space-y-4 px-6 pb-4">
                                     <FormError message={formError} />
                                     <div>
                                         <label htmlFor="installment-plan-concept" className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-1.5">
@@ -106,6 +113,7 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                         </label>
                                         <input
                                             id="installment-plan-concept"
+                                            maxLength={255}
                                             type="text"
                                             required
                                             placeholder="Ej: Compra de Heladera, Honorarios Contrato, etc."
@@ -122,6 +130,7 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                             </label>
                                             <NumericInput
                                                 id="installment-plan-total"
+                                                required min="0.01"
                                                 className="block w-full px-4 py-2 text-sm border-gray-300 rounded-xl focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50/50"
                                                 value={montoTotal}
                                                 onChange={(val) => setMontoTotal(val.toString())}
@@ -163,6 +172,7 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                         </p>
                                     </div>
 
+                                    <InstallmentPreviewPanel {...quote} />
                                     <fieldset>
                                         <legend className="block text-xs font-bold text-gray-700 uppercase tracking-widest mb-1.5">
                                             Tipo de Movimiento / Destinatario
@@ -238,7 +248,8 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                         </p>
                                     </fieldset>
 
-                                    <div className="mt-8 flex justify-end gap-3 pt-6 border-t border-gray-100">
+                                    </div>
+                                    <div className="flex shrink-0 flex-wrap justify-end gap-3 pt-4 border-t border-gray-100">
                                         <button
                                             type="button"
                                             onClick={onClose}
@@ -248,7 +259,7 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                         </button>
                                         <button
                                             type="submit"
-                                            disabled={isSubmitting || !concepto || !montoTotal || !cantidadCuotas || !fechaPrimeraCuota}
+                                            disabled={isSubmitting || !quote.preview || !concepto.trim()}
                                             className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed"
                                         >
                                             {isSubmitting ? "Creando..." : "Crear Plan"}

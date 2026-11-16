@@ -3,7 +3,7 @@ import AppSelect from "../components/AppSelect";
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 import { Fragment, useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { pagosService, type Pago } from "../services/pagos.service";
 import { ChevronLeftIcon, ChevronRightIcon, EllipsisVerticalIcon, NoSymbolIcon } from "@heroicons/react/24/outline";
 import { Menu, MenuButton, MenuItem, MenuItems, Transition } from "@headlessui/react";
@@ -52,6 +52,7 @@ const readPaymentFilters = (params: URLSearchParams): PaymentFilters => {
 export default function HistorialPagos() {
     const { user } = useAuth();
     const navigate = useNavigate();
+    const canViewVouchers = hasPermission(user, "liquidaciones.ver");
     const canVoid = hasPermission(user, "pagos.eliminar");
     const [searchParams, setSearchParams] = useSearchParams();
     const initialFilters = readPaymentFilters(searchParams);
@@ -234,7 +235,7 @@ export default function HistorialPagos() {
         : 'Caja';
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto space-y-6 xl:space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Cobros de inquilinos</h1>
@@ -242,7 +243,7 @@ export default function HistorialPagos() {
                 </div>
             </div>
 
-            <FilterBar collapsibleOnMobile activeFilterCount={activeFilterCount} query={searchTerm} onQueryChange={setSearchTerm} onClear={clearFilters} resultCount={totalItems} placeholder="Buscar por propiedad, inquilino u observaciones..." filters={<>
+            <FilterBar collapsibleOnMobile collapsibleOnDesktop context={<>Estado: {estadoFilter === "ANULADO" ? "Anulados" : estadoFilter === "VIGENTE" ? "Vigentes" : "Todos"} · {desdeFilter || hastaFilter ? `Período: ${desdeFilter ? formatDate(desdeFilter) : "Desde el inicio"} – ${hastaFilter ? formatDate(hastaFilter) : "Hasta hoy"}` : "Todos los períodos"}</>} activeFilterCount={activeFilterCount} query={searchTerm} onQueryChange={setSearchTerm} onClear={clearFilters} resultCount={totalItems} placeholder="Buscar por propiedad, inquilino u observaciones..." filters={<>
                 <div className="grid gap-3 min-[380px]:grid-cols-2 xl:grid-cols-4">
                     <div><label htmlFor="payment-currency-filter" className="block text-sm font-semibold text-slate-700">Moneda</label><AppSelect id="payment-currency-filter" ariaLabel="Filtrar moneda" value={monedaFilter} onChange={setMonedaFilter} className="mt-1" options={[{ value: '', label: 'Todas' }, { value: 'ARS', label: 'ARS' }, { value: 'USD', label: 'USD' }]} /></div>
                     <div><label htmlFor="payment-method-filter" className="block text-sm font-semibold text-slate-700">Medio de pago</label><AppSelect id="payment-method-filter" ariaLabel="Filtrar método" value={metodoFilter} onChange={setMetodoFilter} className="mt-1" options={[{ value: '', label: 'Todos' }, { value: 'EFECTIVO', label: 'Efectivo' }, { value: 'TRANSFERENCIA', label: 'Transferencia' }, { value: 'CHEQUE', label: 'Cheque' }]} /></div>
@@ -261,7 +262,7 @@ export default function HistorialPagos() {
             )}
 
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                <div className="divide-y divide-gray-100 2xl:hidden">
+                <div className="divide-y divide-gray-100 xl:hidden">
                     {isLoading ? (
                         <div className="px-4 py-12 text-center text-sm text-content-muted">
                             <LoadingState compact label="Cargando pagos…" />
@@ -312,6 +313,7 @@ export default function HistorialPagos() {
                                         )}
                                     </div>
                                 </div>
+                                <div className="mt-2 flex flex-wrap items-center gap-2"><span className="ui-status">{pago.anuladoEn ? "Anulado" : "Vigente"}</span>{canViewVouchers && pago.liquidacion?.id && <Link to={`/liquidaciones/${pago.liquidacion.id}#comprobantes`} className="ui-button ui-button-secondary mb-1 px-2 text-xs">Comprobantes</Link>}</div>
                                 {pago.anuladoEn && (
                                     <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
                                         <p className="font-black uppercase tracking-wider">Pago anulado</p>
@@ -327,17 +329,17 @@ export default function HistorialPagos() {
                         ))
                     )}
                 </div>
-                <div className="hidden overflow-x-auto 2xl:block">
-                    <table className="tabular-nums min-w-full divide-y divide-gray-200">
+                <div className="hidden overflow-x-auto xl:block">
+                    <table className="ui-notebook-table tabular-nums divide-y divide-gray-200">
                         <thead className="bg-gray-50/50 whitespace-nowrap">
                             <tr>
-                                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Fecha / Método</th>
-                                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Propiedad / Contrato</th>
-                                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Inquilino</th>
-                                <th scope="col" className="px-6 py-4 text-right text-xs font-semibold text-content-muted uppercase tracking-wider">Monto</th>
-                                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Período Liq.</th>
-                                <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Auditoría</th>
-                                <th scope="col" className="sticky right-0 z-20 bg-gray-50 px-6 py-4 text-right text-xs font-semibold text-content-muted uppercase tracking-wider shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">Acciones</th>
+                                <th scope="col" className="w-[17%] 2xl:w-auto px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Fecha / Método</th>
+                                <th scope="col" className="w-[29%] 2xl:w-auto px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Propiedad / Contrato</th>
+                                <th scope="col" className="hidden 2xl:table-cell px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Inquilino</th>
+                                <th scope="col" className="w-[18%] 2xl:w-auto px-6 py-4 text-right text-xs font-semibold text-content-muted uppercase tracking-wider">Monto</th>
+                                <th scope="col" className="w-[17%] 2xl:w-auto px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Período Liq.</th>
+                                <th scope="col" className="hidden 2xl:table-cell px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Auditoría</th>
+                                <th scope="col" className="w-[19%] 2xl:w-auto sticky right-0 z-20 bg-gray-50 px-6 py-4 text-right text-xs font-semibold text-content-muted uppercase tracking-wider shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
@@ -378,8 +380,22 @@ export default function HistorialPagos() {
                                             <div className="text-xs text-content-muted mt-1">
                                                 Liq. #{pago.liquidacion?.id}
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="mt-1 2xl:hidden">
+                                            <div className="text-sm text-gray-900">
+                                                {pago.liquidacion?.contrato?.inquilinos.find((i: any) => i.esPrincipal)?.persona.nombreCompleto || 'N/A'}
+                                            </div>
+                                        </div><details className="mt-1 text-xs 2xl:hidden"><summary className="min-h-11 cursor-pointer py-3 font-semibold text-indigo-800">Datos del registro</summary>
+                                            <div className="text-sm font-medium text-gray-900">
+                                                {pago.creadoPor?.nombreCompleto || pago.auditLogs?.[0]?.usuario?.nombreCompleto || 'Sistema'}
+                                            </div>
+                                            <div className="text-xs text-content-muted mt-1">
+                                                {pago.auditLogs?.[0]
+                                                    ? formatDateTime(pago.auditLogs[0].fechaCreacion)
+                                                    : formatDateTime(pago.fechaCreacion)}
+                                            </div>
+                                            {pago.anuladoEn && <div className="mt-1 max-w-xs text-xs text-amber-800" title={pago.motivoAnulacion || ""}>{pago.motivoAnulacion}</div>}
+                                        </details></td>
+                                        <td className="hidden 2xl:table-cell px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm text-gray-900">
                                                 {pago.liquidacion?.contrato?.inquilinos.find((i: any) => i.esPrincipal)?.persona.nombreCompleto || 'N/A'}
                                             </div>
@@ -396,8 +412,8 @@ export default function HistorialPagos() {
                                             <div className="text-sm text-content-muted">
                                                 {formatPeriod(pago.liquidacion?.periodo)}
                                             </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`ui-status mt-1 ${pago.anuladoEn ? "bg-amber-50 text-amber-900" : "bg-emerald-50 text-emerald-900"}`}>{pago.anuladoEn ? "Anulado" : "Vigente"}</span></td>
+                                        <td className="hidden 2xl:table-cell px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm font-medium text-gray-900">
                                                 {pago.creadoPor?.nombreCompleto || pago.auditLogs?.[0]?.usuario?.nombreCompleto || 'Sistema'}
                                             </div>
@@ -408,7 +424,7 @@ export default function HistorialPagos() {
                                             </div>
                                             {pago.anuladoEn && <div className="mt-1 max-w-xs text-xs text-amber-800" title={pago.motivoAnulacion || ""}>{pago.motivoAnulacion}</div>}
                                         </td>
-                                        <td className={`sticky right-0 z-10 px-6 py-4 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)] ${pago.anuladoEn ? "bg-gray-50" : "bg-white"}`}>
+                                        <td className={`sticky right-0 z-10 px-6 py-4 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)] ${pago.anuladoEn ? "bg-gray-50" : "bg-white"}`}>{canViewVouchers && pago.liquidacion?.id && <Link to={`/liquidaciones/${pago.liquidacion.id}#comprobantes`} className="ui-button ui-button-secondary mb-1 px-2 text-xs">Comprobantes</Link>}
                                             {canVoid && !pago.anuladoEn && (
                                                 <button type="button" onClick={() => setSelectedPayment(pago)} data-danger-trigger="true" className="destructive-action inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-bold transition-colors">
                                                     <NoSymbolIcon className="h-4 w-4" /> Anular

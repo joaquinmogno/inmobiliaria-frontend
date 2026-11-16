@@ -5,7 +5,8 @@ export function useFormError() {
   const formRef = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (!error) return;
-    const field = formRef.current?.querySelector<HTMLElement>("[aria-invalid='true'], input:not([disabled]), select:not([disabled]), textarea:not([disabled])");
+    const field = formRef.current?.querySelector<HTMLElement>("[aria-invalid='true']")
+      || formRef.current?.querySelector<HTMLElement>("[role='alert']");
     field?.focus();
   }, [error]);
   const reportError = useCallback((cause: unknown, fallback: string) => setError(cause instanceof Error ? cause.message : fallback), []);

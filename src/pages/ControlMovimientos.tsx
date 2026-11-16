@@ -66,8 +66,8 @@ function MovementControlPage({ ambito }: { ambito: MovementControlScope }) {
     const [receiptMovement, setReceiptMovement] = useState<number | null>(null);
     const [cancelRecord, setCancelRecord] = useState<InternalMovement | null>(null);
     const change = (key: keyof InternalFilters, value: string) => { setFilters(current => ({ ...current, [key]: value })); setPage(1); };
-    const activeFilterCount = [filters.tipo, filters.moneda, filters.categoria, filters.metodoPago, filters.creadoPorId, filters.estado !== 'TODOS' ? filters.estado : ''].filter(Boolean).length;
-    const clearFilters = () => { setFilters({ periodo: filters.periodo, estado: 'TODOS' }); setPage(1); };
+    const activeFilterCount = [filters.tipo, filters.moneda, filters.categoria, filters.metodoPago, filters.creadoPorId, filters.estado !== 'VIGENTES' ? filters.estado : ''].filter(Boolean).length;
+    const clearFilters = () => { setFilters({ periodo: filters.periodo, estado: 'VIGENTES' }); setPage(1); };
     const changed = () => setRevision(current => current + 1);
 
     useEffect(() => {

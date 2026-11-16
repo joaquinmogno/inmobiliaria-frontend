@@ -16,6 +16,10 @@ export interface AccruedFinancialMetrics {
     importePropietariosDevengado: number;
     cobradoAplicado: number;
     saldoPendienteInquilinos: number;
+    cobradoInquilinos: number;
+    creditoAplicadoInquilinos: number;
+    pagadoPropietarios: number;
+    saldoPendientePropietarios: number;
 }
 
 export interface CashFinancialMetrics {

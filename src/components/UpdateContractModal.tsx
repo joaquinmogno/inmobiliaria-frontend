@@ -96,17 +96,17 @@ export default function UpdateContractModal({
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-[0.98]"
                         >
-                            <Dialog.Panel className="modal-scroll max-h-full w-full max-w-md transform rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                                <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                            <Dialog.Panel className="flex max-h-full w-full max-w-md flex-col overflow-hidden transform rounded-2xl bg-white text-left align-middle shadow-xl transition-all">
+                                <div className="flex shrink-0 justify-between items-center border-b border-gray-100 p-4">
                                     <Dialog.Title as="h3" className="text-xl font-bold leading-6 text-gray-900 flex items-center gap-2">
                                         Actualizar Alquiler
                                     </Dialog.Title>
-                                    <button onClick={onClose} className="text-gray-600 hover:text-content-muted transition-colors">
+                                    <button type="button" aria-label="Cerrar ventana" onClick={onClose} className="text-gray-600 hover:text-content-muted transition-colors">
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
                                 </div>
 
-                                <form onSubmit={handleSubmit} className="space-y-5">
+                                <form id="contract-update-form" onSubmit={handleSubmit} className="modal-scroll flex-1 space-y-4 p-4">
                                     {/* Información Actual */}
                                     <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex flex-col gap-2">
                                         <div className="flex items-center gap-2 text-indigo-700 font-bold text-xs uppercase tracking-wider">
@@ -185,23 +185,23 @@ export default function UpdateContractModal({
                                         </p>
                                     )}
 
-                                    <div className="flex gap-3 pt-4">
-                                        <button
-                                            type="button"
-                                            onClick={onClose}
-                                            className="flex-1 px-4 py-2.5 text-sm font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all font-display"
-                                        >
-                                            Cancelar
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            disabled={isSubmitting}
-                                            className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-md shadow-indigo-100 font-display"
-                                        >
-                                            {isSubmitting ? "Actualizando..." : "Confirmar"}
-                                        </button>
-                                    </div>
                                 </form>
+                                <div className="ui-dialog-footer">
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="flex-1 px-4 py-2.5 text-sm font-bold text-gray-600 bg-gray-100 rounded-xl hover:bg-gray-200 transition-all font-display"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="submit" form="contract-update-form"
+                                        disabled={isSubmitting}
+                                        className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-md shadow-indigo-100 font-display"
+                                    >
+                                        {isSubmitting ? "Actualizando..." : "Confirmar"}
+                                    </button>
+                                </div>
                             </Dialog.Panel>
                         </Transition.Child>
                     </div>

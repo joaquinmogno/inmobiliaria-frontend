@@ -69,20 +69,21 @@ export default function MovimientoModal({ isOpen, onClose, onSave, moneda = "ARS
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-[0.98]"
                         >
-                            <Dialog.Panel className="modal-scroll max-h-full w-full max-w-md transform rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
-                                <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                            <Dialog.Panel className="flex max-h-full w-full max-w-md flex-col overflow-hidden transform rounded-2xl bg-white text-left align-middle shadow-xl transition-all">
+                                <div className="flex shrink-0 justify-between items-center border-b border-gray-100 p-4">
                                     <Dialog.Title as="h3" className="text-xl font-bold leading-6 text-gray-900">
                                         Agregar Movimiento
                                     </Dialog.Title>
                                     <button
                                         onClick={onClose}
+                                        aria-label="Cerrar ventana"
                                         className="text-gray-600 hover:text-content-muted transition-colors focus:outline-none"
                                     >
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
                                 </div>
 
-                                <form onSubmit={handleSubmit} className="space-y-6">
+                                <form id="liquidation-movement-form" onSubmit={handleSubmit} className="modal-scroll flex-1 space-y-4 p-4">
                                     <fieldset>
                                         <legend className="block text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">
                                             Tipo de Movimiento
@@ -178,22 +179,22 @@ export default function MovimientoModal({ isOpen, onClose, onSave, moneda = "ARS
 
                                     <label className="flex items-center gap-2 text-sm text-gray-800"><input type="checkbox" checked={esParaInmobiliaria} onChange={event => setEsParaInmobiliaria(event.target.checked)} className="h-5 w-5 rounded border-gray-300" />Corresponde a la inmobiliaria</label>
 
-                                    <div className="mt-8 flex justify-end gap-3 pt-4 border-t border-gray-100">
-                                        <button
-                                            type="button"
-                                            onClick={onClose}
-                                            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
-                                        >
-                                            Cancelar
-                                        </button>
-                                        <button
-                                            type="submit"
-                                            className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 cursor-pointer"
-                                        >
-                                            Guardar movimiento
-                                        </button>
-                                    </div>
                                 </form>
+                                <div className="ui-dialog-footer">
+                                    <button
+                                        type="button"
+                                        onClick={onClose}
+                                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition-colors"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="submit" form="liquidation-movement-form"
+                                        className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 cursor-pointer"
+                                    >
+                                        Guardar movimiento
+                                    </button>
+                                </div>
                             </Dialog.Panel>
                         </Transition.Child>
                     </div>

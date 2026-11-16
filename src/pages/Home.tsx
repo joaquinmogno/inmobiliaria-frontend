@@ -1,3 +1,4 @@
+import { currentMonthInput, formatDate, formatMonthYear, todayDateInput } from '../utils/date';
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { contractsService, getDaysLeft, type Contract } from "../services/contracts.service";
@@ -173,9 +174,12 @@ export default function Home() {
     setTimeout(() => setSelectedContract(null), 300);
   };
 
+  const reportPeriod = kpis?.devengado?.periodo || kpis?.caja?.periodo || currentMonthInput();
+  const reportMonth = formatMonthYear(`${reportPeriod.slice(0, 7)}-01`);
   const kpiCards = [
     {
-      label: "Propiedades administradas",
+      label: "Propiedades registradas",
+      criterion: "Todas, con o sin contrato",
       visible: canViewDashboard,
       value: kpis?.propiedadesTotal ?? "-",
       icon: HomeModernIcon,
@@ -183,45 +187,47 @@ export default function Home() {
     },
     {
       label: "Contratos Activos",
+      criterion: "Incluye gestión única",
       visible: canViewContractReports,
       value: kpis?.contratosActivos ?? "-",
       icon: DocumentTextIcon,
       iconStyle: "bg-indigo-50 text-indigo-700",
     },
     {
-      label: "Morosidad",
+      label: "Pendiente de cobro · ARS",
+      criterion: "Saldo / facturado del mes",
       visible: canViewDelinquencyReports,
-      value: kpis ? `${kpis.morosidad.toFixed(1)}%` : "-",
+      value: kpis?.devengado && canViewFinancialReports ? `${kpis.morosidad.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%` : "—",
       icon: ChartBarIcon,
-      iconStyle: kpis && kpis.morosidad > 10 ? "bg-red-50 text-status-danger" : "bg-indigo-50 text-indigo-700",
-      valueStyle: kpis && kpis.morosidad > 10 ? "text-status-danger" : "text-gray-950",
+      iconStyle: "bg-indigo-50 text-indigo-700",
+      valueStyle: "text-gray-950",
     },
   ];
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto w-full">
+    <div className="ui-notebook-page space-y-4 max-w-7xl mx-auto w-full">
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="line-clamp-2 text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight" title={`Panel de ${user?.inmobiliaria?.nombre || "Gestión"}`}>
+          <h1 className="line-clamp-2 text-2xl sm:text-2xl font-bold text-gray-900 tracking-tight" title={`Panel de ${user?.inmobiliaria?.nombre || "Gestión"}`}>
             Panel de {user?.inmobiliaria?.nombre || "Gestión"}
           </h1>
-          <p className="text-gray-600 text-sm">Resumen financiero y alertas del mes actual.</p>
+          <p className="text-gray-600 text-sm">Inventario actual, pendientes de todos los períodos y finanzas de {reportMonth}.</p>
         </div>
       </div>
 
       {/* Indicadores operativos: las cifras financieras se muestran una sola vez y separadas por moneda. */}
       <section aria-labelledby="operational-summary-title">
         <h2 id="operational-summary-title" className="sr-only">Resumen operativo</h2>
-      <div data-testid="dashboard-operational-kpis" className="grid grid-cols-1 min-[380px]:grid-cols-2 sm:grid-cols-3 gap-4">
+      <div data-testid="dashboard-operational-kpis" className="grid grid-cols-1 min-[380px]:grid-cols-2 sm:grid-cols-3 gap-3">
         {kpiCards.filter(card => card.visible).map((card) => {
           const Icon = card.icon;
           return (
             <div
               key={card.label}
-              className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+              className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 shadow-sm"
             >
-              <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${card.iconStyle}`}>
+              <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${card.iconStyle}`}>
                 <Icon className="w-5 h-5" />
               </div>
               <div>
@@ -231,27 +237,29 @@ export default function Home() {
                   <p className={`text-2xl font-bold leading-tight ${card.valueStyle || "text-gray-950"}`}>{card.value}</p>
                 )}
                 <p className="text-xs font-medium leading-tight text-content-muted">{card.label}</p>
+                <p className="mt-1 text-xs text-gray-600">{card.criterion}</p>
               </div>
             </div>
           );
         })}
 	      </div>
+      <p className="mt-2 text-xs text-gray-600">Inventario al {formatDate(todayDateInput())}: propiedades de todo el registro y contratos en estado ACTIVO. Pendiente de cobro: saldo de inquilinos / facturado en ARS de {reportMonth}, incluidas deudas aún no vencidas.{!kpis?.devengado && !loadingKpis && canViewDelinquencyReports && ' Porcentaje no disponible sin el reporte financiero.'}</p>
       </section>
 
-      {canViewDashboard && kpis?.operacion && <section aria-labelledby="priority-actions-title" className="rounded-2xl border border-indigo-100 bg-white p-4 shadow-sm sm:p-5">
-        <div><h2 id="priority-actions-title" className="text-lg font-bold text-gray-950">Prioridades operativas</h2><p className="mt-1 text-sm text-content-muted">Acciones que requieren seguimiento hoy.</p></div>
-        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {canViewDashboard && kpis?.operacion && <section aria-labelledby="priority-actions-title" className="rounded-2xl border border-indigo-100 bg-white p-3 shadow-sm sm:p-4">
+        <div><h2 id="priority-actions-title" className="text-lg font-bold text-gray-950">Prioridades operativas</h2><p className="mt-1 text-sm text-content-muted">Liquidaciones confirmadas de todos los períodos; vencimientos de contratos activos en los próximos 60 días.</p></div>
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
           {[
-            { label: 'Alquileres vencidos', value: kpis.operacion.alquileresVencidos, tone: 'border-red-200 bg-red-50 text-red-900', action: () => navigate('/liquidaciones?view=HISTORIAL&vencidas=true') },
-            { label: 'Cobros pendientes', value: kpis.operacion.cobrosPendientes, tone: 'border-amber-200 bg-amber-50 text-amber-900', action: () => navigate('/liquidaciones?view=HISTORIAL&soloDeuda=true') },
-            { label: 'Listas para pagar al propietario', value: kpis.operacion.pagosPropietarioPendientes, tone: 'border-blue-200 bg-blue-50 text-blue-900', action: () => navigate('/liquidaciones?view=HISTORIAL&pendientePropietario=true') },
+            { label: 'Liquidaciones vencidas', value: kpis.operacion.alquileresVencidos, tone: 'border-red-200 bg-red-50 text-red-900', action: () => navigate('/liquidaciones?view=HISTORIAL&vencidas=true') },
+            { label: 'Liquidaciones con cobro pendiente', value: kpis.operacion.cobrosPendientes, tone: 'border-amber-200 bg-amber-50 text-amber-900', action: () => navigate('/liquidaciones?view=HISTORIAL&soloDeuda=true') },
+            { label: 'Liquidaciones con pago pendiente', value: kpis.operacion.pagosPropietarioPendientes, tone: 'border-blue-200 bg-blue-50 text-blue-900', action: () => navigate('/liquidaciones?view=HISTORIAL&pendientePropietario=true') },
             { label: 'Contratos próximos a vencer', value: kpis.operacion.contratosPorVencer, tone: 'border-amber-200 bg-amber-50 text-amber-900', action: () => navigate('/contratos?alerta=POR_VENCER') }
           ].map(item => {
             const hasPending = item.value > 0;
-            return <button type="button" key={item.label} onClick={item.action} className={`rounded-xl border p-4 text-left transition-colors ${hasPending ? item.tone : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'}`}>
+            return <button type="button" key={item.label} onClick={item.action} className={`rounded-xl border p-3 text-left transition-colors ${hasPending ? item.tone : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100'}`}>
               <p className="text-2xl font-black">{item.value}</p>
               <p className="mt-1 text-sm font-bold">{item.label}</p>
-              <p className="mt-2 text-xs font-semibold">{hasPending ? <span className="underline">Ver y resolver</span> : <>Sin pendientes · <span className="underline">Ver listado</span></>}</p>
+              <p className="mt-1 text-xs font-semibold">{hasPending ? <span className="underline">Ver y resolver</span> : <>Sin pendientes · <span className="underline">Ver listado</span></>}</p>
             </button>;
           })}
         </div>
@@ -260,10 +268,10 @@ export default function Home() {
       {canViewDashboard && <OperationalAlertsPanel />}
 
 	      {canViewFinancialReports && kpis?.porMoneda && (
-	        <section data-testid="dashboard-financial-summary" aria-labelledby="financial-summary-title" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
+	        <section data-testid="dashboard-financial-summary" aria-labelledby="financial-summary-title" className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
 	          <div className="mb-4">
 	            <h2 id="financial-summary-title" className="text-lg font-bold text-gray-950">Resumen financiero por moneda</h2>
-	            <p className="mt-1 text-sm text-content-muted">Devengado usa el período de la liquidación; caja usa la fecha real de cada movimiento. Los importes no se combinan entre ARS y USD.</p>
+	            <p className="mt-1 text-sm text-content-muted">Período: {reportMonth}. Devengado usa el período de la liquidación; caja usa la fecha real de cada movimiento. Los saldos de esos documentos incluyen cobros y créditos aplicados hasta hoy. Los importes no se combinan entre ARS y USD.</p>
 	          </div>
 	        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 	          {(["ARS", "USD"] as Moneda[]).map(moneda => {
@@ -276,17 +284,19 @@ export default function Home() {
 	            if (moneda === "USD" && !hasAmount) return null;
 
 	            return (
-	              <article key={moneda} data-testid="dashboard-currency-summary" className="rounded-xl border border-gray-200 bg-gray-50/70 p-4">
-	                <div className="mb-4 flex items-center justify-between border-b border-gray-200 pb-3">
+	              <article key={moneda} data-testid="dashboard-currency-summary" className="rounded-xl border border-gray-200 bg-gray-50/70 p-3">
+	                <div className="mb-2 flex items-center justify-between border-b border-gray-200 pb-2">
 	                  <h3 className="text-sm font-bold text-gray-950">Finanzas en {moneda}</h3>
 	                  <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-bold text-indigo-800">{moneda}</span>
 	                </div>
-	                <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+	                <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
 	                  <div className="col-span-2 rounded-lg border border-indigo-100 bg-indigo-50/60 p-3">
 	                    <p className="text-xs font-black uppercase tracking-wide text-indigo-800">Devengado · liquidaciones del período</p>
 	                    <div className="mt-2 grid grid-cols-2 gap-3">
 	                      <div><p className="text-xs font-medium text-content-muted">Facturado</p><p className="font-bold text-gray-950">{formatCurrency(accrued?.facturado ?? 0, moneda)}</p></div>
 	                      <div><p className="text-xs font-medium text-content-muted">Pendiente de inquilinos</p><p className="font-bold text-gray-950">{formatCurrency(accrued?.saldoPendienteInquilinos ?? 0, moneda)}</p></div>
+                          <div><p className="text-xs font-medium text-content-muted">Importe de propietarios</p><p className="font-bold text-gray-950">{formatCurrency(accrued?.importePropietariosDevengado ?? 0, moneda)}</p></div>
+                          <div><p className="text-xs font-medium text-content-muted">Pendiente de propietarios</p><p className="font-bold text-gray-950">{formatCurrency(accrued?.saldoPendientePropietarios ?? 0, moneda)}</p></div>
 	                    </div>
 	                  </div>
 	                  <div className="col-span-2 rounded-lg border border-emerald-100 bg-emerald-50/60 p-3">
@@ -308,7 +318,7 @@ export default function Home() {
 	        </section>
 	      )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Contratos por vencer */}
           <PaginatedList
             title="Contratos a vencer (Próx 60d)"

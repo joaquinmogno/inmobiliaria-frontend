@@ -1,15 +1,18 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import LiquidationStates from './LiquidationStates';
+import { Fragment, useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import ActiveFilterChips, { type ActiveFilterChip } from '../../components/ActiveFilterChips';
 import AppSelect from '../../components/AppSelect';
 import AutocompleteSelector from '../../components/AutocompleteSelector';
 import FilterBar from '../../components/FilterBar';
 import ServerPagination from '../../components/ServerPagination';
-import { liquidacionesService, settlementStatusLabel, type Liquidacion } from '../../services/liquidaciones.service';
-import { formatCurrency } from '../../utils/currency';
+import LoadingState from '../../components/LoadingState';
+import EmptyState from '../../components/EmptyState';
+import { liquidacionesService, type Liquidacion } from '../../services/liquidaciones.service';
+import CurrencyAmounts from '../../components/CurrencyAmounts';
 import { formatDate, formatMonthYear } from '../../utils/date';
-import { getTenantPaidTotal } from './liquidation-detail.model';
+import { getCurrencySummaries } from './liquidation-detail.model';
 
 type FilterOptions = Awaited<ReturnType<typeof liquidacionesService.getFilters>>;
 type PersonFilterOption = { id: number; nombreCompleto: string };
@@ -52,48 +55,65 @@ const nextAction = (liquidation: Liquidacion) => liquidation.estado === 'BORRADO
     : liquidation.estado === 'CONFIRMADA' && hasOwnerPaymentPending(liquidation) ? `Pagar a ${liquidation.propietarioNombre || liquidation.contrato?.propietarios.find(owner => owner.esPrincipal)?.persona.nombreCompleto || 'propietario'}`
       : 'Ver comprobantes';
 
-const operationalBalances = (liquidation: Liquidacion) => {
-  if (liquidation.resumenOperativo) return liquidation.resumenOperativo;
-  const cobradoInquilino = getTenantPaidTotal(liquidation);
-  const pagadoPropietario = Number(liquidation.montoPagadoPropietario || 0);
-  return {
-    cobradoInquilino,
-    pagadoPropietario,
-    saldoPropietario: Math.max(0, Number(liquidation.montoPropietario) - pagadoPropietario),
-    capitalPropioExpuesto: Math.max(0, pagadoPropietario - cobradoInquilino)
-  };
-};
-
 function OperationalBalanceChips({ liquidation }: { liquidation: Liquidacion }) {
-  const balances = operationalBalances(liquidation);
+  const summaries = getCurrencySummaries(liquidation);
   const chips = [
-    { label: 'Cobrado inquilino', value: balances.cobradoInquilino, tone: 'border-emerald-200 bg-emerald-50 text-emerald-900' },
-    { label: 'Entregado al propietario', value: balances.pagadoPropietario, tone: 'border-blue-200 bg-blue-50 text-blue-900' },
-    { label: 'Saldo propietario', value: balances.saldoPropietario, tone: balances.saldoPropietario > 0 ? 'border-amber-200 bg-amber-50 text-amber-950' : 'border-gray-200 bg-gray-50 text-gray-700' },
-    { label: 'Adelanto a recuperar', value: balances.capitalPropioExpuesto, tone: balances.capitalPropioExpuesto > 0 ? 'border-rose-200 bg-rose-50 text-rose-950' : 'border-gray-200 bg-gray-50 text-gray-700' }
-  ];
-  return <div className="grid min-w-64 grid-cols-2 gap-1.5">
-    {chips.map(chip => <div key={chip.label} className={`rounded-lg border px-2 py-1.5 ${chip.tone}`}>
+    { label: 'Cobrado inquilino', field: 'cobradoInquilino', tone: 'border-emerald-200 bg-emerald-50 text-emerald-900' },
+    { label: 'Entregado al propietario', field: 'pagadoPropietario', tone: 'border-blue-200 bg-blue-50 text-blue-900' },
+    { label: 'Saldo propietario', field: 'saldoPropietario', tone: summaries.some(summary => summary.saldoPropietario > 0) ? 'border-amber-200 bg-amber-50 text-amber-950' : 'border-gray-200 bg-gray-50 text-gray-700' },
+    { label: 'Adelanto a recuperar', field: 'capitalPropioExpuesto', tone: summaries.some(summary => summary.capitalPropioExpuesto > 0) ? 'border-rose-200 bg-rose-50 text-rose-950' : 'border-gray-200 bg-gray-50 text-gray-700' }
+  ] as const;
+  return <div className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+    {chips.map(chip => <div key={chip.label} className={`min-w-0 break-words rounded-lg border px-3 py-2 ${chip.tone}`}>
       <p className="text-[10px] font-black uppercase leading-3 tracking-wide">{chip.label}</p>
-      <p className="mt-1 text-xs font-black">{formatCurrency(Number(chip.value), liquidation.moneda)}</p>
+      <p className="mt-1 text-xs font-black"><CurrencyAmounts amounts={summaries.map(summary => ({ moneda: summary.moneda, monto: summary[chip.field] }))} /></p>
     </div>)}
   </div>;
 }
 
+function HistoryAmounts({ liquidation }: { liquidation: Liquidacion }) {
+  const summaries = getCurrencySummaries(liquidation);
+  const pending = summaries.filter(summary => summary.saldoInquilino > 0);
+  return <div className="min-w-0 break-words text-right">
+    <p className="text-sm font-black text-gray-950"><CurrencyAmounts amounts={summaries.map(summary => ({ moneda: summary.moneda, monto: summary.netoACobrar }))} /></p>
+    {pending.length > 0 && <div className="mt-2 text-xs text-amber-900"><p className="font-semibold">Pendiente inquilino</p><CurrencyAmounts amounts={pending.map(summary => ({ moneda: summary.moneda, monto: summary.saldoInquilino }))} /></div>}
+  </div>;
+}
+
+function HistoryActions({ row, expanded, controlsId, onToggle }: { row: Liquidacion; expanded: boolean; controlsId: string; onToggle: () => void }) {
+  const action = nextAction(row);
+  return <div className="flex min-w-0 flex-col gap-1">
+    <Link to={`/liquidaciones/${row.id}${action === 'Ver comprobantes' ? '#comprobantes' : ''}`} aria-label={action.startsWith('Pagar a ') ? `Pagar al propietario: ${action.slice('Pagar a '.length)}` : action} className="ui-button ui-button-primary w-full break-words px-2 text-center text-xs">
+      {action.startsWith('Pagar a ') ? 'Pagar al propietario' : action}
+    </Link>
+    <div className="flex flex-wrap items-center justify-end gap-1">
+      {action !== 'Ver comprobantes' && <Link to={`/liquidaciones/${row.id}#comprobantes`} className="ui-button ui-button-ghost px-1 text-xs">Comprobantes</Link>}
+      <button type="button" aria-label={`${expanded ? 'Ocultar' : 'Ver'} saldos de liquidación #${row.id}`} aria-expanded={expanded} aria-controls={controlsId} onClick={onToggle} className="ui-button ui-button-ghost px-1 text-xs">Saldos <span aria-hidden="true">{expanded ? '−' : '+'}</span></button>
+    </div>
+  </div>;
+}
+
 export default function LiquidationHistory() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState<Liquidacion[]>([]);
   const [options, setOptions] = useState<FilterOptions>({ periodos: [], monedas: ['ARS', 'USD'] });
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retry, setRetry] = useState(0);
   const [search, setSearch] = useState(() => searchParams.get('q') || '');
   const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get('q') || '');
   const [filters, setFilters] = useState(() => filtersFromSearchParams(searchParams));
   const [selectedProperty, setSelectedProperty] = useState<PropertyFilterOption | null>(null);
   const [selectedTenant, setSelectedTenant] = useState<PersonFilterOption | null>(null);
   const [selectedOwner, setSelectedOwner] = useState<PersonFilterOption | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(() => new Set());
+  const toggleBalances = (id: number) => setExpandedRows(current => {
+    const next = new Set(current);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    return next;
+  });
 
   useEffect(() => {
     liquidacionesService.getFilters().then(setOptions).catch(() => toast.error('No se pudieron cargar los filtros del historial'));
@@ -139,16 +159,17 @@ export default function LiquidationHistory() {
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setLoadError(false);
     liquidacionesService.getAll(undefined, page, PAGE_SIZE, debouncedSearch, filters)
       .then(response => {
         if (!active) return;
         setRows(response.data);
         setMeta({ total: response.meta.total, totalPages: response.meta.totalPages });
       })
-      .catch(() => active && toast.error('No se pudo cargar el historial'))
+      .catch(() => { if (active) setLoadError(true); })
       .finally(() => active && setLoading(false));
     return () => { active = false; };
-  }, [page, debouncedSearch, filters]);
+  }, [page, debouncedSearch, filters, retry]);
 
   const updateUrl = (key: string, value: string | boolean) => {
     setSearchParams(current => {
@@ -169,9 +190,14 @@ export default function LiquidationHistory() {
     ['q', ...FILTER_KEYS].forEach(key => next.delete(key));
     return next;
   }, { replace: true });
+  const clearSearchFilters = () => setSearchParams(current => {
+    const next = new URLSearchParams(current);
+    ['q', ...FILTER_KEYS.filter(key => key !== 'periodo')].forEach(key => next.delete(key));
+    return next;
+  }, { replace: true });
 
   const activeFilters: ActiveFilterChip[] = (() => {
-    const stateLabel = ({ BORRADOR: 'Borradores', CONFIRMADA: 'Confirmadas', ANULADA: 'Anuladas', PENDIENTE_COBRO: 'Pendientes de cobro', EN_MORA: 'En mora', PENDIENTE_PAGO_PROPIETARIO: 'Pendientes de pago al propietario', FINALIZADA: 'Finalizadas' } as Record<string, string>)[filters.estado] || filters.estado;
+    const stateLabel = ({ BORRADOR: 'Borradores', CONFIRMADA: 'Confirmadas', ANULADA: 'Anuladas', PENDIENTE_COBRO: 'Pendientes de cobro', EN_MORA: 'En mora', PENDIENTE_PAGO_PROPIETARIO: 'Pendientes de pago al propietario', FINALIZADA: 'Cobro y pago resueltos' } as Record<string, string>)[filters.estado] || filters.estado;
     const booleanFilters: Array<[keyof HistoryFilters, string]> = [
       ['soloDeuda', 'Con deuda'], ['vencidas', 'Vencidas'], ['pendientePropietario', 'Pendientes de pago al propietario'], ['adelantos', 'Adelantos a recuperar'], ['conCuotas', 'Con cuotas o acuerdos']
     ];
@@ -192,15 +218,20 @@ export default function LiquidationHistory() {
       <h2 id="liquidation-history-title" className="text-xl font-black text-gray-950">Historial de liquidaciones</h2>
       <p className="mt-1 text-sm text-gray-700">Consultá períodos anteriores y encontrá operaciones por persona, propiedad, moneda o estado.</p>
     </div>
-    <FilterBar query={search} onQueryChange={updateSearch} onClear={clear} resultCount={meta.total} placeholder="Propiedad, inquilino o propietario…">
-      <label className="text-xs font-bold text-gray-700">Período (cualquier mes)<input aria-label="Período" type="month" value={filters.periodo.slice(0, 7)} onChange={event => updateFilter('periodo', event.target.value ? `${event.target.value}-01` : '')} className="mt-1 min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm sm:w-48" /></label>
-      <AppSelect ariaLabel="Estado" value={filters.estado} onChange={value => updateFilter('estado', value)} options={[
-        { value: '', label: 'Todos los documentos' }, { value: 'BORRADOR', label: 'Borrador' }, { value: 'PENDIENTE_COBRO', label: 'Pendiente de cobro' }, { value: 'EN_MORA', label: 'En mora' }, { value: 'PENDIENTE_PAGO_PROPIETARIO', label: 'Pendiente de pago al propietario' }, { value: 'FINALIZADA', label: 'Finalizada' }, { value: 'ANULADA', label: 'Anulada' }
-      ]} className="w-full sm:w-56" />
-      <AppSelect ariaLabel="Moneda" value={filters.moneda} onChange={value => updateFilter('moneda', value)} options={[{ value: '', label: 'Todas las monedas' }, ...options.monedas.map(value => ({ value, label: value }))]} className="w-full sm:w-44" />
-      <details className="w-full rounded-xl border border-gray-300 bg-white sm:w-auto">
-        <summary className="flex min-h-11 cursor-pointer items-center px-4 text-sm font-bold text-gray-800">Más filtros</summary>
-        <div className="grid gap-3 border-t border-gray-200 p-3 sm:min-w-80">
+    <FilterBar query={search} onQueryChange={updateSearch} onClear={clear} resultCount={loading || loadError ? undefined : meta.total} placeholder="Propiedad, inquilino o propietario…"
+      collapsibleOnDesktop activeFilterCount={activeFilters.filter(filter => filter.key !== 'q').length}
+      context={filters.periodo ? `Período: ${formatMonthYear(filters.periodo)}` : 'Período: todos los meses'}>
+      <div className="grid min-w-0 items-end gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <label className="min-w-0 text-xs font-bold text-gray-700">Período (cualquier mes)<input aria-label="Período" type="month" value={filters.periodo.slice(0, 7)} onChange={event => updateFilter('periodo', event.target.value ? `${event.target.value}-01` : '')} className="ui-field mt-1" /></label>
+      <div className="min-w-0"><label htmlFor="history-state-filter" className="mb-1 block text-xs font-bold text-gray-700">Estado</label>
+      <AppSelect id="history-state-filter" ariaLabel="Estado" value={filters.estado} onChange={value => updateFilter('estado', value)} options={[
+        { value: '', label: 'Todos los documentos' }, { value: 'BORRADOR', label: 'Borrador' }, { value: 'PENDIENTE_COBRO', label: 'Pendiente de cobro' }, { value: 'EN_MORA', label: 'En mora' }, { value: 'PENDIENTE_PAGO_PROPIETARIO', label: 'Pendiente de pago al propietario' }, { value: 'FINALIZADA', label: 'Cobro y pago resueltos' }, { value: 'ANULADA', label: 'Anulada' }
+      ]} className="w-full" /></div>
+      <div className="min-w-0"><label htmlFor="history-currency-filter" className="mb-1 block text-xs font-bold text-gray-700">Moneda</label>
+      <AppSelect id="history-currency-filter" ariaLabel="Moneda" value={filters.moneda} onChange={value => updateFilter('moneda', value)} options={[{ value: '', label: 'Todas las monedas' }, ...options.monedas.map(value => ({ value, label: value }))]} className="w-full" /></div>
+      <details className="min-w-0 rounded-xl border border-gray-300 bg-white sm:col-span-2 xl:col-span-3">
+        <summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-gray-800">Más filtros</summary>
+        <div className="grid min-w-0 gap-3 border-t border-gray-200 p-3 xl:grid-cols-3">
           <AutocompleteSelector<PropertyFilterOption>
             label="Propiedad"
             placeholder="Dirección, matrícula o partida..."
@@ -234,66 +265,68 @@ export default function LiquidationHistory() {
           {([['soloDeuda', 'Con deuda'], ['vencidas', 'Vencidas'], ['pendientePropietario', 'Pendientes de pago al propietario'], ['adelantos', 'Adelantos a recuperar'], ['conCuotas', 'Con cuotas o acuerdos']] as const).map(([key, label]) => <label key={key} className="flex min-h-11 items-center gap-3 rounded-lg px-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"><input type="checkbox" checked={filters[key]} onChange={event => updateFilter(key, event.target.checked)} className="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />{label}</label>)}
         </div>
       </details>
+      </div>
     </FilterBar>
     <ActiveFilterChips filters={activeFilters} onClearAll={clear} />
 
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-      {loading ? <p className="p-10 text-center text-sm font-semibold text-gray-700">Cargando historial…</p> : <>
-        <div className="hidden overflow-x-auto lg:block">
-          <table className="min-w-[1200px] border-collapse text-left">
+      {loading ? <LoadingState compact label="Cargando historial…" /> : loadError ? <div role="alert" className="p-6 text-sm text-red-800"><p>No se pudo cargar el historial de liquidaciones. Los filtros se conservaron.</p><button type="button" className="ui-button ui-button-secondary mt-3" onClick={() => setRetry(value => value + 1)}>Reintentar</button></div> : !rows.length ? <EmptyState filtered={activeFilters.some(filter => filter.key !== 'periodo')} title={filters.periodo ? 'No hay liquidaciones en este período' : 'Todavía no hay liquidaciones registradas'} description={filters.periodo ? 'Elegí otro período para consultar sus liquidaciones.' : 'Las liquidaciones que generes aparecerán aquí.'} onClear={clearSearchFilters} /> : <>
+        <div className="hidden xl:block">
+          <table className="w-full table-fixed border-collapse text-left" data-testid="liquidation-history-table">
             <caption className="sr-only">Historial de liquidaciones</caption>
-            <thead className="border-b border-gray-200 bg-gray-50 text-xs font-black uppercase tracking-wide text-gray-700">
+            <colgroup><col className="w-[10%]" /><col className="w-[25%]" /><col className="w-[24%]" /><col className="w-[21%]" /><col className="w-[20%]" /></colgroup>
+            <thead className="border-b border-gray-200 bg-gray-50 text-xs font-bold uppercase tracking-wide text-gray-700">
               <tr>
                 <th scope="col" className="px-3 py-3">Período</th>
-                <th scope="col" className="px-3 py-3">Propiedad</th>
-                <th scope="col" className="px-3 py-3">Inquilino</th>
-                <th scope="col" className="px-3 py-3">Estado</th>
-                <th scope="col" className="px-3 py-3">Saldos operativos</th>
-                <th scope="col" className="px-3 py-3 text-right">Total</th>
-                <th scope="col" className="px-3 py-3 text-right">Acción</th>
+                <th scope="col" className="px-3 py-3">Propiedad / Inquilino</th>
+                <th scope="col" className="px-3 py-3">Estados</th>
+                <th scope="col" className="px-3 py-3 text-right">Total / Pendiente</th>
+                <th scope="col" className="px-3 py-3 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {rows.map(row => {
                 const property = row.propiedadDireccion || row.contrato?.propiedad.direccion || 'Propiedad sin dirección';
                 const tenant = row.inquilinoNombre || row.contrato?.inquilinos.find(item => item.esPrincipal)?.persona.nombreCompleto || 'Sin inquilino';
-                const state = row.estado === 'BORRADOR' ? 'Borrador' : row.estado === 'ANULADA' ? 'Anulada' : `Cobro ${settlementStatusLabel(row.estadoCobroInquilino)} · dueño ${settlementStatusLabel(row.estadoPagoPropietario)}`;
-                return <tr key={row.id} className="align-top hover:bg-gray-50/80">
-                  <td className="px-3 py-3.5 text-sm font-bold text-gray-900">{formatMonthYear(row.periodo)}</td>
-                  <td className="min-w-0 px-3 py-3.5"><p className="max-w-56 break-words text-sm font-black text-gray-950">{property}</p><p className="mt-1 text-xs text-gray-600">Vence {formatDate(row.fechaVencimiento)}</p></td>
-                  <td className="min-w-0 px-3 py-3.5 text-sm font-semibold text-gray-800"><p className="max-w-48 break-words">{tenant}</p></td>
-                  <td className="px-3 py-3.5"><span className="inline-flex max-w-48 rounded-full border border-gray-300 bg-gray-50 px-2 py-1 text-xs font-bold leading-4 text-gray-800">{state}</span></td>
-                  <td className="px-3 py-3.5"><OperationalBalanceChips liquidation={row} /></td>
-                  <td className="px-3 py-3.5 text-right"><p className="break-words text-sm font-black text-gray-950">{formatCurrency(Number(row.netoACobrar), row.moneda)}</p></td>
-                  <td className="px-3 py-3.5 text-right"><button type="button" onClick={() => navigate(`/liquidaciones/${row.id}`)} className="min-h-11 w-full rounded-xl bg-indigo-600 px-3 text-sm font-bold leading-4 text-white hover:bg-indigo-700 xl:w-auto">{nextAction(row)}</button></td>
-                </tr>;
+                const expanded = expandedRows.has(row.id);
+                const controlsId = `history-table-balances-${row.id}`;
+                return <Fragment key={row.id}>
+                  <tr className="align-top hover:bg-gray-50/80" data-testid="liquidation-history-row">
+                    <td className="break-words px-3 py-3 text-xs font-bold text-gray-900">{formatMonthYear(row.periodo)}</td>
+                    <td className="min-w-0 px-3 py-3"><p className="break-words text-sm font-bold text-gray-950">{property}</p><p className="mt-1 break-words text-xs text-gray-700">{tenant}</p><p className="mt-1 text-xs text-gray-600">Vence {formatDate(row.fechaVencimiento)}</p></td>
+                    <td className="px-3 py-3"><LiquidationStates documentState={row.estado} tenantState={row.estadoCobroInquilino} ownerState={row.estadoPagoPropietario} closedAt={row.fechaLiquidacion} closedById={row.cerradoPorId ?? row.cerradoPor?.id} className="min-w-0 flex-col break-words" /></td>
+                    <td className="px-3 py-3"><HistoryAmounts liquidation={row} /></td>
+                    <td className="px-3 py-3"><HistoryActions row={row} expanded={expanded} controlsId={controlsId} onToggle={() => toggleBalances(row.id)} /></td>
+                  </tr>
+                  <tr id={controlsId} hidden={!expanded} className="bg-gray-50/70"><td colSpan={5} className="p-3"><p className="mb-2 break-words text-xs font-semibold text-gray-700">Saldos de {property} · {formatMonthYear(row.periodo)}</p><OperationalBalanceChips liquidation={row} /></td></tr>
+                </Fragment>;
               })}
-              {!rows.length && <tr><td colSpan={7} className="p-10 text-center text-sm font-semibold text-gray-700">{filters.periodo ? 'No hay liquidaciones en este período' : 'No se encontraron liquidaciones con esos filtros.'}</td></tr>}
             </tbody>
           </table>
         </div>
 
-        <div className="divide-y divide-gray-200 lg:hidden">
+        <div className="divide-y divide-gray-200 xl:hidden">
         {rows.map(row => {
           const property = row.propiedadDireccion || row.contrato?.propiedad.direccion || 'Propiedad sin dirección';
           const tenant = row.inquilinoNombre || row.contrato?.inquilinos.find(item => item.esPrincipal)?.persona.nombreCompleto || 'Sin inquilino';
-          return <article key={row.id} className="grid min-w-0 gap-3 p-4 hover:bg-gray-50 md:grid-cols-[minmax(0,1fr)_minmax(12rem,auto)] md:items-center">
+          const expanded = expandedRows.has(row.id);
+          const controlsId = `history-card-balances-${row.id}`;
+          return <article key={row.id} className="grid min-w-0 gap-3 p-4 hover:bg-gray-50 md:grid-cols-[minmax(0,1fr)_minmax(0,12rem)] md:items-start">
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2"><h3 className="break-words font-black text-gray-950">{property}</h3><span className="rounded-full border border-gray-300 bg-gray-50 px-2 py-0.5 text-xs font-bold text-gray-800">{formatMonthYear(row.periodo)}</span></div>
+              <div className="flex flex-wrap items-center gap-2"><h3 className="min-w-0 break-words font-bold text-gray-950">{property}</h3><span className="rounded-full border border-gray-300 bg-gray-50 px-2 py-0.5 text-xs font-bold text-gray-800">{formatMonthYear(row.periodo)}</span></div>
               <p className="mt-1 break-words text-sm text-gray-700">{tenant} · vence {formatDate(row.fechaVencimiento)}</p>
-              <p className="mt-2 text-xs font-bold text-gray-700">{row.estado === 'BORRADOR' ? 'Borrador' : row.estado === 'ANULADA' ? 'Anulada' : `Cobro ${settlementStatusLabel(row.estadoCobroInquilino)} · pago al propietario ${settlementStatusLabel(row.estadoPagoPropietario)}`}</p>
-              <div className="mt-3"><OperationalBalanceChips liquidation={row} /></div>
+              <LiquidationStates documentState={row.estado} tenantState={row.estadoCobroInquilino} ownerState={row.estadoPagoPropietario} closedAt={row.fechaLiquidacion} closedById={row.cerradoPorId ?? row.cerradoPor?.id} className="mt-2 min-w-0 flex-col break-words" />
             </div>
-            <div className="flex min-w-0 flex-col gap-2 border-t border-gray-100 pt-3 md:items-end md:border-0 md:pt-0">
-              <p className="text-lg font-black text-gray-950">{formatCurrency(Number(row.netoACobrar), row.moneda)}</p>
-              <button type="button" onClick={() => navigate(`/liquidaciones/${row.id}`)} className="min-h-11 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white hover:bg-indigo-700">{nextAction(row)}</button>
+            <div className="flex min-w-0 flex-col gap-2 border-t border-gray-100 pt-3 md:border-0 md:pt-0">
+              <HistoryAmounts liquidation={row} />
+              <HistoryActions row={row} expanded={expanded} controlsId={controlsId} onToggle={() => toggleBalances(row.id)} />
             </div>
+            <div id={controlsId} hidden={!expanded} className="min-w-0 border-t border-gray-100 pt-3 md:col-span-2"><OperationalBalanceChips liquidation={row} /></div>
           </article>;
         })}
-        {!rows.length && <p className="p-10 text-center text-sm font-semibold text-gray-700">{filters.periodo ? 'No hay liquidaciones en este período' : 'No se encontraron liquidaciones con esos filtros.'}</p>}
         </div>
       </>}
-      <ServerPagination page={page} totalPages={meta.totalPages} total={meta.total} pageSize={PAGE_SIZE} currentCount={rows.length} onPageChange={setPage} />
+      {!loading && !loadError && <ServerPagination page={page} totalPages={meta.totalPages} total={meta.total} pageSize={PAGE_SIZE} currentCount={rows.length} onPageChange={setPage} />}
     </div>
   </section>;
 }

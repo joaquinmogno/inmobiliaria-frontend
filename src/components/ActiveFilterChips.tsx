@@ -21,10 +21,10 @@ export default function ActiveFilterChips({ filters, onClearAll }: Props) {
       key={filter.key}
       type="button"
       onClick={filter.onRemove}
-      className="inline-flex min-h-9 items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-3 text-xs font-bold text-indigo-900 hover:bg-indigo-100"
+      className="inline-flex min-h-9 min-w-0 max-w-full items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-3 text-left text-xs font-bold text-indigo-900 hover:bg-indigo-100"
       aria-label={`Quitar filtro ${filter.label}`}
     >
-      {filter.label}<XMarkIcon className="h-4 w-4" aria-hidden="true" />
+      <span className="min-w-0 [overflow-wrap:anywhere]">{filter.label}</span><XMarkIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
     </button>)}
     {filters.length > 1 && onClearAll && <button type="button" onClick={onClearAll} className="min-h-9 rounded-full px-3 text-xs font-bold text-gray-700 hover:bg-gray-100">Quitar filtros</button>}
   </div>;

@@ -37,6 +37,7 @@ export interface Pago {
 }
 
 export interface DeudaResumen {
+    porMoneda?: Array<{ moneda: Moneda; monto: number }>;
     totalDeuda: number;
     moneda: Moneda;
     detalle: {

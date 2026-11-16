@@ -1,3 +1,4 @@
+import { ApiError } from '../../services/api';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -111,11 +112,12 @@ export const useLiquidationDetailController = (id?: string) => {
             toast.success('Liquidación confirmada y pasada a pendiente de pago');
         } catch (error) {
             setConfirmError(error instanceof Error ? error.message : 'Error al confirmar liquidación');
+            if (error instanceof ApiError && error.status === 409) await loadLiquidation(false);
         }
     };
 
     const handleSavePayment = async (payment: { monto: number; moneda: Moneda; fechaPago: string; metodoPago: MetodoPago; cuentaBancariaId?: number; comprobante?: string; observaciones?: string; cuotasImputadas?: Array<{ cuotaId: number; monto: number }> }) => {
-        if (!liquidacion?.contratoId) return;
+        if (!liquidacion?.contratoId) return false;
         try {
             await pagosService.registrarPago({
                 contratoId: liquidacion.contratoId,
@@ -126,8 +128,11 @@ export const useLiquidationDetailController = (id?: string) => {
             toast.success('Pago registrado correctamente');
             setIsPaymentModalOpen(false);
             await loadLiquidation(false);
+            return true;
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Error al registrar el pago');
+            if (error instanceof ApiError && error.status === 409) await loadLiquidation(false);
+            return false;
         }
     };
 
@@ -192,14 +197,17 @@ export const useLiquidationDetailController = (id?: string) => {
     };
 
     const handleSaveOwnerPayment = async (payment: { monto: number; moneda: Moneda; fechaPago: string; metodoPago: string; cuentaBancariaId?: number; propietarioId: number; comprobante?: string; observaciones?: string; motivoAdelanto?: string }) => {
-        if (!liquidacion) return;
+        if (!liquidacion) return false;
         try {
             await liquidacionesService.pagarPropietario(liquidacion.id, { ...payment, expectedVersion: liquidacion.version });
             toast.success('Pago a propietario registrado correctamente');
             setIsOwnerPaymentModalOpen(false);
             await loadLiquidation();
+            return true;
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Error al registrar el pago al propietario');
+            if (error instanceof ApiError && error.status === 409) await loadLiquidation(false);
+            return false;
         }
     };
 

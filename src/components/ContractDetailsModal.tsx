@@ -1,4 +1,4 @@
-import { formatDate, formatMonthYear } from "../utils/date";
+import { formatDate, formatDateTime, formatMonthYear } from "../utils/date";
 import { Fragment, useState, useEffect } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { liquidacionesService, type Liquidacion } from "../services/liquidaciones.service";
@@ -24,7 +24,9 @@ import { BanknotesIcon as BanknotesIconSolid } from "@heroicons/react/20/solid";
 import AuditTrail from "./AuditTrail";
 import { useAuth } from "../context/AuthContext";
 import { hasPermission } from "../utils/permissions";
-import { formatCurrency } from "../utils/currency";
+import CurrencyAmounts from './CurrencyAmounts';
+import { getCurrencySummaries } from '../features/liquidations/liquidation-detail.model';
+import { formatCurrency, formatCurrencyWithCents } from "../utils/currency";
 import { getDocumentActionLabel, isWordDocument } from "../utils/documentFiles";
 import { getStatusLabel } from "../utils/status";
 import { Link } from 'react-router-dom';
@@ -185,7 +187,7 @@ export default function ContractDetailsModal({
         return <span className={`text-xs uppercase px-2 py-0.5 rounded border ${styles[estado]}`}>{getStatusLabel(estado)}</span>;
     };
 
-    const handlePlanLifecycle = async (data: { motivo: string; montoTotal?: number; cantidadCuotas?: number; fechaPrimeraCuota?: string }) => {
+    const handlePlanLifecycle = async (data: { motivo: string; montoTotal?: number; montoPendienteEsperado?: number; cantidadCuotas?: number; fechaPrimeraCuota?: string }) => {
         if (!canEditLiquidations || !planLifecycleAction) return;
         const { plan, action } = planLifecycleAction;
         try {
@@ -195,6 +197,7 @@ export default function ContractDetailsModal({
                 await planesCuotasService.reprogramar(plan.id, {
                     motivo: data.motivo,
                     montoTotal: data.montoTotal!,
+                    montoPendienteEsperado: data.montoPendienteEsperado,
                     cantidadCuotas: data.cantidadCuotas!,
                     fechaPrimeraCuota: data.fechaPrimeraCuota!
                 });
@@ -203,7 +206,7 @@ export default function ContractDetailsModal({
             setPlanLifecycleAction(null);
             await loadPlanesCuotas();
         } catch (error: any) {
-            toast.error(error.response?.data?.message || "No se pudo actualizar el plan");
+            throw error instanceof Error ? error : new Error("No se pudo actualizar el plan");
         }
     };
 
@@ -271,10 +274,10 @@ export default function ContractDetailsModal({
                                         </span>
                                         {getContractStatusBadge(contract.estado)}
                                     </Dialog.Title>
-                                   <button
+                                   <button type="button"
                                         onClick={onClose}
                                         className="text-gray-600 hover:text-content-muted transition-colors focus:outline-none"
-                                    >
+                                     aria-label="Cerrar ventana">
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
                                 </div>
@@ -528,7 +531,7 @@ export default function ContractDetailsModal({
                                                                     <p className="text-xs font-bold text-status-warning uppercase">
                                                                         {actualizacion.fechaVigencia
                                                                             ? `Vigente desde ${formatDate(actualizacion.fechaVigencia)}`
-                                                                            : formatDate(actualizacion.fechaActualizacion)}
+                                                                            : formatDateTime(actualizacion.fechaActualizacion)}
                                                                     </p>
                                                                     <span className="text-xs font-bold text-content-muted bg-gray-100 px-1.5 py-0.5 rounded uppercase font-display">
                                                                         Por: {actualizacion.usuario?.nombreCompleto || 'Sistema'}
@@ -536,7 +539,7 @@ export default function ContractDetailsModal({
                                                                 </div>
                                                                 {actualizacion.fechaVigencia && (
                                                                     <p className="mb-2 text-xs text-gray-600">
-                                                                        Registrada el {formatDate(actualizacion.fechaActualizacion)}
+                                                                        Registrada el {formatDateTime(actualizacion.fechaActualizacion)}
                                                                         {actualizacion.porcentajeAplicado != null ? ` · Variación informada: ${Number(actualizacion.porcentajeAplicado)}%` : ''}
                                                                     </p>
                                                                 )}
@@ -697,14 +700,14 @@ export default function ContractDetailsModal({
                                                         <div className="grid grid-cols-2 gap-4 text-sm mb-3">
                                                             <div>
                                                                 <p className="text-xs text-content-muted">Neto a Cobrar</p>
-                                                                <p className="font-bold text-gray-900">{formatMoney(Number(liq.netoACobrar), liq.moneda)}</p>
+                                                                <p className="font-bold text-gray-900"><CurrencyAmounts amounts={getCurrencySummaries(liq).map(summary => ({ moneda: summary.moneda, monto: summary.netoACobrar }))} /></p>
                                                             </div>
                                                             <div className="text-right">
                                                                 <p className="text-xs text-content-muted">Cobrado</p>
                                                                 <p className="font-bold text-status-success">
-                                                                    {formatMoney(liq.pagos?.reduce((sum, p) => sum + Number(p.monto), 0) || 0, liq.moneda)}
+                                                                    <CurrencyAmounts amounts={getCurrencySummaries(liq).map(summary => ({ moneda: summary.moneda, monto: summary.cobradoInquilino }))} />
                                                                 </p>
-                                                                {(liq.aplicacionesCredito?.length || 0) > 0 && <p className="mt-1 text-xs font-bold text-indigo-700">Saldo a favor aplicado: {formatMoney(liq.aplicacionesCredito?.reduce((sum, application) => sum + Number(application.monto), 0) || 0, liq.moneda)}</p>}
+                                                                {(liq.aplicacionesCredito?.length || 0) > 0 && <p className="mt-1 text-xs font-bold text-indigo-700">Saldo a favor aplicado: <CurrencyAmounts amounts={getCurrencySummaries(liq).filter(summary => summary.creditoAplicadoInquilino > 0).map(summary => ({ moneda: summary.moneda, monto: summary.creditoAplicadoInquilino }))} /></p>}
                                                             </div>
                                                         </div>
 
@@ -754,7 +757,7 @@ export default function ContractDetailsModal({
                                         ) : planesCuotas.length > 0 ? (
                                             <div className="space-y-4">
                                                 {planesCuotas.map(plan => (
-                                                    <div key={plan.id} className="bg-gray-50/50 rounded-xl border border-gray-100 p-4">
+                                                    <div key={plan.id} role="group" aria-label={`Plan de cuotas ${plan.concepto}`} className="bg-gray-50/50 rounded-xl border border-gray-100 p-4">
                                                         <div className="flex justify-between items-start mb-3">
                                                             <div>
                                                                 <h5 className="font-bold text-gray-900">{plan.concepto}</h5>
@@ -773,7 +776,7 @@ export default function ContractDetailsModal({
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-sm font-black text-gray-900">{formatMoney(Number(plan.montoTotal), plan.moneda)}</span>
+                                                                <span className="text-sm font-black text-gray-900">{`${plan.moneda} ${formatCurrencyWithCents(plan.montoTotal, plan.moneda)}`}</span>
                                                                 {canEditLiquidations && plan.estado === "VIGENTE" && (
                                                                     <div className="flex flex-wrap justify-end gap-1">
                                                                         <button onClick={() => setPlanLifecycleAction({ plan, action: "CANCELAR" })} className="rounded-md border border-orange-200 bg-orange-50 px-2 py-1 text-[10px] font-bold text-orange-700 hover:bg-orange-100">Cancelar</button>
@@ -786,10 +789,15 @@ export default function ContractDetailsModal({
 
                                                         {plan.fechaCierre && (
                                                             <p className="mb-3 rounded-lg border border-gray-100 bg-white px-3 py-2 text-xs text-gray-600">
-                                                                Cerrado el {formatDate(plan.fechaCierre)}{plan.cerradoPor ? ` por ${plan.cerradoPor.nombreCompleto}` : ""}{plan.motivoCierre ? ` · ${plan.motivoCierre}` : ""}
+                                                                Cerrado el {formatDateTime(plan.fechaCierre)}{plan.cerradoPor ? ` por ${plan.cerradoPor.nombreCompleto}` : ""}{plan.motivoCierre ? ` · ${plan.motivoCierre}` : ""}
                                                             </p>
                                                         )}
 
+                                                        {plan.resumen && <div className="mb-3 rounded-lg border border-slate-200 bg-white p-3 text-xs tabular-nums" aria-label="Resumen de cuotas">
+                                                            <div className="flex flex-wrap gap-x-5 gap-y-2"><span>Suma de cuotas: <strong>{formatCurrencyWithCents(plan.resumen.sumaCuotas, plan.moneda)}</strong></span><span>Cuotas pagadas: <strong>{formatCurrencyWithCents(plan.resumen.montoCuotasPagadas, plan.moneda)}</strong></span><span>Cuotas pendientes: <strong>{formatCurrencyWithCents(plan.resumen.montoPendiente, plan.moneda)}</strong></span></div>
+                                                            <p className="mt-2 text-slate-600">Importes originales agrupados por estado de la cuota. Los cobros parciales y el saldo restante se consultan en la liquidación vinculada.</p>
+                                                            {Number(plan.resumen.sumaCuotas) !== Number(plan.montoTotal) && <p role="alert" className="mt-2 font-medium text-amber-900">La suma de las cuotas guardadas no coincide con el total del plan. Revisá el historial antes de corregir importes.</p>}
+                                                        </div>}
                                                         {/* Cuotas list */}
                                                         <div className="bg-white rounded-lg border border-gray-100 divide-y divide-gray-50">
                                                             {plan.cuotas?.map(cuota => (
@@ -797,7 +805,7 @@ export default function ContractDetailsModal({
                                                                     <div className="flex items-center gap-3">
                                                                         <span className="text-xs font-bold text-gray-600">#{cuota.numeroCuota}</span>
                                                                         <div>
-                                                                            <span className="text-sm text-gray-700 font-medium">{formatMoney(Number(cuota.monto), cuota.moneda || plan.moneda)}</span>
+                                                                            <span className="text-sm text-gray-700 font-medium">{formatCurrencyWithCents(cuota.monto, cuota.moneda || plan.moneda)}</span>
                                                                             <p className="text-[11px] text-content-muted">
                                                                                 Vence {formatMonthYear(cuota.fechaVencimiento)}
                                                                             </p>

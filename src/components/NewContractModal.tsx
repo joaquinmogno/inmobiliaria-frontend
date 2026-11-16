@@ -1,5 +1,5 @@
 import FieldError, { useFieldValidation } from './FieldError';
-import { Fragment, useState, useEffect } from "react";
+import { Fragment, useState, useEffect, useRef } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon, BanknotesIcon, MagnifyingGlassIcon, PlusCircleIcon } from "@heroicons/react/24/outline";
 import NumericInput from "./NumericInput";
@@ -51,7 +51,7 @@ interface NewContractModalProps {
         principalFile: File | null;
         additionalFiles: File[];
         additionalFilesType: 'ADENDA' | 'ADJUNTO';
-    }, draft: ContractDraft | null) => Promise<ContractDraft>;
+    }, draft: ContractDraft | null, onUploaded: (file: File) => void) => Promise<ContractDraft>;
     onDeleteDraftAttachment?: (attachmentId: number) => Promise<void>;
 }
 
@@ -84,10 +84,15 @@ export default function NewContractModal({
         void cuentasBancariasService.getAll().then(setCuentasBancarias).catch(() => setCuentasBancarias([]));
     }, [isOpen]);
 
-    useEffect(() => { validation.reset(); setFormError(''); }, [isOpen, editingContract?.id, draft?.id]);
+    useEffect(() => { validation.reset(); setFormError(''); }, [isOpen, editingContract?.id]);
 
-    // Effect to populate form when editing
+    const initializedForm = useRef(false);
+    // Initialize only on opening. Saving metadata or attachments must not reset
+    // unsaved edits or clear pending files in this same editing session.
     useEffect(() => {
+        if (!isOpen) { initializedForm.current = false; return; }
+        if (initializedForm.current) return;
+        initializedForm.current = true;
         if (isOpen && editingContract) {
             setSelectedProperty(editingContract.propiedad as any);
             setOwners(editingContract.propietarios.map(p => ({
@@ -138,16 +143,15 @@ export default function NewContractModal({
         }
     }, [isOpen, editingContract, renewingContract, draft]);
 
-    // Cálculo automático de fecha de actualización
-    useEffect(() => {
-        if (!editingContract && formData.requiereActualizacion && formData.startDate && formData.frecuenciaActualizacion) {
-            const months = parseInt(formData.frecuenciaActualizacion);
-            if (!isNaN(months)) {
-                const suggestedDate = addMonthsToDateInput(formData.startDate, months);
-                setFormData(prev => ({ ...prev, updateDate: suggestedDate }));
-            }
+    // Suggest a date only in response to an explicit schedule edit. Restoring
+    // a draft must preserve its saved date, including a manually chosen one.
+    const suggestUpdateDate = (next: typeof formData) => {
+        const months = Number(next.frecuenciaActualizacion);
+        if (!editingContract && next.requiereActualizacion && next.startDate && Number.isInteger(months) && months > 0) {
+            return { ...next, updateDate: addMonthsToDateInput(next.startDate, months) };
         }
-    }, [formData.startDate, formData.frecuenciaActualizacion, formData.requiereActualizacion, editingContract]);
+        return next;
+    };
 
     const handleCurrencyChange = (moneda: Moneda) => {
         setFormData(prev => ({
@@ -160,7 +164,7 @@ export default function NewContractModal({
                 tipoAjuste: "",
                 porcentajeActualizacion: ""
             } : {}),
-            ...(!editingContract && moneda === "ARS" ? { requiereActualizacion: true } : {})
+            ...(!editingContract && moneda === "ARS" ? { requiereActualizacion: true, ...(!prev.requiereActualizacion ? { updateDate: suggestUpdateDate({ ...prev, requiereActualizacion: true }).updateDate } : {}) } : {})
         }));
     };
 
@@ -168,7 +172,10 @@ export default function NewContractModal({
         e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
         const { name, value } = e.target;
-        setFormData((prev) => ({ ...prev, [name]: value }));
+        setFormData(prev => {
+            const next = { ...prev, [name]: value };
+            return name === 'startDate' ? suggestUpdateDate(next) : next;
+        });
     };
 
     const handlePropertySelect = (property: Property | null) => {
@@ -294,7 +301,7 @@ export default function NewContractModal({
         const dataToSave = {
             ...buildContractPayload(formData, selectedProperty, owners, tenants),
             ...(renewingContract ? { contratoAnteriorId: renewingContract.id } : {}),
-            ...(draft ? { borradorId: draft.id } : {})
+            ...(draft ? { borradorId: draft.id, borradorVersion: draft.version } : {})
         };
 
         setIsSubmitting(true);
@@ -313,6 +320,8 @@ export default function NewContractModal({
 
     const handleSaveDraft = async () => {
         if (isSubmitting || !onSaveDraft || editingContract || renewingContract) return;
+        const invalidNumber = Array.from(formRef.current?.querySelectorAll<HTMLInputElement>('input') || []).find(input => input.validity.customError);
+        if (invalidNumber) { invalidNumber.reportValidity(); return; }
         setFormError("");
         setIsSubmitting(true);
         try {
@@ -321,8 +330,13 @@ export default function NewContractModal({
                 principalFile: formData.file,
                 additionalFiles: formData.additionalFiles,
                 additionalFilesType: formData.tipoArchivosAdicionales
-            }, draft);
-            setFormData(prev => ({ ...prev, file: null, additionalFiles: [], observacionDocumento: '' }));
+            }, draft, uploaded => {
+                setFormData(prev => ({
+                    ...prev,
+                    file: prev.file === uploaded ? null : prev.file,
+                    additionalFiles: prev.additionalFiles.filter(file => file !== uploaded)
+                }));
+            });
             toast.success('Borrador guardado. Podés retomarlo cuando quieras.');
         } catch (error) {
             reportError(error, 'No se pudo guardar el borrador');
@@ -653,7 +667,7 @@ export default function NewContractModal({
                                                         type="button"
                                                         aria-label="El contrato tiene actualización programada"
                                                         aria-pressed={formData.requiereActualizacion}
-                                                        onClick={() => setFormData(prev => ({
+                                                        onClick={() => setFormData(prev => suggestUpdateDate({
                                                             ...prev,
                                                             requiereActualizacion: !prev.requiereActualizacion,
                                                             updateDate: prev.requiereActualizacion ? "" : prev.updateDate,
@@ -677,11 +691,13 @@ export default function NewContractModal({
                                                         </label>
                                                         <NumericInput
                                                             {...validation.inputProps('contract-update-frequency')}
+                                                            decimalPlaces={0}
+                                                            min={1}
                                                             className="ui-field"
                                                             required
                                                             placeholder="Ej: 3"
                                                             value={formData.frecuenciaActualizacion}
-                                                            onChange={(val) => setFormData(prev => ({ ...prev, frecuenciaActualizacion: val.toString() }))}
+                                                            onChange={(val) => setFormData(prev => suggestUpdateDate({ ...prev, frecuenciaActualizacion: val.toString() }))}
                                                         />
                                                         <FieldError id="contract-update-frequency" message={validation.errors['contract-update-frequency']} />
                                                     </div>
@@ -733,7 +749,7 @@ export default function NewContractModal({
                                         <p className="mt-1 text-xs text-gray-600">Estas modalidades son las acordadas. Cada cobro y entrega conservará el medio realmente utilizado.</p>
                                         <div className="mt-3 grid gap-3 sm:grid-cols-3">
                                             <label className="text-sm font-medium text-gray-800">Día de vencimiento
-                                                <NumericInput min="1" max="31" value={formData.diaVencimiento} onChange={value => setFormData(current => ({ ...current, diaVencimiento: String(value) }))} className="mt-1 w-full rounded-lg border-gray-300" />
+                                                <NumericInput decimalPlaces={0} min="1" max="31" value={formData.diaVencimiento} onChange={value => setFormData(current => ({ ...current, diaVencimiento: String(value) }))} className="mt-1 w-full rounded-lg border-gray-300" />
                                             </label>
                                             <div><label className="text-sm font-medium text-gray-800">Cobro acordado con inquilino</label><AppSelect ariaLabel="Cobro acordado con inquilino" value={formData.modalidadCobroInquilino} onChange={value => setFormData(current => ({ ...current, modalidadCobroInquilino: value, cuentaCobroAcordadaId: value === 'TRANSFERENCIA' ? current.cuentaCobroAcordadaId : '' }))} options={[{ value: '', label: 'Sin acordar' }, ...PAYMENT_METHOD_OPTIONS]} className="mt-1" /></div>
                                             <div><label className="text-sm font-medium text-gray-800">Pago acordado con propietario</label><AppSelect ariaLabel="Pago acordado con propietario" value={formData.modalidadPagoPropietario} onChange={value => setFormData(current => ({ ...current, modalidadPagoPropietario: value }))} options={[{ value: '', label: 'Sin acordar' }, ...PAYMENT_METHOD_OPTIONS]} className="mt-1" /></div>
@@ -939,7 +955,7 @@ export default function NewContractModal({
                                         />
                                     </div>
 
-                                    {formData.file && (
+                                    {(formData.file || draft?.adjuntos.some(attachment => attachment.tipo === 'CONTRATO_PRINCIPAL')) && (
                                         <div>
                                             <label htmlFor="contract-document-observation" className="block text-xs font-medium text-gray-700 mb-1">
                                                 Observación de esta versión (opcional)

@@ -40,8 +40,9 @@ test('los filtros móviles de cobros conservan su selección al plegar y recarga
   await expect(page.getByRole('button', { name: 'Ir a liquidaciones' }).filter({ visible: true })).toBeVisible();
   await expect.poll(() => requests.filter(r => r.path === '/api/pagos').at(-1)?.query).not.toMatch(/moneda=|estado=/);
   await page.setViewportSize({ width: 1366, height: 900 });
+  await expect(toggle).toBeVisible();
+  await toggle.click();
   await expect(page.getByRole('button', { name: /^Filtrar moneda:/ })).toBeVisible();
-  await expect(toggle).not.toBeVisible();
 });
 
 test('limpiar filtros internos conserva el mes y la consulta no ofrece acciones de creación', async ({ page }) => {
@@ -53,12 +54,12 @@ test('limpiar filtros internos conserva el mes y la consulta no ofrece acciones 
   await page.getByText('Más filtros', { exact: true }).click();
   await page.getByRole('button', { name: /^Categoría:/ }).click();
   await page.getByRole('option', { name: 'Oficina', exact: true }).click();
-  await expect(page.getByRole('button', { name: /^Filtros/ })).toHaveText(/2 activos/);
+  await expect(page.getByRole('button', { name: /^Filtros/ })).toHaveText(/1 activo/);
   await page.getByRole('button', { name: /^Filtros/ }).click();
   await page.getByRole('button', { name: 'Limpiar filtros', exact: true }).click();
   await expect(page.getByText('Todavía no hay movimientos en este mes')).toBeVisible();
   await expect(page.getByRole('button', { name: /Crear el primer|Agregar movimiento/ })).toHaveCount(0);
-  await expect.poll(() => requests.filter(r => r.path === '/api/control-interno').at(-1)?.query).toMatch(/periodo=2026-07&estado=TODOS/);
+  await expect.poll(() => requests.filter(r => r.path === '/api/control-interno').at(-1)?.query).toMatch(/periodo=2026-07&estado=VIGENTES/);
   await expect(page.getByText('Período: julio de 2026')).toBeVisible();
 });
 

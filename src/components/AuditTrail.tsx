@@ -1,3 +1,5 @@
+import AuditDetail from "./AuditDetail";
+import LoadingState from "./LoadingState";
 import { ChevronLeftIcon, ChevronRightIcon, ClockIcon } from "@heroicons/react/24/outline";
 import { formatDateTime } from "../utils/date";
 import type { PaginationMeta } from "../services/api";
@@ -27,27 +29,8 @@ function formatAction(action: string) {
     return action.replaceAll("_", " ").toLowerCase();
 }
 
-function formatDetail(detail: string | null) {
-    if (!detail) return null;
-
-    try {
-        const parsed = JSON.parse(detail);
-        if (typeof parsed !== "object" || parsed === null) return detail;
-
-        return Object.entries(parsed).map(([field, value]: [string, any]) => {
-            if (!value || typeof value !== "object" || !("anterior" in value) || !("nuevo" in value)) {
-                return `${field}: ${String(value)}`;
-            }
-            const previous = value.anterior ?? "-";
-            const next = value.nuevo ?? "-";
-            return `${field}: ${String(previous)} -> ${String(next)}`;
-        }).join(" · ");
-    } catch {
-        return detail;
-    }
-}
-
 export default function AuditTrail({ logs = [], emptyText = "Todavía no hay eventos de auditoría.", meta, loading = false, onPageChange }: AuditTrailProps) {
+    if (loading && !logs.length) return <LoadingState compact label="Cargando auditoría…" />;
     if (logs.length === 0) {
         return (
             <div className="text-center py-8 bg-gray-50 rounded-xl border border-dashed border-gray-200">
@@ -69,16 +52,14 @@ export default function AuditTrail({ logs = [], emptyText = "Todavía no hay eve
                             {formatDateTime(log.fechaCreacion)}
                         </p>
                     </div>
-                    <p className="mt-1 text-sm text-gray-700">
-                        {formatDetail(log.detalle) || "Sin detalle adicional"}
-                    </p>
+                    <div className="mt-1 text-sm text-gray-700"><AuditDetail detail={log.detalle} /></div>
                     <p className="mt-2 text-xs font-semibold text-content-muted">
                         Por: {log.usuario?.nombreCompleto || "Sistema"}
                     </p>
                 </div>
             ))}
             {meta && meta.totalPages > 1 && onPageChange && (
-                <div className="flex items-center justify-between gap-3 border-t border-gray-100 pt-3">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-3">
                     <button
                         type="button"
                         disabled={loading || meta.page <= 1}

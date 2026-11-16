@@ -1,3 +1,5 @@
+import CurrencyAmounts from '../../components/CurrencyAmounts';
+import LiquidationStates from './LiquidationStates';
 import EmptyState from '../../components/EmptyState';
 import { useAuth } from '../../context/AuthContext';
 import { hasPermission } from '../../utils/permissions';
@@ -6,7 +8,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AppSelect from '../../components/AppSelect';
 import { formatCurrency } from '../../utils/currency';
-import { formatDate, formatMonthYear } from '../../utils/date';
+import { formatDate, formatMonthYear, todayDateInput } from '../../utils/date';
 import { useMonthlyLiquidationWorkspace } from './useMonthlyLiquidationWorkspace';
 import type { LiquidationPreparationRow } from '../../services/liquidaciones.service';
 
@@ -38,7 +40,7 @@ const matchesFilter = (row: LiquidationPreparationRow, filter: OperationalState)
 const labels: Record<OperationalState, string> = {
   TODAS: 'Todos los estados', PENDIENTE_LIQUIDAR: 'Pendiente de liquidar', BORRADOR: 'Borrador',
   PENDIENTE_COBRO: 'Pendiente de cobro', EN_MORA: 'En mora',
-  PENDIENTE_PAGO_PROPIETARIO: 'Pendiente de pago al propietario', FINALIZADA: 'Finalizada',
+  PENDIENTE_PAGO_PROPIETARIO: 'Pendiente de pago al propietario', FINALIZADA: 'Cobro y pago resueltos',
   REQUIERE_REVISION: 'Requiere revisión', OMITIDA: 'Omitida', ANULADA: 'Anulada'
 };
 
@@ -67,8 +69,8 @@ export default function MonthlyLiquidationWorkspace() {
   [workspace.preparation, search, filter]);
   const summary = workspace.preparation?.resumen;
   const cards: Array<{ label: string; value: number; filter: OperationalState }> = summary ? [
-    { label: 'Propiedades administradas', value: summary.total, filter: 'TODAS' },
-    { label: 'Propiedades en mora hoy', value: summary.moraHoy, filter: 'EN_MORA' },
+    { label: 'Contratos administrados del mes', value: summary.total, filter: 'TODAS' },
+    { label: 'Contratos con mora hoy', value: summary.moraHoy, filter: 'EN_MORA' },
     { label: 'Pendientes de liquidar', value: summary.pendientesGenerar, filter: 'PENDIENTE_LIQUIDAR' },
     { label: 'Borradores', value: summary.borradores, filter: 'BORRADOR' },
     { label: 'Pendientes de cobro', value: summary.pendientesCobro, filter: 'PENDIENTE_COBRO' },
@@ -78,11 +80,16 @@ export default function MonthlyLiquidationWorkspace() {
 
   return <section aria-labelledby="monthly-workspace-title" className="space-y-4">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div><h2 id="monthly-workspace-title" className="text-xl font-black text-gray-950 sm:text-2xl">Liquidaciones de {formatMonthYear(`${workspace.period}-01`)}</h2><p className="mt-1 text-sm text-gray-600">Elegí una dirección para ver sus meses, deuda y pagos.</p></div>
+      <div><h2 id="monthly-workspace-title" className="text-xl font-black text-gray-950 sm:text-2xl">Liquidaciones de {formatMonthYear(`${workspace.period}-01`)}</h2><p className="mt-1 text-sm text-gray-600">Contratos administrados del período · una fila por contrato, no por inmueble.</p></div>
       <input aria-label="Mes de trabajo" type="month" value={workspace.period} onChange={event => workspace.setPeriod(event.target.value)} className="ui-field sm:w-56" />
     </div>
 
     {workspace.loading ? <LoadingState label="Cargando el mes…" /> : !workspace.preparation ? <div role="alert" className="ui-panel p-5 text-sm text-red-800">No se pudo cargar el período.<button type="button" className="ui-button ui-button-secondary ml-3" onClick={() => void workspace.load()}>Reintentar</button></div> : <>
+      <details className="text-xs text-gray-600">
+        <summary className="min-h-11 cursor-pointer py-3 font-semibold">Criterios del conteo · Mora al {formatDate(todayDateInput())}, de cualquier período</summary>
+        <p className="text-xs text-gray-600">Se cuentan contratos administrados no eliminados que corresponden a {formatMonthYear(`${workspace.period}-01`)} por sus fechas de inicio, fin y entrega de llaves. Incluye borradores, omitidos y casos a revisar; no cuenta propiedades únicas. Los indicadores no cambian al buscar o filtrar.</p>
+        <p className="mt-2 text-xs text-gray-600">Mora al {formatDate(todayDateInput())}: contratos de este listado con liquidaciones confirmadas vencidas y cobro pendiente o parcial, de cualquier período. Los demás indicadores corresponden al mes seleccionado. Cobros y pagos pendientes incluyen parciales; pendientes de liquidar incluye casos listos y a revisar.</p>
+      </details>
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
         {cards.map(card => <button key={card.label} type="button" onClick={() => setFilter(card.filter)} className={`rounded-xl border bg-white p-3 text-left transition-colors hover:border-indigo-400 ${filter === card.filter ? 'border-indigo-500 ring-2 ring-indigo-100' : 'border-gray-200'}`}><span className="block text-2xl font-black text-indigo-900">{card.value}</span><span className="mt-1 block text-xs font-bold text-gray-700">{card.label}</span></button>)}
       </div>
@@ -99,8 +106,18 @@ export default function MonthlyLiquidationWorkspace() {
             const address = [row.propiedad.direccion, row.propiedad.piso && `Piso ${row.propiedad.piso}`, row.propiedad.departamento && `Depto. ${row.propiedad.departamento}`].filter(Boolean).join(' · ');
             return <button key={row.contratoId} type="button" onClick={() => open(row)} className="grid w-full gap-3 p-4 text-left hover:bg-indigo-50/40 focus-visible:outline-indigo-500 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] sm:items-center">
               <span className="min-w-0"><span className="block break-words font-black text-gray-950">{address}</span><span className="mt-1 block text-sm text-gray-700">{row.inquilino?.nombreCompleto || 'Inquilino sin definir'} · {row.propietario?.nombreCompleto || 'Propietario sin definir'}</span></span>
-              <span className="min-w-0"><span className={`ui-status ${tone[status]}`}>{labels[status]}</span>{row.moraHoy && status !== 'EN_MORA' && <span className="mt-1 block text-xs font-bold text-red-800">Tiene un mes anterior en mora</span>}{row.motivos[0] && status === 'REQUIERE_REVISION' && <span className="mt-1 block text-xs text-orange-900">{row.motivos[0]}</span>}{row.vencida && <span className="mt-1 block text-xs font-bold text-red-800">Vence {formatDate(row.fechaVencimiento)}</span>}</span>
-              <span className="flex items-center justify-between gap-4 tabular-nums sm:block sm:text-right"><span className="block font-black text-gray-950">{formatCurrency(Number(row.totalLiquidacion ?? row.montoAlquiler), row.moneda)}</span>{Number(row.pendiente) > 0 && <span className="block text-xs text-gray-700">Saldo {formatCurrency(Number(row.pendiente), row.moneda)}</span>}<span className="text-sm font-bold text-indigo-700">Abrir propiedad →</span></span>
+              <span className="min-w-0"><span className={`ui-status ${tone[status]}`}>{labels[status]}</span><LiquidationStates documentState={row.estadoLiquidacion} tenantState={row.estadoCobroInquilino} ownerState={row.estadoPagoPropietario} closedAt={row.fechaLiquidacion} closedById={row.cerradoPorId} className="mt-2 flex-col" />{row.moraHoy && status !== 'EN_MORA' && <span className="mt-1 block text-xs font-bold text-red-800">Tiene otra liquidación vencida al día de hoy</span>}{row.motivos[0] && status === 'REQUIERE_REVISION' && <span className="mt-1 block text-xs text-orange-900">{row.motivos[0]}</span>}{row.vencida && <span className="mt-1 block text-xs font-bold text-red-800">Vence {formatDate(row.fechaVencimiento)}</span>}</span>
+              <span className="min-w-0 space-y-1 tabular-nums sm:text-right">
+                {row.resumenMonedas?.length ? <>
+                  <span className="block text-xs text-gray-600">Total documentado</span>
+                  <span className="block font-bold text-gray-950"><CurrencyAmounts amounts={row.resumenMonedas.map(item => ({ moneda: item.moneda, monto: item.netoACobrar }))} /></span>
+                  <span className="block text-xs text-gray-700">Cobrado <CurrencyAmounts amounts={row.resumenMonedas.map(item => ({ moneda: item.moneda, monto: item.cobradoInquilino }))} /></span>
+                  {row.resumenMonedas.some(item => item.creditoAplicadoInquilino > 0) && <span className="block text-xs text-gray-700">Crédito aplicado <CurrencyAmounts amounts={row.resumenMonedas.filter(item => item.creditoAplicadoInquilino > 0).map(item => ({ moneda: item.moneda, monto: item.creditoAplicadoInquilino }))} /></span>}
+                  <span className="block text-xs text-gray-700">Saldo inquilino <CurrencyAmounts amounts={row.resumenMonedas.map(item => ({ moneda: item.moneda, monto: item.saldoInquilino }))} /></span>
+                  <span className="block text-xs text-gray-700">Saldo propietario <CurrencyAmounts amounts={row.resumenMonedas.map(item => ({ moneda: item.moneda, monto: item.saldoPropietario }))} /></span>
+                </> : <><span className="block font-bold text-gray-950">{formatCurrency(Number(row.totalLiquidacion ?? row.montoAlquiler), row.moneda)}</span>{Number(row.pendiente) > 0 && <span className="block text-xs text-gray-700">Saldo {formatCurrency(Number(row.pendiente), row.moneda)}</span>}</>}
+                <span className="block text-sm font-bold text-indigo-700">Abrir propiedad →</span>
+              </span>
             </button>;
           })}
           {!rows.length && <EmptyState filtered={Boolean(search.trim()) || filter !== 'TODAS'} title="No hay contratos para liquidar en este mes" description="Elegí otro período o agregá un contrato administrado para comenzar." onClear={() => { setSearch(''); setFilter('TODAS'); }} action={hasPermission(user, 'contratos.ver') && hasPermission(user, 'contratos.crear') ? { label: 'Crear un contrato', onClick: () => navigate('/contratos', { state: { openNewContractModal: true } }) } : undefined} />}

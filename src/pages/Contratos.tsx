@@ -1,6 +1,6 @@
 import { getStatusLabel } from '../utils/status';
 import LoadingState from '../components/LoadingState';
-import { formatDateTime } from '../utils/date';
+import { formatDate, formatDateTime } from '../utils/date';
 import EmptyState from '../components/EmptyState';
 import { useState, useEffect, useRef, Fragment } from "react";
 import { useLocation, useSearchParams, useNavigate } from "react-router-dom";
@@ -221,6 +221,7 @@ export default function Contratos() {
   const [activeDraft, setActiveDraft] = useState<ContractDraft | null>(null);
   const [drafts, setDrafts] = useState<ContractDraft[]>([]);
   const [showDrafts, setShowDrafts] = useState(false);
+  const [openingDraftId, setOpeningDraftId] = useState<number | null>(null);
 
   const handleEdit = (contract: Contract) => {
     setRenewingContract(null);
@@ -262,7 +263,10 @@ export default function Contratos() {
       formData.append('administrado', data.administrado.toString());
       formData.append('requiereActualizacion', data.requiereActualizacion.toString());
       if (data.contratoAnteriorId) formData.append('contratoAnteriorId', String(data.contratoAnteriorId));
-      if (data.borradorId) formData.append('borradorId', String(data.borradorId));
+      if (data.borradorId) {
+        formData.append('borradorId', String(data.borradorId));
+        formData.append('borradorVersion', String(data.borradorVersion));
+      }
       if (data.file) {
         formData.append('pdf', data.file);
         if (data.observacionDocumento?.trim()) {
@@ -360,39 +364,65 @@ export default function Contratos() {
     principalFile: File | null;
     additionalFiles: File[];
     additionalFilesType: 'ADENDA' | 'ADJUNTO';
-  }, draft: ContractDraft | null) => {
-    const saved = draft
+  }, draft: ContractDraft | null, onUploaded: (file: File) => void) => {
+    let saved = draft
       ? await contractsService.updateDraft(draft.id, data.datos, draft.version)
       : await contractsService.createDraft(data.datos);
-
-    if (data.principalFile) {
-      await contractsService.addDraftAttachment(saved.id, data.principalFile, 'CONTRATO_PRINCIPAL');
+    const remember = () => {
+      const snapshot = saved;
+      setActiveDraft(snapshot);
+      setDrafts(current => [snapshot, ...current.filter(item => item.id !== snapshot.id)]);
+    };
+    // Keep identity/version immediately, even if the first attachment fails.
+    remember();
+    const pending = [
+      ...(data.principalFile ? [{ file: data.principalFile, tipo: 'CONTRATO_PRINCIPAL' as const }] : []),
+      ...data.additionalFiles.map(file => ({ file, tipo: data.additionalFilesType }))
+    ];
+    try {
+      for (const { file, tipo } of pending) {
+        const attachment = await contractsService.addDraftAttachment(saved.id, file, tipo);
+        saved = { ...saved, adjuntos: [
+          ...saved.adjuntos.filter(item => item.id !== attachment.id && (tipo !== 'CONTRATO_PRINCIPAL' || item.tipo !== tipo)),
+          attachment
+        ] };
+        remember();
+        onUploaded(file);
+      }
+    } catch (error) {
+      throw new Error(`Datos guardados; quedó pendiente subir un archivo. Los archivos pendientes siguen seleccionados: volvé a guardar para reintentar. ${error instanceof Error ? error.message : ''}`);
     }
-    for (const file of data.additionalFiles) {
-      await contractsService.addDraftAttachment(saved.id, file, data.additionalFilesType);
-    }
-
-    const complete = await contractsService.getDraft(saved.id);
-    setActiveDraft(complete);
-    setDrafts(current => [complete, ...current.filter(item => item.id !== complete.id)]);
-    return complete;
+    return saved;
   };
 
-  const handleContinueDraft = (draft: ContractDraft) => {
-    setEditingContract(null);
-    setRenewingContract(null);
-    setActiveDraft(draft);
-    setShowDrafts(false);
-    setIsModalOpen(true);
+  const handleContinueDraft = async (draft: ContractDraft) => {
+    if (openingDraftId !== null) return;
+    setOpeningDraftId(draft.id);
+    try {
+      const current = await contractsService.getDraft(draft.id);
+      setEditingContract(null);
+      setRenewingContract(null);
+      setActiveDraft(current);
+      setShowDrafts(false);
+      setIsModalOpen(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo recuperar el borrador. Volvé a intentar con Continuar.');
+    } finally {
+      setOpeningDraftId(null);
+    }
   };
 
   const handleDeleteDraftAttachment = async (attachmentId: number) => {
     if (!activeDraft) return;
     try {
       await contractsService.deleteDraftAttachment(activeDraft.id, attachmentId);
-      const updated = await contractsService.getDraft(activeDraft.id);
-      setActiveDraft(updated);
-      setDrafts(current => [updated, ...current.filter(item => item.id !== updated.id)]);
+      // Removing a document must not adopt another tab's form version while
+      // keeping this tab's old fields: the next save still needs to conflict.
+      const withoutAttachment = (item: ContractDraft) => item.id === activeDraft.id
+        ? { ...item, adjuntos: item.adjuntos.filter(attachment => attachment.id !== attachmentId) }
+        : item;
+      setActiveDraft(current => current ? withoutAttachment(current) : current);
+      setDrafts(current => current.map(withoutAttachment));
       toast.success('Archivo eliminado del borrador');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'No se pudo eliminar el archivo del borrador');
@@ -471,7 +501,7 @@ export default function Contratos() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="max-w-7xl mx-auto space-y-6 xl:space-y-4">
       {preparingRenewal && <p role="status" className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-900">Cargando datos para la renovación…</p>}
       {/* Header & Actions */}
       <div className="ui-page-header">
@@ -534,7 +564,7 @@ export default function Contratos() {
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-2">
-                    <button type="button" onClick={() => handleContinueDraft(draft)} className="ui-button ui-button-secondary">Continuar</button>
+                    <button type="button" onClick={() => void handleContinueDraft(draft)} disabled={openingDraftId !== null} className="ui-button ui-button-secondary">{openingDraftId === draft.id ? 'Abriendo…' : 'Continuar'}</button>
                     <button type="button" onClick={() => void handleDeleteDraft(draft)} aria-label={`Eliminar borrador ${draft.resumen.direccion}`} className="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50">Eliminar</button>
                   </div>
                 </li>
@@ -593,50 +623,50 @@ export default function Contratos() {
       ]} onClearAll={() => { setSearchTerm(''); updateStatusFilter('ACTIVO', true); }} />
 
       {/* Contenedor Principal Tablas/Tarjetas */}
-      <div className="flex flex-col 2xl:rounded-xl 2xl:border 2xl:border-slate-200 2xl:bg-white">
+      <div className="flex flex-col xl:rounded-xl xl:border xl:border-slate-200 xl:bg-white">
         {/* VISTA DESKTOP */}
-        <div className="relative hidden overflow-x-auto rounded-t-xl 2xl:block">
+        <div className="relative hidden overflow-x-auto rounded-t-xl xl:block">
           <p className="sr-only">Deslizá horizontalmente para ver más columnas.</p>
-          <table className="tabular-nums min-w-full divide-y divide-gray-200">
+          <table className="ui-notebook-table tabular-nums divide-y divide-gray-200">
             <thead className="sticky top-0 z-10 bg-gray-50 whitespace-nowrap">
               <tr>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase tracking-wider"
+                  className="w-[28%] 2xl:w-auto px-6 py-3 text-left text-xs font-medium text-content-muted uppercase tracking-wider"
                 >
                   Inmueble
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase tracking-wider"
+                  className="w-[19%] 2xl:w-auto px-6 py-3 text-left text-xs font-medium text-content-muted uppercase tracking-wider"
                 >
                   Inquilino
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase tracking-wider"
+                  className="w-[19%] 2xl:w-auto px-6 py-3 text-left text-xs font-medium text-content-muted uppercase tracking-wider"
                 >
                   Propietario
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase tracking-wider"
+                  className="hidden 2xl:table-cell px-6 py-3 text-left text-xs font-medium text-content-muted uppercase tracking-wider"
                 >
                   Contacto Inquilino
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-content-muted uppercase tracking-wider"
+                  className="hidden 2xl:table-cell px-6 py-3 text-left text-xs font-medium text-content-muted uppercase tracking-wider"
                 >
                   Contacto Propietario
                 </th>
                 <th
                   scope="col"
-                  className="px-6 py-3 text-right text-xs font-medium text-content-muted uppercase tracking-wider"
+                  className="w-[15%] 2xl:w-auto px-6 py-3 text-right text-xs font-medium text-content-muted uppercase tracking-wider"
                 >
                   Alquiler
                 </th>
-                <th scope="col" className="sticky right-0 z-20 bg-gray-50 px-6 py-3 shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">
+                <th scope="col" className="w-[19%] 2xl:w-auto sticky right-0 z-20 bg-gray-50 px-6 py-3 shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">
                   <span className="sr-only">Acciones</span>
                 </th>
               </tr>
@@ -649,7 +679,7 @@ export default function Contratos() {
                     className="hover:bg-gray-50 transition-colors"
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="max-w-64 truncate text-sm font-medium text-gray-900" title={formatAddress(contract.propiedad)}>
+                      <div className="truncate text-sm font-medium text-gray-900" title={formatAddress(contract.propiedad)}>
                         {formatAddress(contract.propiedad)}
                       </div>
                       <div className="flex flex-wrap gap-1">
@@ -658,23 +688,26 @@ export default function Contratos() {
                           {contract.administrado ? 'ADMINISTRADO' : 'GESTIÓN ÚNICA'}
                         </div>
                       </div>
-                   </td>
+                   <p className="mt-1 text-xs text-gray-600">{formatDate(contract.fechaInicio)} – {formatDate(contract.fechaFin)}</p>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="max-w-52 truncate text-sm text-gray-900" title={contract.inquilinos.find(i => i.esPrincipal)?.persona.nombreCompleto || "Sin inquilino"}>
+                      <div className="truncate text-sm text-gray-900" title={contract.inquilinos.find(i => i.esPrincipal)?.persona.nombreCompleto || "Sin inquilino"}>
                         {contract.inquilinos.find(i => i.esPrincipal)?.persona.nombreCompleto || "Sin inquilino"}
                       </div>
+                    <div className="2xl:hidden"><WhatsAppLink phone={contract.inquilinos.find(i => i.esPrincipal)?.persona.telefono || ""} /></div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="max-w-52 truncate text-sm text-gray-900" title={contract.propietarios.find(p => p.esPrincipal)?.persona.nombreCompleto || "Sin propietario"}>
+                      <div className="truncate text-sm text-gray-900" title={contract.propietarios.find(p => p.esPrincipal)?.persona.nombreCompleto || "Sin propietario"}>
                         {contract.propietarios.find(p => p.esPrincipal)?.persona.nombreCompleto || "Sin propietario"}
                       </div>
+                    <div className="2xl:hidden"><WhatsAppLink phone={contract.propietarios.find(p => p.esPrincipal)?.persona.telefono || ""} /></div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="hidden 2xl:table-cell px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-content-muted">
                         <WhatsAppLink phone={contract.inquilinos.find(i => i.esPrincipal)?.persona.telefono || ""} />
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="hidden 2xl:table-cell px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-content-muted">
                         <WhatsAppLink phone={contract.propietarios.find(p => p.esPrincipal)?.persona.telefono || ""} />
                       </div>
@@ -686,6 +719,7 @@ export default function Contratos() {
                     </td>
 
                     <td className="sticky right-0 z-10 bg-white px-6 py-4 whitespace-nowrap text-right text-sm font-medium shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">
+                      <div className="flex items-start justify-end gap-1">{canViewFinancials && <button type="button" aria-label="Liquidaciones y comprobantes" onClick={() => navigate(`/liquidaciones/contrato/${contract.id}`)} className="ui-button ui-button-secondary px-2 text-xs">Comprobantes</button>}
                       <Menu as="div" className="inline-block text-left">
                         <div>
                           <MenuButton aria-label="Acciones del contrato" className="inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-indigo-600 rounded-full hover:bg-indigo-50 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
@@ -776,7 +810,7 @@ export default function Contratos() {
                             </div>}
                           </MenuItems>
                         </Transition>
-                      </Menu>
+                      </Menu></div>
                     </td>
                   </tr>
                 ))
@@ -795,9 +829,10 @@ export default function Contratos() {
         </div>
 
         {/* VISTA MOBILE */}
-        <div className="space-y-4 2xl:hidden">
+        <div className="space-y-4 xl:hidden">
             {currentContracts.map((contract) => (
                 <div key={contract.id} className="ui-panel flex flex-col gap-4 p-4 sm:p-5">
+                    <p className="text-xs text-gray-600">{formatDate(contract.fechaInicio)} – {formatDate(contract.fechaFin)}</p>
                     <div className="flex justify-between items-start">
                         <div className="flex items-center gap-2.5">
                              <div className="bg-indigo-50 p-2 rounded-lg shrink-0">
@@ -918,6 +953,7 @@ export default function Contratos() {
                          <span className="text-xs uppercase font-bold text-content-muted tracking-wider">Alquiler</span>
                          <span className="text-lg font-bold tabular-nums text-right text-gray-900">{formatCurrency(contract.montoAlquiler, contract.moneda)}</span>
                     </div>
+                {canViewFinancials && <button type="button" onClick={() => navigate(`/liquidaciones/contrato/${contract.id}`)} className="ui-button ui-button-secondary">Liquidaciones y comprobantes</button>}
                 </div>
             ))}
             {currentContracts.length === 0 && (

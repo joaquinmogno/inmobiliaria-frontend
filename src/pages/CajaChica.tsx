@@ -1,3 +1,4 @@
+import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
 import MovementReceiptModal from '../components/MovementReceiptModal';
@@ -11,7 +12,6 @@ import {
     PlusIcon,
     CurrencyDollarIcon,
     BuildingLibraryIcon,
-    BanknotesIcon,
     HomeIcon,
     UserGroupIcon,
     ChartBarIcon,
@@ -30,7 +30,7 @@ import { PAYMENT_METHOD_OPTIONS } from "../services/pagos.service";
 import ReversalModal from "../components/ReversalModal";
 import ConfirmationModal from "../components/ConfirmationModal";
 import { toast } from "react-hot-toast";
-import { currentMonthInput, formatDate, todayDateInput } from "../utils/date";
+import { currentMonthInput, formatDate, formatDateTime, formatMonthYear, todayDateInput } from "../utils/date";
 import ActiveFilterChips from "../components/ActiveFilterChips";
 import { cuentasBancariasService, type CuentaBancaria } from "../services/cuentas-bancarias.service";
 import LocalizedFilePicker from "../components/LocalizedFilePicker";
@@ -200,7 +200,7 @@ export default function CajaChica() {
     };
 
     const formatMovementDate = (dateStr?: string | null) => {
-        return dateStr ? formatDate(dateStr) : "N/A";
+        return formatDate(dateStr);
     };
 
     const handleCreate = (e: React.FormEvent) => {
@@ -273,7 +273,7 @@ export default function CajaChica() {
     const clearListFilters = () => { setSearchTerm(''); setTipoFilter(''); setEstadoFilter(''); setCuentaFilter(''); setCurrentPage(1); };
     const emptyState = loadError ? <p role="alert" className="p-6 text-sm text-red-800">{loadError}</p> : <EmptyState filtered={Boolean(searchTerm.trim() || tipoFilter || estadoFilter || cuentaFilter)} title="Todavía no hay movimientos en este mes" description="Los ingresos y egresos del período aparecerán aquí." onClear={clearListFilters} action={canCreate ? { label: 'Crear el primer movimiento', onClick: () => setIsModalOpen(true) } : undefined} />;
 
-    const createConfirmationMessage = `¿Está seguro que quiere registrar ${movementTypeLabel} por ${paymentMethodLabel.toLowerCase()} de ${formatCurrency(Number(formData.monto), formData.moneda)} el día ${formatDate(formData.fecha)}?${formData.comprobantes.length ? ` Se adjuntarán ${formData.comprobantes.length} comprobante(s).` : ''}`;
+    const createConfirmationMessage = `¿Querés registrar ${movementTypeLabel} por ${paymentMethodLabel.toLowerCase()} de ${formatCurrency(Number(formData.monto), formData.moneda)} el día ${formatDate(formData.fecha)}?${formData.comprobantes.length ? ` Se adjuntarán ${formData.comprobantes.length} comprobante(s).` : ''}`;
 
     const openAttachment = async (path: string) => {
         try {
@@ -371,7 +371,7 @@ export default function CajaChica() {
 
     const handleReopenPeriod = async (target: CashClosingTarget, closing: CierreCaja) => {
         if (closing.estado !== 'CERRADO') return;
-        const motivo = window.prompt(`Motivo para reabrir ${target.label} de ${selectedPeriod.slice(0, 7)}. Esta acción quedará auditada:`);
+        const motivo = window.prompt(`Motivo para reabrir ${target.label} de ${formatMonthYear(selectedPeriod)}. Esta acción quedará auditada:`);
         if (motivo === null) return;
         if (motivo.trim().length < 5) {
             toast.error('Indicá un motivo de al menos 5 caracteres para reabrir el período.');
@@ -405,33 +405,14 @@ export default function CajaChica() {
         : movimiento.cuentaBancaria ? `${movimiento.cuentaBancaria.banco} — ${movimiento.cuentaBancaria.nombre}` : 'Banco histórico';
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6 pb-20">
-            {/* Header */}
+        <div className="max-w-7xl mx-auto space-y-6 xl:space-y-4 pb-20">
+            <header data-testid="cash-header" className="space-y-3">
             <div className="flex flex-col items-stretch justify-between gap-4 xl:flex-row xl:items-center">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Gestión Financiera</h1>
                     <p className="text-sm text-content-muted">Caja por fecha real de movimiento. Los saldos se muestran al cierre del período elegido.</p>
                 </div>
-                <div className="ui-page-actions xl:flex-nowrap">
-                    <div className="hidden lg:flex items-center gap-4 bg-white px-4 py-2 rounded-xl shadow-sm border border-gray-100">
-                         <div className="flex items-center gap-2">
-                             <div className="w-2 h-2 rounded-full bg-amber-400"></div>
-                             <span className="text-xs font-bold text-gray-600 uppercase tracking-tight">Efectivo al cierre:</span>
-                             <span className="text-xs font-bold text-gray-900">{formatCurrency(meta?.balanceCaja || 0)}</span>
-                         </div>
-                         <div className="w-px h-4 bg-gray-100"></div>
-                         <div className="flex items-center gap-2">
-                             <div className="w-2 h-2 rounded-full bg-blue-400"></div>
-                             <span className="text-xs font-bold text-gray-600 uppercase tracking-tight">Banco al cierre:</span>
-                             <span className="text-xs font-bold text-gray-900">{formatCurrency(meta?.balanceBanco || 0)}</span>
-                         </div>
-                         <div className="w-px h-4 bg-gray-100"></div>
-                         <div className="flex items-center gap-2">
-                             <div className="w-2 h-2 rounded-full bg-red-400"></div>
-                             <span className="text-xs font-bold text-gray-600">Cobros menos pagos a dueños del mes:</span>
-                             <span className="text-xs font-bold text-status-danger">{formatCurrency(meta?.fondosEnCustodia || 0)}</span>
-                         </div>
-                    </div>
+                <div className="ui-page-actions xl:max-2xl:w-[440px] xl:max-2xl:shrink-0">
                     {canCreate && <button
                         onClick={() => setIsModalOpen(true)}
                         className="ui-button ui-button-primary w-full sm:w-auto"
@@ -448,26 +429,33 @@ export default function CajaChica() {
                 </div>
             </div>
 
-            {meta?.saldosBancarios && Object.keys(meta.saldosBancarios).length > 0 && <section className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4 sm:p-5">
-                <div className="flex items-center gap-2"><BuildingLibraryIcon className="h-5 w-5 text-blue-700" /><h2 className="font-bold text-gray-900">Saldos por cuenta bancaria</h2></div>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {Object.values(meta.saldosBancarios).map(cuenta => <div key={cuenta.id} className="rounded-xl border border-blue-100 bg-white p-3">
-                        <p className="text-sm font-bold text-gray-900">{cuenta.banco} — {cuenta.nombre}</p>
-                        <p className="mt-1 text-lg font-black text-blue-800">{formatCurrency(cuenta.saldo, cuenta.moneda)}</p>
-                        <p className="mt-1 text-xs text-gray-600">Ingresos {formatCurrency(cuenta.ingresos, cuenta.moneda)} · Egresos {formatCurrency(cuenta.egresos, cuenta.moneda)}</p>
-                        {!cuenta.activa && <p className="mt-1 text-xs font-semibold text-gray-500">Cuenta inactiva / histórica</p>}
-                    </div>)}
-                </div>
-            </section>}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2" aria-label="Saldos por moneda">
+                {(['ARS', 'USD'] as Moneda[]).map(moneda => {
+                    const totals = meta?.totalesPorMoneda?.[moneda];
+                    const money = (amount: number | undefined) => amount === undefined ? '—' : formatCurrency(amount, moneda);
+                    return <section key={moneda} aria-label={`Caja ${moneda}`} className="ui-panel min-w-0 p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <h2 className="text-sm font-black text-gray-900">{moneda}</h2>
+                            <p className="text-xs text-gray-600">Saldo acumulado al cierre · {String(selectedMonth).padStart(2, '0')}/{selectedYear}: <strong className="text-gray-950">{money(totals?.balance)}</strong></p>
+                        </div>
+                        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                            <div><dt className="inline text-gray-600">Efectivo: </dt><dd className="inline font-bold">{money(totals?.balanceCaja)}</dd></div>
+                            <div><dt className="inline text-gray-600">Banco: </dt><dd className="inline font-bold">{money(totals?.balanceBanco)}</dd></div>
+                            <div><dt className="inline text-gray-600">Ingresos del mes: </dt><dd className="inline font-bold">{money(totals?.totalIngresos)}</dd></div>
+                            <div><dt className="inline text-gray-600">Egresos del mes: </dt><dd className="inline font-bold">{money(totals?.totalEgresos)}</dd></div>
+                        </dl>
+                        <p className="mt-1 text-xs text-gray-600">Excedente de cobros sobre pagos a dueños · mes: <strong>{money(totals?.fondosEnCustodia)}</strong></p>
+                    </section>;
+                })}
+            </div>
+            </header>
 
-            <section aria-labelledby="cash-closing-title" className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-5">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <h2 id="cash-closing-title" className="text-base font-black text-gray-950">Cierres por cuenta y moneda</h2>
-                        <p className="mt-1 text-sm text-gray-600">Cada conciliación bloquea únicamente los movimientos de esa cuenta, moneda y período.</p>
-                    </div>
-                    <p className="text-xs font-bold text-gray-600">Período {selectedPeriod.slice(0, 7)}</p>
-                </div>
+            <details aria-labelledby="cash-closing-title" className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+                <summary className="cursor-pointer text-sm font-semibold text-gray-900">
+                    <span id="cash-closing-title">Cierres por cuenta y moneda</span> · Período {formatMonthYear(selectedPeriod)}
+                    <span className="mt-2 flex flex-wrap gap-2">{closingTargets.map(target => <span key={`${target.cuenta}-${target.cuentaBancariaId || 'caja'}-${target.moneda}`} className="ui-status bg-slate-50 text-slate-800">{target.label}: {getCashClosing(target)?.estado === 'CERRADO' ? 'Cerrado' : getCashClosing(target)?.estado === 'REABIERTO' ? 'Reabierto' : 'Abierto'}</span>)}</span>
+                </summary>
+                <p className="mt-3 text-sm text-gray-600">Cada conciliación bloquea únicamente los movimientos de esa cuenta, moneda y período.</p>
                 <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                     {closingTargets.map(target => {
                         const closing = getCashClosing(target);
@@ -491,22 +479,229 @@ export default function CajaChica() {
                             <p className="mt-1 text-lg font-black">{formatCurrency(Number(saldoSistema), target.moneda)}</p>
                             {closing && <>
                                 <p className="mt-3 text-xs">Declarado {formatCurrency(Number(closing.saldoDeclarado), target.moneda)} · diferencia {formatCurrency(Number(closing.diferencia), target.moneda)}</p>
-                                <p className="mt-1 text-xs">V{closing.version} · {formatDate(closing.cerradoEn)} · {closing.cerradoPor.nombreCompleto}</p>
+                                <p className="mt-1 text-xs">V{closing.version} · {formatDateTime(closing.cerradoEn)} · {closing.cerradoPor.nombreCompleto}</p>
                                 {closing.estado === 'REABIERTO' && <p className="mt-1 text-xs font-semibold">Reabierto: {closing.motivoReapertura || 'sin motivo informado'}</p>}
                             </>}
                             <div className="mt-4 flex flex-wrap gap-2">
                                 {canCloseCash && !isClosed && (target.cuenta === 'CAJA' || target.cuentaBancariaId) && <button type="button" onClick={() => void handleClosePeriod(target)} className="min-h-10 rounded-lg border border-indigo-300 bg-white px-3 text-xs font-black text-indigo-800 hover:bg-indigo-50">Cerrar</button>}
                                 {canReopenCash && isClosed && closing && <button type="button" onClick={() => void handleReopenPeriod(target, closing)} className="min-h-10 rounded-lg border border-amber-300 bg-white px-3 text-xs font-black text-amber-900 hover:bg-amber-100">Reabrir</button>}
-                                {closing && <details className="relative text-xs text-gray-800"><summary className="flex min-h-10 cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 font-bold hover:bg-gray-50">Historial ({closing.eventos.length})</summary><ol className="absolute right-0 z-20 mt-1 w-72 space-y-1 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">{closing.eventos.map(evento => <li key={evento.id}><span className="font-bold">V{evento.version} · {evento.tipo === 'CIERRE' ? 'Cierre' : 'Reapertura'}</span> · {formatDate(evento.fechaCreacion)} · {evento.usuario.nombreCompleto}{evento.motivo ? ` · ${evento.motivo}` : ''}</li>)}</ol></details>}
+                                {closing && <details className="relative text-xs text-gray-800"><summary className="flex min-h-10 cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 font-bold hover:bg-gray-50">Historial ({closing.eventos.length})</summary><ol className="absolute right-0 z-20 mt-1 w-72 space-y-1 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">{closing.eventos.map(evento => <li key={evento.id}><span className="font-bold">V{evento.version} · {evento.tipo === 'CIERRE' ? 'Cierre' : 'Reapertura'}</span> · {formatDateTime(evento.fechaCreacion)} · {evento.usuario.nombreCompleto}{evento.motivo ? ` · ${evento.motivo}` : ''}</li>)}</ol></details>}
                             </div>
                         </article>;
                     })}
                 </div>
-            </section>
+            </details>
+
+
+            <FilterBar collapsibleOnDesktop activeFilterCount={[searchTerm, tipoFilter, estadoFilter, cuentaFilter].filter(Boolean).length} context={`Período: ${String(selectedMonth).padStart(2, '0')}/${selectedYear} · ${estadoFilter ? 'Reversiones y anulados' : 'Todos los estados'}`} query={searchTerm} onQueryChange={setSearchTerm} resultCount={total} resultCountLabel={estadoFilter ? { singular: 'corrección', plural: 'correcciones' } : undefined} placeholder="Buscar concepto..." onClear={() => { const [year, month] = currentMonthInput().split('-').map(Number); setSearchTerm(""); setTipoFilter(""); setEstadoFilter(""); setCuentaFilter(""); setSelectedYear(year); setSelectedMonth(month); }}>
+                <div className="flex flex-wrap items-center gap-3">
+                {/* Período */}
+                <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-black text-gray-600 uppercase tracking-widest">Período:</span>
+                    <AppSelect
+                        ariaLabel="Mes"
+                        value={String(selectedMonth)}
+                        onChange={(value) => setSelectedMonth(Number(value))}
+                        options={["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"].map((label, index) => ({ value: String(index + 1), label }))}
+                        className="w-24"
+                    />
+                    <AppSelect
+                        ariaLabel="Año"
+                        value={String(selectedYear)}
+                        onChange={(value) => setSelectedYear(Number(value))}
+                        options={[2024, 2025, 2026, 2027].map(year => ({ value: String(year), label: String(year) }))}
+                        className="w-28"
+                    />
+                </div>
+
+                <AppSelect
+                    ariaLabel="Tipo de movimiento"
+                    value={tipoFilter}
+                    onChange={setTipoFilter}
+                    options={[
+                        { value: "", label: "Todos los tipos" },
+                        { value: "INGRESO", label: "Entradas" },
+                        { value: "EGRESO", label: "Egresos" }
+                    ]}
+                    className="w-full sm:w-44"
+                />
+                <AppSelect
+                    ariaLabel="Estado del movimiento"
+                    value={estadoFilter}
+                    onChange={(value) => setEstadoFilter(value === 'REVERSIONES' ? 'REVERSIONES' : '')}
+                    options={[
+                        { value: '', label: 'Todos los estados' },
+                        { value: 'REVERSIONES', label: 'Reversiones y anulados' }
+                    ]}
+                    className="w-full sm:w-52"
+                />
+                <AppSelect
+                    ariaLabel="Cuenta"
+                    value={cuentaFilter}
+                    onChange={setCuentaFilter}
+                    options={[
+                        { value: "", label: "Todas las cuentas" },
+                        { value: "CAJA", label: "Caja" },
+                        { value: "BANCO", label: "Todos los bancos" },
+                        ...cuentasBancarias.map(cuenta => ({ value: `BANCO:${cuenta.id}`, label: `${cuenta.banco} — ${cuenta.nombre}${cuenta.activa ? '' : ' (inactiva)'}` }))
+                    ]}
+                    className="w-full sm:w-44"
+                />
+                </div>
+            </FilterBar>
+            <ActiveFilterChips filters={[
+                ...(searchTerm ? [{ key: 'q', label: `Búsqueda: ${searchTerm}`, onRemove: () => setSearchTerm('') }] : []),
+                ...(tipoFilter ? [{ key: 'tipo', label: `Tipo: ${tipoFilter === 'INGRESO' ? 'Ingresos' : 'Egresos'}`, onRemove: () => setTipoFilter('') }] : []),
+                ...(estadoFilter ? [{ key: 'estado', label: 'Reversiones y anulados', onRemove: () => setEstadoFilter('') }] : []),
+                ...(cuentaFilter ? [{ key: 'cuenta', label: `Cuenta: ${cuentaFilter === 'CAJA' ? 'Caja' : cuentaFilter === 'BANCO' ? 'Todos los bancos' : cuentasBancarias.find(cuenta => `BANCO:${cuenta.id}` === cuentaFilter) ? `${cuentasBancarias.find(cuenta => `BANCO:${cuenta.id}` === cuentaFilter)!.banco} — ${cuentasBancarias.find(cuenta => `BANCO:${cuenta.id}` === cuentaFilter)!.nombre}` : 'Banco'}`, onRemove: () => setCuentaFilter('') }] : []),
+                ...(`${selectedYear}-${String(selectedMonth).padStart(2, '0')}` !== currentMonthInput() ? [{ key: 'periodo', label: `Período: ${String(selectedMonth).padStart(2, '0')}/${selectedYear}`, onRemove: () => { const [year, month] = currentMonthInput().split('-').map(Number); setSelectedYear(year); setSelectedMonth(month); } }] : [])
+            ]} onClearAll={() => { const [year, month] = currentMonthInput().split('-').map(Number); setSearchTerm(''); setTipoFilter(''); setEstadoFilter(''); setCuentaFilter(''); setSelectedYear(year); setSelectedMonth(month); }} />
+
+            {/* Table */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-h-[300px]">
+                <div className="divide-y divide-gray-100 xl:hidden">
+                    {isLoading ? (
+                        <LoadingState compact label="Cargando movimientos…" />
+                    ) : movimientos.length === 0 ? (
+                        <div className="text-center">{emptyState}</div>
+                    ) : (
+                        movimientos.map((mov) => (
+                            <article key={mov.id} className={`p-4 ${mov.anuladoEn ? "bg-gray-50" : ""}`}>
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-black uppercase tracking-wider text-gray-600">{formatMovementDate(mov.fecha)}</p>
+                                        <h3 className="mt-1 text-sm font-black leading-snug text-gray-900">{mov.concepto}</h3>
+                                        {mov.observaciones && <p className="mt-1 text-xs text-content-muted">{mov.observaciones}</p>}
+                                    </div>
+                                    <span className={`shrink-0 text-sm font-black tabular-nums ${mov.tipo === 'INGRESO' ? 'text-status-success' : 'text-status-danger'}`}>
+                                        {formatSignedCurrency(mov.tipo === 'INGRESO' ? Math.abs(Number(mov.monto)) : -Math.abs(Number(mov.monto)), mov.moneda, true)}
+                                    </span>
+                                </div>
+                                <div className="mt-3 flex flex-wrap items-center gap-2">
+                                    <span className={`ui-status border-transparent ${mov.tipo === 'INGRESO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                        {mov.tipo === 'INGRESO' ? 'Ingreso' : 'Egreso'}
+                                    </span>
+                                    <span className={`ui-status border-transparent ${mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+                                        {accountLabel(mov)}
+                                    </span>
+                                    <span className="text-xs font-medium text-content-muted">{mov.creadoPor?.nombreCompleto || 'Sistema'}</span>
+                                </div>
+                                {mov.transferenciaInternaId && <p className="mt-2 text-xs font-bold text-indigo-700">Transferencia interna #{mov.transferenciaInternaId}</p>}
+                                {!mov.transferenciaInternaId && !mov.reversionDeId && <button type="button" onClick={() => setReceiptMovement(mov.id)} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 px-3 py-2 text-sm font-bold text-indigo-800 hover:bg-indigo-50"><DocumentTextIcon className="h-4 w-4" aria-hidden="true" /> Recibo PDF</button>}
+                                {((mov.adjuntos?.length || 0) > 0 || (canCreate && !mov.anuladoEn)) && (
+                                    <button type="button" onClick={() => { setMovementForAttachments(mov); setPendingAttachments([]); }} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-800 hover:bg-indigo-100">
+                                        <PaperClipIcon className="h-4 w-4" /> {mov.adjuntos?.length ? `Comprobantes (${mov.adjuntos.length})` : 'Adjuntar comprobantes'}
+                                    </button>
+                                )}
+                                {mov.anuladoEn && (
+                                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                                        <p className="font-black uppercase tracking-wider">Movimiento anulado</p>
+                                        <p className="mt-1">{mov.motivoAnulacion}</p>
+                                        <p className="mt-1 text-amber-700">Por {mov.anuladoPor?.nombreCompleto || "Sistema"}</p>
+                                    </div>
+                                )}
+                                {mov.reversionDeId && <p className="mt-2 text-xs font-bold text-indigo-700">Asiento inverso del movimiento #{mov.reversionDeId}</p>}
+                                {canVoid && isManualReversible(mov) && (
+                                    <button type="button" onClick={() => setSelectedMovement(mov)} data-danger-trigger="true" className="destructive-action mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition-colors">
+                                        <NoSymbolIcon className="h-4 w-4" /> Anular movimiento
+                                    </button>
+                                )}
+                            </article>
+                        ))
+                    )}
+                </div>
+                <div className="hidden overflow-x-auto xl:block">
+                <table className="ui-notebook-table tabular-nums divide-y divide-gray-100">
+                    <thead className="bg-gray-50/50">
+                        <tr>
+                            <th scope="col" className="w-[13%] 2xl:w-auto px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Fecha</th>
+                            <th scope="col" className="w-[24%] 2xl:w-auto px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Concepto</th>
+                            <th scope="col" className="hidden 2xl:table-cell px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Tipo</th>
+                            <th scope="col" className="w-[14%] 2xl:w-auto px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Cuenta</th>
+                            <th scope="col" className="w-[17%] 2xl:w-auto px-6 py-4 text-right text-xs font-semibold text-content-muted uppercase tracking-wider">Monto</th>
+                            <th scope="col" className="hidden 2xl:table-cell px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Creado por</th>
+                            <th scope="col" className="w-[32%] 2xl:w-auto sticky right-0 z-20 bg-gray-50 px-6 py-4 text-right text-xs font-semibold text-content-muted uppercase tracking-wider shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                        {isLoading ? (
+                            <tr><td colSpan={7} className="px-6 py-8"><LoadingState compact label="Cargando movimientos…" /></td></tr>
+                        ) : movimientos.length === 0 ? (
+                            <tr><td colSpan={7} className="text-center">{emptyState}</td></tr>
+                        ) : (
+                            movimientos.map((mov) => (
+                                <tr key={mov.id} className={`transition-colors hover:bg-gray-50/50 ${mov.anuladoEn ? "bg-gray-50" : ""}`}>
+                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">
+                                        {formatMovementDate(mov.fecha)}
+                                    <span className="mt-1 block text-xs">{mov.anuladoEn ? "Anulado" : "Vigente"}</span></td>
+                                    <td className="px-6 py-4">
+                                        <div className="text-sm font-semibold text-gray-900">{mov.concepto}</div>
+                                        {mov.observaciones && <div className="text-xs text-gray-600 mt-0.5">{mov.observaciones}</div>}
+                                        {mov.anuladoEn && <div className="mt-1 text-xs font-bold text-amber-800">Anulado: {mov.motivoAnulacion}</div>}
+                                        {mov.reversionDeId && <div className="mt-1 text-xs font-bold text-indigo-700">Reversión de #{mov.reversionDeId}</div>}
+                                        {mov.transferenciaInternaId && <div className="mt-1 text-xs font-bold text-indigo-700">Transferencia interna #{mov.transferenciaInternaId}</div>}
+                                    <p className="mt-1 text-xs text-gray-600 2xl:hidden">{mov.tipo === "INGRESO" ? "Ingreso" : "Egreso"} · {mov.creadoPor?.nombreCompleto || "Sistema"}</p></td>
+                                    <td className="hidden 2xl:table-cell px-6 py-4 whitespace-nowrap">
+                                        <span className={`ui-status border-transparent ${mov.tipo === 'INGRESO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                            {mov.tipo === 'INGRESO' ? 'Ingreso' : 'Egreso'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <span className={`ui-status border-transparent ${mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+                                            {mov.cuenta === 'BANCO' ? `🏦 ${accountLabel(mov)}` : '💵 Caja'}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                                        <span className={`text-sm font-bold tabular-nums ${mov.tipo === 'INGRESO' ? 'text-status-success' : 'text-status-danger'}`}>
+	                                            {formatSignedCurrency(mov.tipo === 'INGRESO' ? Math.abs(Number(mov.monto)) : -Math.abs(Number(mov.monto)), mov.moneda, true)}
+                                        </span>
+                                    </td>
+                                    <td className="hidden 2xl:table-cell px-6 py-4 whitespace-nowrap text-sm text-content-muted">
+                                        {mov.creadoPor?.nombreCompleto || 'Sistema'}
+                                    </td>
+                                    <td className={`sticky right-0 z-10 px-6 py-4 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)] ${mov.anuladoEn ? "bg-gray-50" : "bg-white"}`}>
+                                        {!mov.transferenciaInternaId && !mov.reversionDeId && <button type="button" onClick={() => setReceiptMovement(mov.id)} className="inline-flex min-h-11 items-center gap-1 rounded-lg px-3 py-2 text-sm font-bold text-indigo-800 hover:bg-indigo-50"><DocumentTextIcon className="h-4 w-4" aria-hidden="true" /> Recibo PDF</button>}
+                                        {((mov.adjuntos?.length || 0) > 0 || (canCreate && !mov.anuladoEn)) && (
+                                            <button type="button" onClick={() => { setMovementForAttachments(mov); setPendingAttachments([]); }} className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-bold text-indigo-700 hover:bg-indigo-50">
+                                                <PaperClipIcon className="h-4 w-4" /> Comprobantes ({mov.adjuntos?.length || 0})
+                                            </button>
+                                        )}
+                                        {canVoid && isManualReversible(mov) && (
+                                            <button type="button" onClick={() => setSelectedMovement(mov)} data-danger-trigger="true" className="destructive-action inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-bold transition-colors">
+                                                <NoSymbolIcon className="h-4 w-4" /> Anular
+                                            </button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
+                </table>
+                </div>
+                {totalPages > 1 && (
+                    <div className="bg-gray-50 px-4 sm:px-6 py-3 border-t border-gray-100 flex justify-between items-center gap-3">
+                        <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="text-sm text-indigo-600 disabled:opacity-40 font-medium cursor-pointer">Anterior</button>
+                        <span className="text-center text-xs sm:text-sm text-content-muted">Pág {currentPage} de {totalPages} · {total} registros</span>
+                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="text-sm text-indigo-600 disabled:opacity-40 font-medium cursor-pointer">Siguiente</button>
+                    </div>
+                )}
+            </div>
+
+            {meta?.saldosBancarios && Object.keys(meta.saldosBancarios).length > 0 && <details className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4 sm:p-5">
+                <summary className="flex min-h-11 cursor-pointer items-center gap-2"><BuildingLibraryIcon className="h-5 w-5 text-blue-700" /><h2 className="font-bold text-gray-900">Saldos por cuenta bancaria</h2></summary>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {Object.values(meta.saldosBancarios).map(cuenta => <div key={cuenta.id} className="rounded-xl border border-blue-100 bg-white p-3">
+                        <p className="text-sm font-bold text-gray-900">{cuenta.banco} — {cuenta.nombre}</p>
+                        <p className="mt-1 text-lg font-black text-blue-800">{formatCurrency(cuenta.saldo, cuenta.moneda)}</p>
+                        <p className="mt-1 text-xs text-gray-600">Ingresos {formatCurrency(cuenta.ingresos, cuenta.moneda)} · Egresos {formatCurrency(cuenta.egresos, cuenta.moneda)}</p>
+                        {!cuenta.activa && <p className="mt-1 text-xs font-semibold text-gray-500">Cuenta inactiva / histórica</p>}
+                    </div>)}
+                </div>
+            </details>}
 
             {/* KPIs Principales */}
             {meta && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                <details className="ui-panel p-3"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">Indicadores adicionales del período · ARS</summary><p className="mt-3 text-sm text-gray-700">Efectivo al cierre: {formatCurrency(meta.balanceCaja)} · Banco al cierre: {formatCurrency(meta.balanceBanco)}</p><div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                     {/* Cobrado Inquilinos */}
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 transition-all hover:shadow-md">
                         <div className="flex items-center justify-between mb-3">
@@ -576,270 +771,19 @@ export default function CajaChica() {
                             {formatCurrency(meta.balanceGeneral)}
                         </p>
                     </div>
-                </div>
+                </div></details>
 	            )}
 
-	            {meta && (
-	                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-	                    {(["ARS", "USD"] as Moneda[]).map(moneda => {
-	                        const totals = meta.totalesPorMoneda?.[moneda] || {
-	                            totalIngresos: moneda === "ARS" ? meta.totalIngresosARS : meta.totalIngresosUSD,
-	                            totalEgresos: moneda === "ARS" ? meta.totalEgresosARS : meta.totalEgresosUSD,
-	                            balance: moneda === "ARS" ? meta.balanceARS : meta.balanceUSD,
-	                        };
-
-	                        return (
-	                            <section key={moneda} className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm">
-	                                <div className="flex items-center justify-between mb-3">
-	                                    <h2 className="text-xs font-black uppercase tracking-widest text-content-muted">{moneda}</h2>
-	                                    <span className="text-xs font-bold text-gray-600">Saldo al cierre</span>
-	                                </div>
-	                                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
-	                                    <div>
-	                                        <p className="text-xs font-bold text-green-700">Ingresos del período</p>
-	                                        <p className="text-sm font-black text-gray-900">{formatCurrency(totals.totalIngresos, moneda)}</p>
-	                                    </div>
-	                                    <div>
-	                                        <p className="text-xs font-bold uppercase text-status-danger">Egresos del período</p>
-	                                        <p className="text-sm font-black text-gray-900">{formatCurrency(totals.totalEgresos, moneda)}</p>
-	                                    </div>
-	                                    <div>
-	                                        <p className="text-xs font-bold uppercase text-indigo-600">Balance</p>
-	                                        <p className="text-sm font-black text-gray-900">{formatCurrency(totals.balance, moneda)}</p>
-	                                    </div>
-	                                </div>
-	                            </section>
-	                        );
-	                    })}
-	                </div>
-	            )}
-
-	            {/* Mobile Account Summary */}
-            <div className="lg:hidden grid grid-cols-1 min-[380px]:grid-cols-2 gap-3">
-                <div className="bg-white p-3 rounded-xl border border-amber-100 flex items-center gap-3">
-                    <BanknotesIcon className="w-5 h-5 text-status-warning" />
-                    <div>
-                        <p className="text-xs text-gray-600 font-bold uppercase">Efectivo al cierre</p>
-                        <p className="text-sm font-bold">{formatCurrency(meta?.balanceCaja || 0)}</p>
-                    </div>
-                </div>
-                <div className="bg-white p-3 rounded-xl border border-blue-100 flex items-center gap-3">
-                    <BuildingLibraryIcon className="w-5 h-5 text-blue-500" />
-                    <div>
-                        <p className="text-xs text-gray-600 font-bold uppercase">Banco al cierre</p>
-                        <p className="text-sm font-bold">{formatCurrency(meta?.balanceBanco || 0)}</p>
-                    </div>
-                </div>
-                <div className="bg-white p-3 rounded-xl border border-red-100 flex items-center gap-3 min-[380px]:col-span-2">
-                    <div className="w-2 h-2 rounded-full bg-red-400"></div>
-                    <div>
-                        <p className="text-xs font-bold text-gray-600">Cobros menos pagos a dueños del mes</p>
-                        <p className="text-sm font-bold text-status-danger">{formatCurrency(meta?.fondosEnCustodia || 0)}</p>
-                    </div>
-                </div>
-            </div>
-
-            <FilterBar query={searchTerm} onQueryChange={setSearchTerm} resultCount={total} resultCountLabel={estadoFilter ? { singular: 'corrección', plural: 'correcciones' } : undefined} placeholder="Buscar concepto..." onClear={() => { const [year, month] = currentMonthInput().split('-').map(Number); setSearchTerm(""); setTipoFilter(""); setEstadoFilter(""); setCuentaFilter(""); setSelectedYear(year); setSelectedMonth(month); }}>
-                {/* Período */}
-                <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-black text-gray-600 uppercase tracking-widest">Período:</span>
-                    <AppSelect
-                        ariaLabel="Mes"
-                        value={String(selectedMonth)}
-                        onChange={(value) => setSelectedMonth(Number(value))}
-                        options={["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"].map((label, index) => ({ value: String(index + 1), label }))}
-                        className="w-24"
-                    />
-                    <AppSelect
-                        ariaLabel="Año"
-                        value={String(selectedYear)}
-                        onChange={(value) => setSelectedYear(Number(value))}
-                        options={[2024, 2025, 2026, 2027].map(year => ({ value: String(year), label: String(year) }))}
-                        className="w-28"
-                    />
-                </div>
-
-                <AppSelect
-                    ariaLabel="Tipo de movimiento"
-                    value={tipoFilter}
-                    onChange={setTipoFilter}
-                    options={[
-                        { value: "", label: "Todos los tipos" },
-                        { value: "INGRESO", label: "Entradas" },
-                        { value: "EGRESO", label: "Egresos" }
-                    ]}
-                    className="w-full sm:w-44"
-                />
-                <AppSelect
-                    ariaLabel="Estado del movimiento"
-                    value={estadoFilter}
-                    onChange={(value) => setEstadoFilter(value === 'REVERSIONES' ? 'REVERSIONES' : '')}
-                    options={[
-                        { value: '', label: 'Todos los estados' },
-                        { value: 'REVERSIONES', label: 'Reversiones y anulados' }
-                    ]}
-                    className="w-full sm:w-52"
-                />
-                <AppSelect
-                    ariaLabel="Cuenta"
-                    value={cuentaFilter}
-                    onChange={setCuentaFilter}
-                    options={[
-                        { value: "", label: "Todas las cuentas" },
-                        { value: "CAJA", label: "Caja" },
-                        { value: "BANCO", label: "Todos los bancos" },
-                        ...cuentasBancarias.map(cuenta => ({ value: `BANCO:${cuenta.id}`, label: `${cuenta.banco} — ${cuenta.nombre}${cuenta.activa ? '' : ' (inactiva)'}` }))
-                    ]}
-                    className="w-full sm:w-44"
-                />
-            </FilterBar>
-            <ActiveFilterChips filters={[
-                ...(searchTerm ? [{ key: 'q', label: `Búsqueda: ${searchTerm}`, onRemove: () => setSearchTerm('') }] : []),
-                ...(tipoFilter ? [{ key: 'tipo', label: `Tipo: ${tipoFilter === 'INGRESO' ? 'Ingresos' : 'Egresos'}`, onRemove: () => setTipoFilter('') }] : []),
-                ...(estadoFilter ? [{ key: 'estado', label: 'Reversiones y anulados', onRemove: () => setEstadoFilter('') }] : []),
-                ...(cuentaFilter ? [{ key: 'cuenta', label: `Cuenta: ${cuentaFilter === 'CAJA' ? 'Caja' : cuentaFilter === 'BANCO' ? 'Todos los bancos' : cuentasBancarias.find(cuenta => `BANCO:${cuenta.id}` === cuentaFilter) ? `${cuentasBancarias.find(cuenta => `BANCO:${cuenta.id}` === cuentaFilter)!.banco} — ${cuentasBancarias.find(cuenta => `BANCO:${cuenta.id}` === cuentaFilter)!.nombre}` : 'Banco'}`, onRemove: () => setCuentaFilter('') }] : []),
-                ...(`${selectedYear}-${String(selectedMonth).padStart(2, '0')}` !== currentMonthInput() ? [{ key: 'periodo', label: `Período: ${String(selectedMonth).padStart(2, '0')}/${selectedYear}`, onRemove: () => { const [year, month] = currentMonthInput().split('-').map(Number); setSelectedYear(year); setSelectedMonth(month); } }] : [])
-            ]} onClearAll={() => { const [year, month] = currentMonthInput().split('-').map(Number); setSearchTerm(''); setTipoFilter(''); setEstadoFilter(''); setCuentaFilter(''); setSelectedYear(year); setSelectedMonth(month); }} />
-
-            {/* Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-h-[300px]">
-                <div className="divide-y divide-gray-100 2xl:hidden">
-                    {isLoading ? (
-                        <LoadingState compact label="Cargando movimientos…" />
-                    ) : movimientos.length === 0 ? (
-                        <div className="text-center">{emptyState}</div>
-                    ) : (
-                        movimientos.map((mov) => (
-                            <article key={mov.id} className={`p-4 ${mov.anuladoEn ? "bg-gray-50" : ""}`}>
-                                <div className="flex items-start justify-between gap-3">
-                                    <div className="min-w-0">
-                                        <p className="text-xs font-black uppercase tracking-wider text-gray-600">{formatMovementDate(mov.fecha)}</p>
-                                        <h3 className="mt-1 text-sm font-black leading-snug text-gray-900">{mov.concepto}</h3>
-                                        {mov.observaciones && <p className="mt-1 text-xs text-content-muted">{mov.observaciones}</p>}
-                                    </div>
-                                    <span className={`shrink-0 text-sm font-black tabular-nums ${mov.tipo === 'INGRESO' ? 'text-status-success' : 'text-status-danger'}`}>
-                                        {formatSignedCurrency(mov.tipo === 'INGRESO' ? Math.abs(Number(mov.monto)) : -Math.abs(Number(mov.monto)), mov.moneda, true)}
-                                    </span>
-                                </div>
-                                <div className="mt-3 flex flex-wrap items-center gap-2">
-                                    <span className={`ui-status border-transparent ${mov.tipo === 'INGRESO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                        {mov.tipo === 'INGRESO' ? 'Ingreso' : 'Egreso'}
-                                    </span>
-                                    <span className={`ui-status border-transparent ${mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
-                                        {accountLabel(mov)}
-                                    </span>
-                                    <span className="text-xs font-medium text-content-muted">{mov.creadoPor?.nombreCompleto || 'Sistema'}</span>
-                                </div>
-                                {mov.transferenciaInternaId && <p className="mt-2 text-xs font-bold text-indigo-700">Transferencia interna #{mov.transferenciaInternaId}</p>}
-                                {!mov.transferenciaInternaId && !mov.reversionDeId && <button type="button" onClick={() => setReceiptMovement(mov.id)} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 px-3 py-2 text-sm font-bold text-indigo-800 hover:bg-indigo-50"><DocumentTextIcon className="h-4 w-4" aria-hidden="true" /> Recibo PDF</button>}
-                                {((mov.adjuntos?.length || 0) > 0 || (canCreate && !mov.anuladoEn)) && (
-                                    <button type="button" onClick={() => { setMovementForAttachments(mov); setPendingAttachments([]); }} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-800 hover:bg-indigo-100">
-                                        <PaperClipIcon className="h-4 w-4" /> {mov.adjuntos?.length ? `Comprobantes (${mov.adjuntos.length})` : 'Adjuntar comprobantes'}
-                                    </button>
-                                )}
-                                {mov.anuladoEn && (
-                                    <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-                                        <p className="font-black uppercase tracking-wider">Movimiento anulado</p>
-                                        <p className="mt-1">{mov.motivoAnulacion}</p>
-                                        <p className="mt-1 text-amber-700">Por {mov.anuladoPor?.nombreCompleto || "Sistema"}</p>
-                                    </div>
-                                )}
-                                {mov.reversionDeId && <p className="mt-2 text-xs font-bold text-indigo-700">Asiento inverso del movimiento #{mov.reversionDeId}</p>}
-                                {canVoid && isManualReversible(mov) && (
-                                    <button type="button" onClick={() => setSelectedMovement(mov)} data-danger-trigger="true" className="destructive-action mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition-colors">
-                                        <NoSymbolIcon className="h-4 w-4" /> Anular movimiento
-                                    </button>
-                                )}
-                            </article>
-                        ))
-                    )}
-                </div>
-                <div className="hidden overflow-x-auto 2xl:block">
-                <table className="tabular-nums min-w-full divide-y divide-gray-100">
-                    <thead className="bg-gray-50/50">
-                        <tr>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Fecha</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Concepto</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Tipo</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Cuenta</th>
-                            <th className="px-6 py-4 text-right text-xs font-semibold text-content-muted uppercase tracking-wider">Monto</th>
-                            <th className="px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Creado por</th>
-                            <th className="sticky right-0 z-20 bg-gray-50 px-6 py-4 text-right text-xs font-semibold text-content-muted uppercase tracking-wider shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                        {isLoading ? (
-                            <tr><td colSpan={7} className="px-6 py-8"><LoadingState compact label="Cargando movimientos…" /></td></tr>
-                        ) : movimientos.length === 0 ? (
-                            <tr><td colSpan={7} className="text-center">{emptyState}</td></tr>
-                        ) : (
-                            movimientos.map((mov) => (
-                                <tr key={mov.id} className={`transition-colors hover:bg-gray-50/50 ${mov.anuladoEn ? "bg-gray-50" : ""}`}>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-medium">
-                                        {formatMovementDate(mov.fecha)}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="text-sm font-semibold text-gray-900">{mov.concepto}</div>
-                                        {mov.observaciones && <div className="text-xs text-gray-600 mt-0.5">{mov.observaciones}</div>}
-                                        {mov.anuladoEn && <div className="mt-1 text-xs font-bold text-amber-800">Anulado: {mov.motivoAnulacion}</div>}
-                                        {mov.reversionDeId && <div className="mt-1 text-xs font-bold text-indigo-700">Reversión de #{mov.reversionDeId}</div>}
-                                        {mov.transferenciaInternaId && <div className="mt-1 text-xs font-bold text-indigo-700">Transferencia interna #{mov.transferenciaInternaId}</div>}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`ui-status border-transparent ${mov.tipo === 'INGRESO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                            {mov.tipo === 'INGRESO' ? 'Ingreso' : 'Egreso'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`ui-status border-transparent ${mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
-                                            {mov.cuenta === 'BANCO' ? `🏦 ${accountLabel(mov)}` : '💵 Caja'}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                                        <span className={`text-sm font-bold tabular-nums ${mov.tipo === 'INGRESO' ? 'text-status-success' : 'text-status-danger'}`}>
-	                                            {formatSignedCurrency(mov.tipo === 'INGRESO' ? Math.abs(Number(mov.monto)) : -Math.abs(Number(mov.monto)), mov.moneda, true)}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-content-muted">
-                                        {mov.creadoPor?.nombreCompleto || 'Sistema'}
-                                    </td>
-                                    <td className={`sticky right-0 z-10 px-6 py-4 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)] ${mov.anuladoEn ? "bg-gray-50" : "bg-white"}`}>
-                                        {!mov.transferenciaInternaId && !mov.reversionDeId && <button type="button" onClick={() => setReceiptMovement(mov.id)} className="mr-2 inline-flex min-h-11 items-center gap-1 rounded-lg px-3 py-2 text-sm font-bold text-indigo-800 hover:bg-indigo-50"><DocumentTextIcon className="h-4 w-4" aria-hidden="true" /> Recibo PDF</button>}
-                                        {((mov.adjuntos?.length || 0) > 0 || (canCreate && !mov.anuladoEn)) && (
-                                            <button type="button" onClick={() => { setMovementForAttachments(mov); setPendingAttachments([]); }} className="mr-2 inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-bold text-indigo-700 hover:bg-indigo-50">
-                                                <PaperClipIcon className="h-4 w-4" /> {mov.adjuntos?.length || 'Adjuntar'}
-                                            </button>
-                                        )}
-                                        {canVoid && isManualReversible(mov) && (
-                                            <button type="button" onClick={() => setSelectedMovement(mov)} data-danger-trigger="true" className="destructive-action inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-bold transition-colors">
-                                                <NoSymbolIcon className="h-4 w-4" /> Anular
-                                            </button>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))
-                        )}
-                    </tbody>
-                </table>
-                </div>
-                {totalPages > 1 && (
-                    <div className="bg-gray-50 px-4 sm:px-6 py-3 border-t border-gray-100 flex justify-between items-center gap-3">
-                        <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="text-sm text-indigo-600 disabled:opacity-40 font-medium cursor-pointer">Anterior</button>
-                        <span className="text-center text-xs sm:text-sm text-content-muted">Pág {currentPage} de {totalPages} · {total} registros</span>
-                        <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="text-sm text-indigo-600 disabled:opacity-40 font-medium cursor-pointer">Siguiente</button>
-                    </div>
-                )}
-            </div>
 
             {/* Modal de Nuevo Movimiento */}
             {isModalOpen && canCreate && (
-                <div className="ui-backdrop-enter fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center sm:p-4">
-                    <div data-modal-panel className="ui-modal-enter flex max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
+                <Dialog open onClose={() => setIsModalOpen(false)} className="ui-backdrop-enter fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-end justify-center sm:items-center sm:p-4">
+                    <DialogPanel data-modal-panel className="ui-modal-enter flex max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
                         <div className="shrink-0 px-6 py-4 border-b border-gray-100 flex justify-between items-center">
-                            <h3 className="text-lg font-bold text-gray-900">Nuevo Movimiento Manual</h3>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-600 hover:text-gray-600 cursor-pointer">✕</button>
+                            <DialogTitle as="h3" className="text-lg font-bold text-gray-900">Nuevo Movimiento Manual</DialogTitle>
+                            <button type="button" aria-label="Cerrar ventana" onClick={() => setIsModalOpen(false)} className="text-gray-600 hover:text-gray-600 cursor-pointer">✕</button>
                         </div>
-                        <form ref={formRef} onSubmit={handleCreate} className="modal-scroll flex-1 p-5 sm:p-6 space-y-4">
+                        <form id="cash-movement-form" ref={formRef} onSubmit={handleCreate} className="modal-scroll flex-1 p-5 sm:p-6 space-y-4">
                             <FormError message={formError} />
                             <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-4">
                                 <div>
@@ -867,7 +811,7 @@ export default function CajaChica() {
 	                                <NumericInput
 	                                    id="cash-movement-amount"
 	                                    required
-                                    min="0"
+                                    min="0.01"
                                     className="w-full border border-gray-300 rounded-lg py-2 px-3 text-sm focus:ring-indigo-500 focus:border-indigo-500"
                                     value={formData.monto}
                                     onChange={(val) => setFormData({ ...formData, monto: val.toString() })}
@@ -919,13 +863,13 @@ export default function CajaChica() {
                                 )}
                             </div>
 
-                            <div className="sticky bottom-0 -mx-5 -mb-5 flex justify-end gap-3 border-t border-gray-100 bg-white p-5 sm:-mx-6 sm:-mb-6 sm:p-6">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="min-h-11 flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 cursor-pointer">Cancelar</button>
-                                <button type="submit" className="min-h-11 flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-xl hover:bg-indigo-700 cursor-pointer">Guardar</button>
-                            </div>
                         </form>
-                    </div>
-                </div>
+                        <div className="ui-dialog-footer">
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="min-h-11 flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 cursor-pointer">Cancelar</button>
+                                <button type="submit" form="cash-movement-form" className="min-h-11 flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-xl hover:bg-indigo-700 cursor-pointer">Guardar</button>
+                        </div>
+                    </DialogPanel>
+                </Dialog>
             )}
 
             {movementForAttachments && (
@@ -999,27 +943,27 @@ export default function CajaChica() {
             )}
 
             {isTransferModalOpen && canCreate && (
-                <div className="ui-backdrop-enter fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4">
-                    <div data-modal-panel className="ui-modal-enter flex max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
+                <Dialog open onClose={() => setIsTransferModalOpen(false)} className="ui-backdrop-enter fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+                    <DialogPanel data-modal-panel className="ui-modal-enter flex max-h-[100dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-white shadow-xl sm:max-h-[90dvh] sm:rounded-2xl">
                         <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-6 py-4">
-                            <div><h3 className="text-lg font-bold text-gray-900">Transferir entre cuentas</h3><p className="mt-1 text-xs text-content-muted">Genera un egreso y un ingreso vinculados; el saldo total no cambia.</p></div>
+                            <div><DialogTitle as="h3" className="text-lg font-bold text-gray-900">Transferir entre cuentas</DialogTitle><p className="mt-1 text-xs text-content-muted">Genera un egreso y un ingreso vinculados; el saldo total no cambia.</p></div>
                             <button type="button" onClick={() => setIsTransferModalOpen(false)} className="text-gray-600 hover:text-gray-900" aria-label="Cerrar">✕</button>
                         </div>
-                        <form onSubmit={handleTransfer} className="modal-scroll flex-1 space-y-4 p-5 sm:p-6">
+                        <form id="cash-transfer-form" onSubmit={handleTransfer} className="modal-scroll flex-1 space-y-4 p-5 sm:p-6">
                             <FormError message={formError} />
                             <div className="grid grid-cols-2 gap-4">
                                 <label className="text-sm font-medium text-gray-700">Fecha *<input required type="date" max={todayDateInput()} value={transferData.fecha} onChange={event => setTransferData({ ...transferData, fecha: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
                                 <label className="text-sm font-medium text-gray-700">Moneda *<AppSelect ariaLabel="Moneda de transferencia" value={transferData.moneda} onChange={value => setTransferData({ ...transferData, moneda: value as Moneda, cuentaOrigenId: '', cuentaDestinoId: '' })} options={[{ value: 'ARS', label: 'ARS — Pesos' }, { value: 'USD', label: 'USD — Dólares' }]} className="mt-1" /></label>
                             </div>
-                            <label className="block text-sm font-medium text-gray-700">Monto *<NumericInput required min="0" value={transferData.monto} onChange={value => setTransferData({ ...transferData, monto: value.toString() })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" icon={<span className="text-content-muted text-sm">{transferData.moneda === 'USD' ? 'US$' : '$'}</span>} /></label>
+                            <label className="block text-sm font-medium text-gray-700">Monto *<NumericInput required min="0.01" value={transferData.monto} onChange={value => setTransferData({ ...transferData, monto: value.toString() })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" icon={<span className="text-content-muted text-sm">{transferData.moneda === 'USD' ? 'US$' : '$'}</span>} /></label>
                             <label className="block text-sm font-medium text-gray-700">Cuenta origen *<AppSelect required ariaLabel="Cuenta origen" value={transferData.cuentaOrigenId} onChange={value => setTransferData({ ...transferData, cuentaOrigenId: value })} options={[{ value: '', label: 'Seleccionar cuenta' }, ...activeAccountsFor(transferData.moneda).map(cuenta => ({ value: String(cuenta.id), label: `${cuenta.banco} — ${cuenta.nombre}` }))]} className="mt-1" /></label>
                             <label className="block text-sm font-medium text-gray-700">Cuenta destino *<AppSelect required ariaLabel="Cuenta destino" value={transferData.cuentaDestinoId} onChange={value => setTransferData({ ...transferData, cuentaDestinoId: value })} options={[{ value: '', label: 'Seleccionar cuenta' }, ...activeAccountsFor(transferData.moneda).filter(cuenta => String(cuenta.id) !== transferData.cuentaOrigenId).map(cuenta => ({ value: String(cuenta.id), label: `${cuenta.banco} — ${cuenta.nombre}` }))]} className="mt-1" /></label>
                             <label className="block text-sm font-medium text-gray-700">Concepto *<input required maxLength={255} value={transferData.concepto} onChange={event => setTransferData({ ...transferData, concepto: event.target.value })} placeholder="Ej. Fondeo de cuenta operativa" className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
                             <label className="block text-sm font-medium text-gray-700">Observación<textarea rows={2} maxLength={1000} value={transferData.observaciones} onChange={event => setTransferData({ ...transferData, observaciones: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
-                            <div className="flex gap-3 border-t border-gray-100 pt-4"><button type="button" onClick={() => setIsTransferModalOpen(false)} className="min-h-11 flex-1 rounded-xl border border-gray-300 px-4 text-sm font-bold text-gray-700">Cancelar</button><button type="submit" className="min-h-11 flex-1 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white hover:bg-indigo-700">Transferir</button></div>
                         </form>
-                    </div>
-                </div>
+                        <div className="ui-dialog-footer"><button type="button" onClick={() => setIsTransferModalOpen(false)} className="min-h-11 flex-1 rounded-xl border border-gray-300 px-4 text-sm font-bold text-gray-700">Cancelar</button><button type="submit" form="cash-transfer-form" className="min-h-11 flex-1 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white hover:bg-indigo-700">Transferir</button></div>
+                    </DialogPanel>
+                </Dialog>
             )}
 
             {receiptMovement !== null && <MovementReceiptModal key={receiptMovement} module="cajachica" movementId={receiptMovement} canIssue={canCreate} close={() => setReceiptMovement(null)} />}

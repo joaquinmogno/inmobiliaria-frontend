@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 
 const validationMessage = (field: HTMLInputElement | HTMLTextAreaElement) => {
+  if (field.validity.customError) return field.validationMessage;
   if (field.validity.valueMissing) return 'Completá este campo.';
   if (field.validity.typeMismatch) return 'Ingresá un correo electrónico válido.';
   if (field instanceof HTMLInputElement && field.validity.rangeUnderflow) return `El valor mínimo es ${field.min}.`;

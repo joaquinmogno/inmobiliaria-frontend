@@ -5,7 +5,7 @@ import NumericInput from "./NumericInput";
 import type { Contract } from "../services/contracts.service";
 import { liquidacionesService } from "../services/liquidaciones.service";
 import { planesCuotasService, type CuotaPlan } from "../services/planes-cuotas.service";
-import { formatCurrency } from "../utils/currency";
+import { formatCurrency, formatCurrencyWithCents } from "../utils/currency";
 import FormError, { useFormError } from "./FormError";
 import { requestConfirmation } from "../services/confirmation";
 import { currentMonthInput, formatMonthYear } from "../utils/date";
@@ -192,10 +192,10 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                     <Dialog.Title as="h3" className="text-xl font-bold leading-6 text-gray-900">
                                         Nueva liquidación
                                     </Dialog.Title>
-                                    <button
+                                    <button type="button"
                                         onClick={onClose}
                                         className="grid h-11 w-11 place-items-center rounded-xl text-gray-600 hover:bg-gray-100 hover:text-content-muted transition-colors focus:outline-none"
-                                    >
+                                     aria-label="Cerrar ventana">
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
                                 </div>
@@ -321,6 +321,8 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                     </label>
                                                     <NumericInput
                                                         id="liquidation-fee-percentage"
+                                                        min={0}
+                                                        max={100}
                                                         className="block min-h-11 w-full px-3 py-2 text-base text-gray-900 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white"
                                                         value={porcentajeHonorarios}
                                                         onChange={(val) => setPorcentajeHonorarios(val.toString())}
@@ -397,7 +399,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                                 </div>
                                                             </div>
                                                             <span className="shrink-0 text-sm font-black text-gray-900">
-	                                                                {formatCurrency(cuota.monto, cuota.moneda || selectedMoneda)}
+	                                                                {formatCurrencyWithCents(cuota.monto, cuota.moneda || selectedMoneda)}
                                                             </span>
                                                         </label>
                                                     ))}

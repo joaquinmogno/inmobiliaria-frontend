@@ -33,12 +33,23 @@ export default function AutocompleteSelector<T>({
     const [results, setResults] = useState<T[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [searchError, setSearchError] = useState(false);
     const [activeIndex, setActiveIndex] = useState(-1);
     const [currentPage, setCurrentPage] = useState(1);
     const [hasMore, setHasMore] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
     const listId = useId();
+    const inputRef = useRef<HTMLInputElement>(null);
+    const clearRef = useRef<HTMLButtonElement>(null);
+    const focusSelection = useRef(false);
     const searchSequence = useRef(0);
+
+    useEffect(() => {
+        if (value && focusSelection.current) {
+            clearRef.current?.focus();
+            focusSelection.current = false;
+        }
+    }, [value]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -56,15 +67,18 @@ export default function AutocompleteSelector<T>({
                 performSearch(query);
             } else {
                 setResults([]);
+                setLoading(false);
+                setSearchError(false);
             }
         }, 300);
 
-        return () => clearTimeout(delayDebounceFn);
+        return () => { clearTimeout(delayDebounceFn); searchSequence.current++; };
     }, [query, isOpen]);
 
     const performSearch = async (q: string, page = 1, append = false) => {
         const sequence = ++searchSequence.current;
         setLoading(true);
+        setSearchError(false);
         try {
             const response = await onSearch(q, page);
             if (sequence !== searchSequence.current) return;
@@ -77,13 +91,19 @@ export default function AutocompleteSelector<T>({
             setHasMore(!Array.isArray(response) && response.meta.page < response.meta.totalPages);
             setActiveIndex(data.length ? 0 : -1);
         } catch (error) {
+            if (sequence !== searchSequence.current) return;
+            setResults([]);
+            setActiveIndex(-1);
+            setHasMore(false);
+            setSearchError(true);
             console.error("Error searching:", error);
         } finally {
-            setLoading(false);
+            if (sequence === searchSequence.current) setLoading(false);
         }
     };
 
     const handleSelect = (item: T) => {
+        focusSelection.current = true;
         onSelect(item);
         setIsOpen(false);
         setQuery("");
@@ -92,6 +112,7 @@ export default function AutocompleteSelector<T>({
     const handleClear = () => {
         onSelect(null);
         setQuery("");
+        requestAnimationFrame(() => inputRef.current?.focus());
     };
 
     const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -107,7 +128,7 @@ export default function AutocompleteSelector<T>({
     };
 
     return (
-        <div className="relative" ref={dropdownRef}>
+        <div className="relative min-w-0" ref={dropdownRef}>
             <label htmlFor={`${listId}-input`} className="block text-sm font-semibold text-gray-700 mb-1">
                 {label}
             </label>
@@ -122,8 +143,10 @@ export default function AutocompleteSelector<T>({
                     </div>
                     <button
                         type="button"
+                        ref={clearRef}
+                        disabled={disabled}
                         onClick={handleClear}
-                        className="flex h-11 w-11 items-center justify-center text-indigo-600 hover:text-indigo-800 transition-colors"
+                        className="flex h-11 w-11 shrink-0 items-center justify-center text-indigo-600 hover:text-indigo-800 transition-colors"
                         aria-label={`Quitar ${label}`}
                     >
                         <XMarkIcon className="w-4 h-4" />
@@ -136,12 +159,13 @@ export default function AutocompleteSelector<T>({
                     </div>
                     <input
                         id={`${listId}-input`}
+                        ref={inputRef}
                         type="text"
                         role="combobox"
                         aria-autocomplete="list"
-                        aria-expanded={isOpen && query.length > 1}
-                        aria-controls={listId}
-                        aria-activedescendant={activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined}
+                        aria-expanded={isOpen && query.length > 1 && !searchError}
+                        aria-controls={isOpen && query.length > 1 && !searchError ? listId : undefined}
+                        aria-activedescendant={isOpen && query.length > 1 && !loading && !searchError && results[activeIndex] ? `${listId}-${activeIndex}` : undefined}
                         className="ui-field pl-9"
                         placeholder={placeholder}
                         value={query}
@@ -156,7 +180,8 @@ export default function AutocompleteSelector<T>({
                 </div>
             )}
 
-            {isOpen && query.length > 1 && !value && (
+            {isOpen && query.length > 1 && !value && searchError && <div role="alert" className="mt-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">No se pudo completar la búsqueda. Intentá nuevamente.<button type="button" onClick={() => void performSearch(query)} className="ui-button ui-button-secondary mt-2">Reintentar búsqueda</button></div>}
+            {isOpen && query.length > 1 && !value && !searchError && (
                 <div id={listId} role="listbox" aria-label={`Resultados para ${label}`} className="absolute z-50 mt-1 w-full rounded-md bg-white shadow-lg border border-gray-200 py-1 max-h-60 overflow-auto">
                     {loading ? (
                         <div className="px-4 py-2 text-xs text-content-muted italic">Buscando...</div>
@@ -168,7 +193,7 @@ export default function AutocompleteSelector<T>({
                                 role="option"
                                 aria-selected={index === activeIndex}
                                 type="button"
-                                className={`min-h-11 w-full text-left px-4 py-2 text-sm transition-colors ${index === activeIndex ? "bg-indigo-50 text-indigo-900" : "hover:bg-indigo-50 hover:text-indigo-900"}`}
+                                className={`min-h-11 w-full text-left px-4 py-2 text-sm [overflow-wrap:anywhere] transition-colors ${index === activeIndex ? "bg-indigo-50 text-indigo-900" : "hover:bg-indigo-50 hover:text-indigo-900"}`}
                                 onMouseEnter={() => setActiveIndex(index)}
                                 onClick={() => handleSelect(item)}
                             >
@@ -181,7 +206,7 @@ export default function AutocompleteSelector<T>({
                     {hasMore && !loading && <button type="button" onClick={() => void performSearch(query, currentPage + 1, true)} className="min-h-11 w-full border-t border-gray-100 px-4 py-2 text-left text-xs font-bold text-indigo-700 hover:bg-indigo-50">Ver más resultados</button>}
                 </div>
             )}
-            <span className="sr-only" aria-live="polite">{!loading && query.length > 1 ? `${results.length} resultados encontrados` : ""}</span>
+            <span className="sr-only" role="status">{isOpen && query.length > 1 && !value && !searchError ? loading ? 'Buscando…' : `${results.length} resultados encontrados` : ""}</span>
         </div>
     );
 }

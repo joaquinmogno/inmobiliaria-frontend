@@ -6,7 +6,7 @@ const admin = {
 };
 
 test('la bandeja de liquidaciones y las demás vistas no desbordan en notebooks', async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page.goto('/login');
   await page.getByPlaceholder('ejemplo@correo.com').fill(admin.email);
   await page.getByPlaceholder('••••••••').fill(admin.password);
@@ -23,7 +23,7 @@ test('la bandeja de liquidaciones y las demás vistas no desbordan en notebooks'
   ]) {
     await page.goto(route);
     await expect(page.locator('main')).toBeVisible();
-    await expect(page.locator('table:visible')).toHaveCount(0);
+    await expect(page.locator('table:visible')).toHaveCount(['/contratos', '/pagos', '/cajachica'].includes(route) ? 1 : 0);
 
     const dimensions = await page.locator('main').evaluate(element => ({
       clientWidth: element.clientWidth,

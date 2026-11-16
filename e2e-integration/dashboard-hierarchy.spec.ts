@@ -15,9 +15,9 @@ test('el dashboard evita métricas repetidas y reserva los acentos para estados'
   const operationalSummary = page.getByTestId('dashboard-operational-kpis');
   await expect(operationalSummary).toBeVisible();
   await expect(operationalSummary.locator(':scope > div')).toHaveCount(3);
-  await expect(operationalSummary).toContainText('Propiedades administradas');
+  await expect(operationalSummary).toContainText('Propiedades registradas');
   await expect(operationalSummary).toContainText('Contratos Activos');
-  await expect(operationalSummary).toContainText('Morosidad');
+  await expect(operationalSummary).toContainText('Pendiente de cobro · ARS');
   await expect(operationalSummary).not.toContainText('Cobrado a inquilinos');
   await expect(operationalSummary).not.toContainText('Honorarios de la inmobiliaria');
 

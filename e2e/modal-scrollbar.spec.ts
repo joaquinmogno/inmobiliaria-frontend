@@ -119,6 +119,8 @@ test.describe('desplazamiento táctil', () => {
     test.use(mobileDevice);
     for (const modal of ['movement', 'new-contract', 'internal-movement']) {
         test(`${modal}: el gesto permite bajar sin cerrar la ventana`, async ({ page }) => {
+            // Short viewport keeps the compact form scrollable (e.g. with the keyboard open).
+            await page.setViewportSize({ width: 393, height: 600 });
             await openFixture(page, modal);
             const panel = page.locator('[id^="headlessui-dialog-panel-"]');
             await expect(panel).toBeVisible();

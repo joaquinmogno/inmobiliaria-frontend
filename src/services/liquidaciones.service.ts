@@ -87,6 +87,7 @@ export interface Liquidacion {
     moneda: Moneda;
     fechaCreacion: string;
     fechaLiquidacion: string | null;
+    cerradoPorId?: number | null;
     fechaConfirmacion?: string | null;
     fechaPagoPropietario?: string | null;
     fechaVencimiento?: string | null;
@@ -159,7 +160,7 @@ export interface Liquidacion {
         creditoInquilino: { ajusteLiquidacion: { id: number; concepto: string } };
     }>;
     pagos?: Pago[];
-    cuotas?: Array<{ id: number; numeroCuota: number; monto: number; estado: string; plan: { concepto: string; _count: { cuotas: number } }; imputacionesPago: Array<{ monto: number }> }>;
+    cuotas?: Array<{ id: number; numeroCuota: number; monto: number; moneda?: Moneda; estado: string; plan: { concepto: string; _count: { cuotas: number } }; imputacionesPago: Array<{ monto: number }> }>;
     comprobantes?: Array<{
         id: number;
         version: number;
@@ -171,6 +172,13 @@ export interface Liquidacion {
         importeCorregido: number;
         importePropietarioOriginal: number;
         importePropietarioCorregido: number;
+        importesPorMoneda?: Array<{
+            moneda: Moneda;
+            importeOriginal: number;
+            importeCorregido: number;
+            importePropietarioOriginal: number;
+            importePropietarioCorregido: number;
+        }>;
         ajustes: Array<{
             id: number;
             tipo: 'CREDITO' | 'DEBITO';
@@ -217,12 +225,15 @@ export interface LiquidationPreparationRow {
     puedeGenerarseAlResolverCuotas: boolean;
     liquidacionId: number | null;
     estadoLiquidacion: EstadoLiquidacion | null;
+    fechaLiquidacion?: string | null;
+    cerradoPorId?: number | null;
     estadoCobroInquilino: EstadoCobroInquilino | null;
     estadoPagoPropietario: EstadoPagoPropietario | null;
     fechaVencimiento: string;
     proximaAccion: string;
     montoAlquiler: string;
     montoHonorarios: string;
+    resumenMonedas?: Liquidacion['resumenMonedas'];
     totalLiquidacion: string | null;
     pagado: string;
     pendiente: string;
@@ -283,9 +294,15 @@ export interface ContractLiquidationTimeline {
     defaultPeriod: string;
     periodos: Array<{
         periodo: string; estado: 'PENDIENTE_LIQUIDAR' | 'BORRADOR' | 'PENDIENTE_COBRO' | 'EN_MORA' | 'PENDIENTE_PAGO_PROPIETARIO' | 'FINALIZADA' | 'REQUIERE_REVISION' | 'OMITIDA' | 'ANULADA';
+        estadoLiquidacion?: EstadoLiquidacion | null;
+        estadoCobroInquilino?: EstadoCobroInquilino | null;
+        estadoPagoPropietario?: EstadoPagoPropietario | null;
+        fechaLiquidacion?: string | null;
+        cerradoPorId?: number | null;
+        resumenMonedas?: Liquidacion['resumenMonedas'];
         liquidacionId: number | null; total: number | null; cobrado: number; saldoInquilino: number; pagadoPropietario: number; saldoPropietario: number;
-        fechaVencimiento: string | null; pagos: Array<{ monto: number; fechaPago: string; metodoPago: string }>;
-        pagosPropietario: Array<{ monto: number; fechaPago: string; metodoPago: string }>;
+        fechaVencimiento: string | null; pagos: Array<{ moneda?: Moneda; monto: number; fechaPago: string; metodoPago: string }>;
+        pagosPropietario: Array<{ moneda?: Moneda; monto: number; fechaPago: string; metodoPago: string }>;
         cuotas: Array<{ id: number; concepto: string; numeroCuota: number; cantidadCuotas: number; monto: number; estado: string; saldo: number }>;
         ajustes: Array<{ id: number; tipo: string; concepto: string; motivo: string; fechaCreacion: string }>;
         observacion: string | null; observaciones: string[];

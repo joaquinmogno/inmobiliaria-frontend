@@ -62,7 +62,7 @@ test('la navegación global se puede completar usando solamente el teclado', asy
   await expect(mobileMenuButton).toHaveAttribute('aria-expanded', 'true');
   await expect(sidebar).toBeVisible();
   await expect(page.getByRole('dialog', { name: 'Menú principal' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Inicio', exact: true })).toBeFocused();
+  await expect(sidebar.getByTitle('Ir al inicio', { exact: true })).toBeFocused();
   expect(await main.evaluate(element => (element as HTMLElement).inert)).toBe(true);
   expect(await page.locator('header').first().evaluate(element => (element as HTMLElement).inert)).toBe(true);
 
@@ -80,7 +80,7 @@ test('la navegación global se puede completar usando solamente el teclado', asy
   await page.keyboard.press('Enter');
   await expect(mobileMenuButton).toHaveAttribute('aria-expanded', 'true');
   await expect(sidebar).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Inicio', exact: true })).toBeFocused();
+  await expect(sidebar.getByTitle('Ir al inicio', { exact: true })).toBeFocused();
   const peopleLink = page.getByRole('link', { name: 'Personas', exact: true });
   await peopleLink.focus();
   await expect(peopleLink).toBeFocused();

@@ -1,3 +1,4 @@
+import { withFinancialRetry } from './financial-retry';
 import { getFilenameFromPath, isWordDocument } from "../utils/documentFiles";
 import { requestReauthentication } from "./reauthentication";
 
@@ -65,7 +66,18 @@ const getCookie = (name: string) => {
     return '';
 };
 
-async function request<T>(endpoint: string, options: RequestOptions = {}, retriedAfterReauth = false): Promise<T> {
+function request<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
+    if ((endpoint === '/pagos' && options.method === 'POST') || (/^\/liquidaciones\/\d+\/pagar-propietario$/.test(endpoint) && options.method === 'PATCH')) {
+        return withFinancialRetry(endpoint, String(options.body), (key, body) => {
+            const headers = new Headers(options.headers);
+            headers.set('Idempotency-Key', key);
+            return sendRequest<T>(endpoint, { ...options, body, headers });
+        });
+    }
+    return sendRequest<T>(endpoint, options);
+}
+
+async function sendRequest<T>(endpoint: string, options: RequestOptions = {}, retriedAfterReauth = false): Promise<T> {
     const { params, ...init } = options;
 
     let url = `${BASE_URL}${endpoint}`;
@@ -98,6 +110,9 @@ async function request<T>(endpoint: string, options: RequestOptions = {}, retrie
         headers,
         credentials: 'include',
         cache: 'no-store',
+    }).catch((error: unknown) => {
+        if (error instanceof Error && error.name === 'AbortError') throw error;
+        throw new ApiError('No se pudo conectar con el servidor. Revisá tu conexión. Si estabas guardando, verificá si la operación se registró antes de repetirla.', 0, 'NETWORK_ERROR');
     });
 
     const isLoginRequest = endpoint === '/auth/login';
@@ -110,7 +125,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}, retrie
         if (endpoint !== '/auth/logout') {
             window.dispatchEvent(new Event('logout'));
         }
-        throw new Error('Sesión expirada. Por favor, vuelva a ingresar.');
+        throw new Error('Tu sesión venció. Volvé a iniciar sesión para continuar.');
     }
 
     if (!response.ok) {
@@ -125,7 +140,7 @@ async function request<T>(endpoint: string, options: RequestOptions = {}, retrie
                 body: JSON.stringify({ password })
             });
             if (!reauthResponse.ok) throw new Error('No se pudo confirmar la identidad');
-            return request<T>(endpoint, options, true);
+            return sendRequest<T>(endpoint, options, true);
         }
         const details = formatErrorDetails(errorData);
         const requestIdSuffix = errorData.requestId ? ` [ref: ${errorData.requestId}]` : "";
@@ -134,7 +149,13 @@ async function request<T>(endpoint: string, options: RequestOptions = {}, retrie
             && Number.isInteger(errorData.details?.currentVersion)
             ? ` Versión abierta: ${errorData.details.submittedVersion}; versión vigente: ${errorData.details.currentVersion}.`
             : '';
-        const message = (details || errorData.message || `HTTP error! status: ${response.status}`)
+        const fallback = response.status === 403 ? 'No tenés permiso para realizar esta acción.'
+            : response.status === 404 ? 'No se encontró el registro solicitado.'
+            : response.status === 409 ? 'El registro cambió. Actualizá los datos antes de continuar.'
+            : response.status === 422 ? 'Revisá los datos ingresados antes de continuar.'
+            : response.status === 429 ? 'Se realizaron demasiadas solicitudes. Esperá un momento e intentá nuevamente.'
+            : 'No se pudo completar la operación. Si estabas guardando, verificá si se registró antes de repetirla.';
+        const message = (details || errorData.message || fallback)
             + versionComparison
             + requestIdSuffix;
 

@@ -41,7 +41,9 @@ test('el editor de roles agrupa permisos y mantiene visibles sus acciones', asyn
   for (const checkbox of await checkboxes.all()) await expect(checkbox).toBeChecked();
   await expect(dialog.getByText(/0 de \d+ seleccionados/)).toHaveCount(0);
 
-  await dialog.locator('.overflow-y-auto').evaluate(element => { element.scrollTop = element.scrollHeight; });
+  const scrollArea = dialog.locator('.modal-scroll');
+  await scrollArea.evaluate(element => { element.scrollTop = element.scrollHeight; });
+  expect(await scrollArea.evaluate(element => element.scrollTop)).toBeGreaterThan(0);
   await expect(dialog.getByRole('button', { name: 'Guardar rol' })).toBeVisible();
   await dialog.getByRole('button', { name: 'Cancelar' }).click();
   await expect(dialog).toBeHidden();

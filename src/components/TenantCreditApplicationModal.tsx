@@ -1,3 +1,4 @@
+import { formatMonthYear } from '../utils/date';
 import { Fragment, useMemo, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import type { Moneda } from '../utils/currency';
@@ -38,7 +39,7 @@ export default function TenantCreditApplicationModal({
               <label className="block text-sm font-bold">Liquidación pendiente
                 <select required value={targetId} onChange={event => { setTargetId(event.target.value); setAmount(''); }} className="mt-1 w-full rounded-lg border p-2">
                   <option value="">Seleccionar liquidación</option>
-                  {debtTargets.map(targetItem => <option key={targetItem.id} value={targetItem.id}>Período {targetItem.periodo.slice(0, 7)} · pendiente {moneda} {targetItem.deuda.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</option>)}
+                  {debtTargets.map(targetItem => <option key={targetItem.id} value={targetItem.id}>Período {formatMonthYear(targetItem.periodo)} · pendiente {moneda} {targetItem.deuda.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</option>)}
                 </select>
               </label>
               <label className="block text-sm font-bold">Importe a compensar
