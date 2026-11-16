@@ -167,7 +167,7 @@ export default function LiquidacionDetalle() {
     const latestVoucherVersion = Math.max(0, ...(liquidacion.comprobantes || []).map(voucher => voucher.version)) || undefined;
 
     return (
-        <div className="max-w-7xl mx-auto space-y-4 pb-8">
+        <div className="ui-page pb-8">
             {/* Top Navigation & Actions */}
             <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
                 <button
@@ -206,23 +206,28 @@ export default function LiquidacionDetalle() {
                             Pagar a {liquidacion.propietarioNombre || liquidacion.propietarioPago?.nombreCompleto || liquidacion.contrato?.propietarios.find(owner => owner.esPrincipal)?.persona.nombreCompleto || 'propietario'}
                         </button>
                     )}
+                    <button type="button" className="ui-button ui-button-secondary" onClick={() => {
+                        const section = document.getElementById('liquidation-vouchers') as HTMLDetailsElement | null;
+                        if (section) { section.open = true; section.scrollIntoView({ block: 'start' }); section.querySelector('summary')?.focus({ preventScroll: true }); }
+                        else navigate(`#comprobantes`);
+                    }}><DocumentTextIcon className="h-4 w-4" />Comprobantes</button>
                     <Menu as="div" className="relative">
                         <MenuButton className="ui-button ui-button-secondary w-full sm:w-auto">Más opciones <ChevronDownIcon className="h-4 w-4" /></MenuButton>
                         <MenuItems transition className="ui-popover absolute right-0 z-30 mt-2 grid w-72 max-w-[calc(100vw-2rem)] gap-2 rounded-2xl border border-gray-200 bg-white p-3 shadow-xl focus:outline-none">
-                    {canViewContracts && <MenuItem as="button" type="button" onClick={() => setShowContract(true)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-indigo-300 bg-white px-4 py-2.5 text-sm font-bold text-indigo-800">VER CONTRATO</MenuItem>}
-                    {canRenewContracts && ['FINALIZADO', 'RESCINDIDO'].includes(liquidacion.contrato?.estado || '') && <MenuItem as="button" type="button" onClick={() => navigate('/contratos', { state: { renewContractId: liquidacion.contratoId } })} className="flex min-h-11 items-center justify-center rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-bold text-white">RENOVAR CONTRATO</MenuItem>}
-                    {canAdjustLiquidations && liquidacion.estado === 'CONFIRMADA' && <MenuItem as="button" onClick={() => setIsAdjustmentModalOpen(true)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-sm font-bold text-indigo-700 hover:bg-indigo-50">Emitir ajuste</MenuItem>}
+                    {canViewContracts && <MenuItem as="button" type="button" onClick={() => setShowContract(true)} className="flex min-h-[var(--ui-control-height)] items-center justify-center gap-2 rounded-xl border border-indigo-300 bg-white px-4 py-2.5 text-sm font-bold text-indigo-800">VER CONTRATO</MenuItem>}
+                    {canRenewContracts && ['FINALIZADO', 'RESCINDIDO'].includes(liquidacion.contrato?.estado || '') && <MenuItem as="button" type="button" onClick={() => navigate('/contratos', { state: { renewContractId: liquidacion.contratoId } })} className="flex min-h-[var(--ui-control-height)] items-center justify-center rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-bold text-white">RENOVAR CONTRATO</MenuItem>}
+                    {canAdjustLiquidations && liquidacion.estado === 'CONFIRMADA' && <MenuItem as="button" onClick={() => setIsAdjustmentModalOpen(true)} className="flex min-h-[var(--ui-control-height)] items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-sm font-bold text-indigo-700 hover:bg-indigo-50">Emitir ajuste</MenuItem>}
                     {canReverseOwnerPayments && ownerPaymentHistory.some(movement => movement.tipo === 'PAGO' && movement.estado === 'VIGENTE') && (
                         <MenuItem as="button"
                             onClick={() => setOwnerPaymentToReverse(ownerPaymentHistory.find(movement => movement.tipo === 'PAGO' && movement.estado === 'VIGENTE')?.pagoPropietarioId || null)}
-                            className="flex min-h-11 items-center justify-center rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-700 transition-all hover:bg-red-50"
+                            className="flex min-h-[var(--ui-control-height)] items-center justify-center rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-700 transition-all hover:bg-red-50"
                         >
                             Anular pago al propietario
                         </MenuItem>
                     )}
                     <MenuItem as="button"
                         onClick={() => void liquidacionesService.downloadPdf(Number(id), latestVoucherVersion).catch(error => toast.error(error instanceof Error ? error.message : 'No se pudo abrir el PDF'))}
-                        className="flex min-h-11 items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-all font-bold text-sm cursor-pointer"
+                        className="flex min-h-[var(--ui-control-height)] items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-all font-bold text-sm cursor-pointer"
                         title="Comprobante para el inquilino"
                     >
                         <PrinterIcon className="w-5 h-5" />
@@ -230,7 +235,7 @@ export default function LiquidacionDetalle() {
                     </MenuItem>
                     <MenuItem as="button"
                         onClick={() => void liquidacionesService.downloadPdfPropietario(Number(id), latestVoucherVersion).catch(error => toast.error(error instanceof Error ? error.message : 'No se pudo abrir el PDF'))}
-                        className="flex min-h-11 items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-all font-bold text-sm cursor-pointer"
+                        className="flex min-h-[var(--ui-control-height)] items-center justify-center gap-2 bg-white text-gray-700 border border-gray-200 px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-all font-bold text-sm cursor-pointer"
                         title="Liquidación para el propietario con honorarios"
                     >
                         <DocumentChartBarIcon className="w-5 h-5" />
@@ -244,11 +249,11 @@ export default function LiquidacionDetalle() {
 
             <ContractInternalNote key={liquidacion.contratoId} note={liquidacion.notaInternaContrato} canEdit={canEditLiquidations} onSave={handleSaveInternalNote} />
 
-            {((liquidacion.estado === 'BORRADOR' && confirmIssues.length > 0) || confirmError) && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900"><p className="font-black">{liquidacion.estado === 'BORRADOR' ? 'Revisá antes de confirmar' : 'Revisá el estado actualizado'}</p>{liquidacion.estado === 'BORRADOR' && confirmIssues.map(message => <p key={message}>• {message}</p>)}{confirmError && <p>• {confirmError}</p>}</div>}
+            {((liquidacion.estado === 'BORRADOR' && confirmIssues.length > 0) || confirmError) && <div role="alert" className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-900"><p className="font-semibold">{liquidacion.estado === 'BORRADOR' ? 'Revisá antes de confirmar' : 'Revisá el estado actualizado'}</p>{liquidacion.estado === 'BORRADOR' && confirmIssues.map(message => <p key={message}>• {message}</p>)}{confirmError && <p>• {confirmError}</p>}</div>}
 
             <section aria-labelledby="liquidation-concepts-title" className="ui-panel p-4 sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h2 id="liquidation-concepts-title" className="text-base font-black text-gray-900">Conceptos y cálculo detallado</h2>
+                    <h2 id="liquidation-concepts-title" className="text-base font-semibold text-gray-900">Conceptos y cálculo detallado</h2>
                     <div className="flex flex-wrap items-center gap-2">
                         {canEditNote && <button type="button" onClick={() => setIsNoteModalOpen(true)} className="ui-button ui-button-ghost"><DocumentTextIcon className="h-5 w-5" />Nota para liquidación</button>}
                         {esEditable && canEditLiquidations && <button type="button" onClick={() => setIsMovimientoModalOpen(true)} className="ui-button ui-button-secondary"><PlusIcon className="h-5 w-5" />Agregar movimiento</button>}
@@ -265,15 +270,15 @@ export default function LiquidacionDetalle() {
 
                     </div>
                     <div className="space-y-2 lg:hidden">
-                        {ingresos.map(m => <article key={m.id} className="border-b border-slate-100 py-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="break-words text-sm font-bold text-gray-900">{m.concepto}</p>{m.observaciones && <p className="mt-1 break-words text-xs text-gray-700">{m.observaciones}</p>}</div><p className="shrink-0 text-sm font-black text-gray-950">{formatCurrency(m.monto, m.moneda)}</p></div>{esEditable && canEditLiquidations && <button type="button" onClick={() => setMovimientoAEliminar(m.id)} data-danger-trigger="true" className="mt-3 min-h-11 rounded-xl border border-red-300 px-3 text-sm font-bold text-red-800">Eliminar concepto</button>}</article>)}
+                        {ingresos.map(m => <article key={m.id} className="border-b border-slate-100 py-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="break-words text-sm font-bold text-gray-900">{m.concepto}</p>{m.observaciones && <p className="mt-1 break-words text-xs text-gray-700">{m.observaciones}</p>}</div><p className="shrink-0 text-sm font-semibold text-gray-950">{formatCurrency(m.monto, m.moneda)}</p></div>{esEditable && canEditLiquidations && <button type="button" onClick={() => setMovimientoAEliminar(m.id)} data-danger-trigger="true" className="mt-3 min-h-[var(--ui-control-height)] rounded-xl border border-red-300 px-3 text-sm font-bold text-red-800">Eliminar concepto</button>}</article>)}
                         {ingresos.length === 0 && <p className="border-b border-slate-100 py-4 text-sm text-gray-700">No hay ingresos registrados.</p>}
                     </div>
                     <div className="hidden overflow-x-auto border-y border-slate-100 lg:block">
                         <table className="tabular-nums w-full table-fixed">
                             <thead>
                                 <tr className="bg-gray-50/50 border-b border-gray-100">
-                                    <th className="text-left py-2 px-3 text-xs font-black text-gray-600 uppercase tracking-widest">Concepto</th>
-                                    <th className="text-right py-2 px-3 text-xs font-black text-gray-600 uppercase tracking-widest">Monto</th>
+                                    <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600 uppercase tracking-widest">Concepto</th>
+                                    <th className="text-right py-2 px-3 text-xs font-semibold text-gray-600 uppercase tracking-widest">Monto</th>
                                     {esEditable && canEditLiquidations && <th className="w-10"><span className="sr-only">Acciones</span></th>}
                                 </tr>
                             </thead>
@@ -284,7 +289,7 @@ export default function LiquidacionDetalle() {
                                             <p className="break-words text-sm font-bold text-gray-900 [overflow-wrap:anywhere]">{m.concepto}</p>
                                             {m.observaciones && <p className="mt-0.5 break-words text-xs text-gray-600 [overflow-wrap:anywhere]">{m.observaciones}</p>}
                                         </td>
-                                        <td className="py-2 px-3 text-right tabular-nums font-black text-gray-900 text-sm">
+                                        <td className="py-2 px-3 text-right tabular-nums font-semibold text-gray-900 text-sm">
                                             {formatCurrency(m.monto, m.moneda)}
                                         </td>
                                         {esEditable && canEditLiquidations && (
@@ -292,7 +297,7 @@ export default function LiquidacionDetalle() {
                                                 <button
                                                     onClick={() => setMovimientoAEliminar(m.id)}
                                                     data-danger-trigger="true"
-                                                    className="destructive-icon-action flex h-11 w-11 items-center justify-center rounded-lg transition-colors sm:opacity-70 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                                                    className="destructive-icon-action flex h-[var(--ui-control-height)] w-[var(--ui-control-height)] items-center justify-center rounded-lg transition-colors sm:opacity-70 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                                                     aria-label="Eliminar movimiento"
                                                 >
                                                     <TrashIcon className="w-4 h-4" />
@@ -309,8 +314,8 @@ export default function LiquidacionDetalle() {
                             </tbody>
                             <tfoot className="bg-green-50/50">
                                 {currencySummaries.filter(summary => summary.totalIngresos > 0).map(summary => <tr key={summary.moneda}>
-                                    <td className="py-2 px-3 text-xs font-black text-green-800 uppercase tracking-widest">Subtotal ingresos · {summary.moneda}</td>
-                                    <td className="py-2 px-3 text-right font-black text-green-800 text-base">{formatCurrency(summary.totalIngresos, summary.moneda)}</td>
+                                    <td className="py-2 px-3 text-xs font-semibold text-green-800 uppercase tracking-widest">Subtotal ingresos · {summary.moneda}</td>
+                                    <td className="py-2 px-3 text-right font-semibold text-green-800 text-base">{formatCurrency(summary.totalIngresos, summary.moneda)}</td>
                                     {esEditable && canEditLiquidations && <td></td>}
                                 </tr>)}
                             </tfoot>
@@ -327,15 +332,15 @@ export default function LiquidacionDetalle() {
                         </h3>
                     </div>
                     <div className="space-y-2 lg:hidden">
-                        {descuentos.map(m => <article key={m.id} className="border-b border-slate-100 py-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="break-words text-sm font-bold text-gray-900">{m.concepto}</p>{m.observaciones && <p className="mt-1 break-words text-xs text-gray-700">{m.observaciones}</p>}</div><p className="shrink-0 text-sm font-black text-red-800">({formatCurrency(m.monto, m.moneda)})</p></div>{esEditable && canEditLiquidations && <button type="button" onClick={() => setMovimientoAEliminar(m.id)} data-danger-trigger="true" className="mt-3 min-h-11 rounded-xl border border-red-300 px-3 text-sm font-bold text-red-800">Eliminar concepto</button>}</article>)}
+                        {descuentos.map(m => <article key={m.id} className="border-b border-slate-100 py-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="break-words text-sm font-bold text-gray-900">{m.concepto}</p>{m.observaciones && <p className="mt-1 break-words text-xs text-gray-700">{m.observaciones}</p>}</div><p className="shrink-0 text-sm font-semibold text-red-800">({formatCurrency(m.monto, m.moneda)})</p></div>{esEditable && canEditLiquidations && <button type="button" onClick={() => setMovimientoAEliminar(m.id)} data-danger-trigger="true" className="mt-3 min-h-[var(--ui-control-height)] rounded-xl border border-red-300 px-3 text-sm font-bold text-red-800">Eliminar concepto</button>}</article>)}
                         {descuentos.length === 0 && <p className="border-b border-slate-100 py-4 text-sm text-gray-700">No hay descuentos registrados.</p>}
                     </div>
                     <div className="hidden overflow-x-auto border-y border-slate-100 lg:block">
                         <table className="tabular-nums w-full table-fixed">
                             <thead>
                                 <tr className="bg-gray-50/50 border-b border-gray-100">
-                                    <th className="text-left py-2 px-3 text-xs font-black text-gray-600 uppercase tracking-widest">Concepto</th>
-                                    <th className="text-right py-2 px-3 text-xs font-black text-gray-600 uppercase tracking-widest">Monto</th>
+                                    <th className="text-left py-2 px-3 text-xs font-semibold text-gray-600 uppercase tracking-widest">Concepto</th>
+                                    <th className="text-right py-2 px-3 text-xs font-semibold text-gray-600 uppercase tracking-widest">Monto</th>
                                     {esEditable && canEditLiquidations && <th className="w-10"><span className="sr-only">Acciones</span></th>}
                                 </tr>
                             </thead>
@@ -346,7 +351,7 @@ export default function LiquidacionDetalle() {
                                             <p className="break-words text-sm font-bold text-gray-900 [overflow-wrap:anywhere]">{m.concepto}</p>
                                             {m.observaciones && <p className="mt-0.5 break-words text-xs text-gray-600 [overflow-wrap:anywhere]">{m.observaciones}</p>}
                                         </td>
-                                        <td className="py-2 px-3 text-right tabular-nums font-black text-status-danger text-sm">
+                                        <td className="py-2 px-3 text-right tabular-nums font-semibold text-status-danger text-sm">
                                             ({formatCurrency(m.monto, m.moneda)})
                                         </td>
                                         {esEditable && canEditLiquidations && (
@@ -354,7 +359,7 @@ export default function LiquidacionDetalle() {
                                                 <button
                                                     onClick={() => setMovimientoAEliminar(m.id)}
                                                     data-danger-trigger="true"
-                                                    className="destructive-icon-action flex h-11 w-11 items-center justify-center rounded-lg transition-colors sm:opacity-70 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                                                    className="destructive-icon-action flex h-[var(--ui-control-height)] w-[var(--ui-control-height)] items-center justify-center rounded-lg transition-colors sm:opacity-70 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
                                                     aria-label="Eliminar movimiento"
                                                 >
                                                     <TrashIcon className="w-4 h-4" />
@@ -371,8 +376,8 @@ export default function LiquidacionDetalle() {
                             </tbody>
                             <tfoot className="bg-red-50/50">
                                 {currencySummaries.filter(summary => summary.totalDescuentos > 0).map(summary => <tr key={summary.moneda}>
-                                    <td className="py-2 px-3 text-xs font-black text-red-800 uppercase tracking-widest">Subtotal descuentos · {summary.moneda}</td>
-                                    <td className="py-2 px-3 text-right font-black text-red-800 text-base">({formatCurrency(summary.totalDescuentos, summary.moneda)})</td>
+                                    <td className="py-2 px-3 text-xs font-semibold text-red-800 uppercase tracking-widest">Subtotal descuentos · {summary.moneda}</td>
+                                    <td className="py-2 px-3 text-right font-semibold text-red-800 text-base">({formatCurrency(summary.totalDescuentos, summary.moneda)})</td>
                                     {esEditable && canEditLiquidations && <td></td>}
                                 </tr>)}
                             </tfoot>
@@ -384,29 +389,29 @@ export default function LiquidacionDetalle() {
 
             {liquidacion.notaLiquidacion && <section aria-labelledby="liquidation-note-title" className="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-4 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h2 id="liquidation-note-title" className="flex items-center gap-2 font-black text-indigo-950"><DocumentTextIcon className="h-5 w-5" />Aclaraciones</h2>
-                    {canEditNote && <button type="button" onClick={() => setIsNoteModalOpen(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-bold text-indigo-800 hover:bg-indigo-100 print:hidden"><PencilSquareIcon className="h-5 w-5" />Editar nota</button>}
+                    <h2 id="liquidation-note-title" className="flex items-center gap-2 font-semibold text-indigo-950"><DocumentTextIcon className="h-5 w-5" />Aclaraciones</h2>
+                    {canEditNote && <button type="button" onClick={() => setIsNoteModalOpen(true)} className="inline-flex min-h-[var(--ui-control-height)] items-center gap-2 rounded-xl px-3 text-sm font-bold text-indigo-800 hover:bg-indigo-100 print:hidden"><PencilSquareIcon className="h-5 w-5" />Editar nota</button>}
                 </div>
                 <p className="mt-2 whitespace-pre-wrap break-words text-sm text-gray-900 [overflow-wrap:anywhere]">{liquidacion.notaLiquidacion}</p>
                 <p className="mt-3 text-xs font-semibold text-indigo-800">PDF: {liquidationNoteRecipientLabels[liquidacion.destinatarioNotaLiquidacion || 'AMBOS']}</p>
             </section>}
 
             <details className="ui-panel p-4">
-                <summary className="flex min-h-11 cursor-pointer flex-wrap items-center justify-between gap-2 font-black text-gray-950"><span>Cobros de inquilinos</span><span className="text-xs font-semibold text-indigo-800">{settlementStatusLabel(liquidacion.estadoCobroInquilino)} · {liquidacion.pagos?.length || 0} cobros <ChevronDownIcon className="ml-2 inline h-4 w-4" /></span></summary>
+                <summary className="flex min-h-[var(--ui-control-height)] cursor-pointer flex-wrap items-center justify-between gap-2 font-semibold text-gray-950"><span>Cobros de inquilinos</span><span className="text-xs font-semibold text-indigo-800">{settlementStatusLabel(liquidacion.estadoCobroInquilino)} · {liquidacion.pagos?.length || 0} cobros <ChevronDownIcon className="ml-2 inline h-4 w-4" /></span></summary>
             {(liquidacion.pagos?.length || 0) > 0 && (
                 <div className="mt-3 space-y-4">
                     <div className="space-y-2 lg:hidden">
-                        {liquidacion.pagos?.map(p => <article key={p.id} className="border-b border-slate-100 py-4"><div className="flex items-start justify-between gap-3"><div><p className="font-bold text-gray-950">{formatDate(p.fechaPago)} · {p.metodoPago.toLocaleLowerCase()}</p><p className="mt-1 break-words text-sm text-gray-700">{p.comprobante || p.observaciones || 'Sin referencia'} · {p.movimientoCaja?.cuentaBancaria ? `${p.movimientoCaja.cuentaBancaria.banco} · ${p.movimientoCaja.cuentaBancaria.nombre}` : p.movimientoCaja?.cuenta || 'Caja'} · registró {p.creadoPor?.nombreCompleto || 'Sistema'}</p>{p.imputacionesCuotas?.map(item => <p key={item.cuotaId} className="text-xs text-blue-800">{item.cuota.plan.concepto} · cuota {item.cuota.numeroCuota}: {formatCurrency(Number(item.monto), p.moneda)}</p>)}</div><p className="shrink-0 font-black text-green-800">{formatCurrency(Number(p.monto), p.moneda)}</p></div>{canReverseTenantPayments && liquidacion.estado === 'CONFIRMADA' && <button type="button" data-danger-trigger="true" onClick={() => setTenantPaymentToReverse(p.id)} className="mt-3 min-h-11 rounded-xl border border-red-300 px-3 text-sm font-bold text-red-800">Anular cobro</button>}</article>)}
+                        {liquidacion.pagos?.map(p => <article key={p.id} className="border-b border-slate-100 py-4"><div className="flex items-start justify-between gap-3"><div><p className="font-bold text-gray-950">{formatDate(p.fechaPago)} · {p.metodoPago.toLocaleLowerCase()}</p><p className="mt-1 break-words text-sm text-gray-700">{p.comprobante || p.observaciones || 'Sin referencia'} · {p.movimientoCaja?.cuentaBancaria ? `${p.movimientoCaja.cuentaBancaria.banco} · ${p.movimientoCaja.cuentaBancaria.nombre}` : p.movimientoCaja?.cuenta || 'Caja'} · registró {p.creadoPor?.nombreCompleto || 'Sistema'}</p>{p.imputacionesCuotas?.map(item => <p key={item.cuotaId} className="text-xs text-blue-800">{item.cuota.plan.concepto} · cuota {item.cuota.numeroCuota}: {formatCurrency(Number(item.monto), p.moneda)}</p>)}</div><p className="shrink-0 font-semibold text-green-800">{formatCurrency(Number(p.monto), p.moneda)}</p></div>{canReverseTenantPayments && liquidacion.estado === 'CONFIRMADA' && <button type="button" data-danger-trigger="true" onClick={() => setTenantPaymentToReverse(p.id)} className="mt-3 min-h-[var(--ui-control-height)] rounded-xl border border-red-300 px-3 text-sm font-bold text-red-800">Anular cobro</button>}</article>)}
                     </div>
                     <div className="hidden overflow-x-auto border-y border-slate-100 lg:block">
                         <table className="tabular-nums w-full min-w-[48rem]">
                             <thead>
                                 <tr className="bg-gray-50/50 border-b border-gray-100">
-                                    <th className="text-left py-4 px-6 text-xs font-black text-gray-600 uppercase tracking-widest">Fecha</th>
-                                    <th className="text-left py-4 px-6 text-xs font-black text-gray-600 uppercase tracking-widest">Método</th>
-                                    <th className="text-left py-4 px-6 text-xs font-black text-gray-600 uppercase tracking-widest">Detalle</th>
-                                    <th className="text-left py-4 px-6 text-xs font-black text-gray-600 uppercase tracking-widest">Registró</th>
-                                    <th className="text-right py-4 px-6 text-xs font-black text-gray-600 uppercase tracking-widest">Monto</th>
+                                    <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase tracking-widest">Fecha</th>
+                                    <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase tracking-widest">Método</th>
+                                    <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase tracking-widest">Detalle</th>
+                                    <th className="text-left py-4 px-6 text-xs font-semibold text-gray-600 uppercase tracking-widest">Registró</th>
+                                    <th className="text-right py-4 px-6 text-xs font-semibold text-gray-600 uppercase tracking-widest">Monto</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
@@ -416,7 +421,7 @@ export default function LiquidacionDetalle() {
                                             {formatDate(p.fechaPago)}
                                         </td>
                                         <td className="py-4 px-6">
-                                            <span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded text-xs font-black tracking-widest uppercase">
+                                            <span className="bg-indigo-50 text-indigo-700 px-2 py-1 rounded text-xs font-semibold tracking-widest uppercase">
                                                 {p.metodoPago}
                                             </span>
                                         </td>
@@ -429,7 +434,7 @@ export default function LiquidacionDetalle() {
                                         <td className="break-words py-4 px-6 text-sm font-medium text-content-muted [overflow-wrap:anywhere]">
                                             {p.creadoPor?.nombreCompleto || "Sistema"}
                                         </td>
-                                        <td className="py-4 px-6 text-right tabular-nums font-black text-status-success text-sm">
+                                        <td className="py-4 px-6 text-right tabular-nums font-semibold text-status-success text-sm">
                                             {formatCurrency(Number(p.monto), p.moneda)}
                                         </td>
                                     </tr>
@@ -437,8 +442,8 @@ export default function LiquidacionDetalle() {
                             </tbody>
                             <tfoot className="bg-indigo-50/30">
                                 <tr>
-                                    <td colSpan={4} className="py-4 px-6 text-xs font-black text-indigo-800 uppercase tracking-widest">Total Percibido</td>
-                                    <td className="py-4 px-6 text-right font-black text-indigo-800 text-base">
+                                    <td colSpan={4} className="py-4 px-6 text-xs font-semibold text-indigo-800 uppercase tracking-widest">Total Percibido</td>
+                                    <td className="py-4 px-6 text-right font-semibold text-indigo-800 text-base">
                                         {currencySummaries.map(summary => <span key={summary.moneda} className="block">{formatCurrency(summary.cobradoInquilino, summary.moneda)}</span>)}
                                     </td>
                                 </tr>
@@ -450,8 +455,8 @@ export default function LiquidacionDetalle() {
                     {liquidacion.estado === 'CONFIRMADA' && tenantCollectionPending && (
                         <div className="flex justify-end pr-6">
                             <div className="text-right">
-                                <p className="text-xs font-black text-gray-600 uppercase tracking-widest mb-1">Saldo Remanente Inquilino</p>
-                                <p className="break-words text-xl font-black text-status-danger [overflow-wrap:anywhere]">
+                                <p className="text-xs font-semibold text-gray-600 uppercase tracking-widest mb-1">Saldo Remanente Inquilino</p>
+                                <p className="break-words text-xl font-semibold text-status-danger [overflow-wrap:anywhere]">
                                     {currencySummaries.map(summary => <span key={summary.moneda} className="block">{formatCurrency(summary.saldoInquilino, summary.moneda)}</span>)}
                                 </p>
                             </div>
@@ -464,7 +469,7 @@ export default function LiquidacionDetalle() {
             </details>
 
             <details className="ui-panel p-4" aria-labelledby="owner-payment-history-title">
-                <summary className="flex min-h-11 cursor-pointer flex-wrap items-center justify-between gap-2 font-black text-gray-950"><span id="owner-payment-history-title">Pagos al propietario</span><span className="text-xs font-semibold text-orange-800">{settlementStatusLabel(liquidacion.estadoPagoPropietario)} · {ownerPaymentHistory.length} movimientos <ChevronDownIcon className="ml-2 inline h-4 w-4" /></span></summary>
+                <summary className="flex min-h-[var(--ui-control-height)] cursor-pointer flex-wrap items-center justify-between gap-2 font-semibold text-gray-950"><span id="owner-payment-history-title">Pagos al propietario</span><span className="text-xs font-semibold text-orange-800">{settlementStatusLabel(liquidacion.estadoPagoPropietario)} · {ownerPaymentHistory.length} movimientos <ChevronDownIcon className="ml-2 inline h-4 w-4" /></span></summary>
                 <div className="mt-4 flex w-full gap-1 rounded-xl bg-orange-100/70 p-1 sm:w-fit" role="tablist" aria-label="Pagos al propietario">
                     <button
                         type="button"
@@ -490,11 +495,11 @@ export default function LiquidacionDetalle() {
                     <div role="tabpanel" className="ui-content-enter mt-4 grid gap-3 md:grid-cols-2">
                         {currencySummaries.filter(summary => summary.montoPropietario > 0 || summary.pagadoPropietario > 0).map(summary => (
                             <div key={summary.moneda} className="rounded-2xl border border-orange-100 bg-white p-4">
-                                <p className="text-xs font-black uppercase tracking-wide text-orange-800">{summary.moneda} · pagos al propietario</p>
+                                <p className="text-xs font-semibold uppercase tracking-wide text-orange-800">{summary.moneda} · pagos al propietario</p>
                                 <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
-                                    <div><dt className="text-xs font-bold text-gray-600">Neto a entregar</dt><dd className="mt-1 font-black text-gray-950">{formatCurrency(summary.montoPropietario, summary.moneda)}</dd></div>
-                                    <div><dt className="text-xs font-bold text-gray-600">Entregado</dt><dd className="mt-1 font-black text-orange-700">{formatCurrency(summary.pagadoPropietario, summary.moneda)}</dd></div>
-                                    <div><dt className="text-xs font-bold text-gray-600">Saldo</dt><dd className={`mt-1 font-black ${summary.saldoPropietario > 0 ? 'text-status-danger' : 'text-status-success'}`}>{formatCurrency(summary.saldoPropietario, summary.moneda)}</dd></div>
+                                    <div><dt className="text-xs font-bold text-gray-600">Neto a entregar</dt><dd className="mt-1 font-semibold text-gray-950">{formatCurrency(summary.montoPropietario, summary.moneda)}</dd></div>
+                                    <div><dt className="text-xs font-bold text-gray-600">Entregado</dt><dd className="mt-1 font-semibold text-orange-700">{formatCurrency(summary.pagadoPropietario, summary.moneda)}</dd></div>
+                                    <div><dt className="text-xs font-bold text-gray-600">Saldo</dt><dd className={`mt-1 font-semibold ${summary.saldoPropietario > 0 ? 'text-status-danger' : 'text-status-success'}`}>{formatCurrency(summary.saldoPropietario, summary.moneda)}</dd></div>
                                 </dl>
                             </div>
                         ))}
@@ -516,16 +521,16 @@ export default function LiquidacionDetalle() {
                                                 <div className="flex items-start justify-between gap-3">
                                                     <div>
                                                         <div className="flex flex-wrap items-center gap-2">
-                                                            <p className="font-black text-gray-950">{isReversal ? 'Reversión de pago' : 'Pago al propietario'}</p>
+                                                            <p className="font-semibold text-gray-950">{isReversal ? 'Reversión de pago' : 'Pago al propietario'}</p>
                                                             <span className={`rounded-full px-2 py-0.5 text-xs font-bold ${status.className}`}>{status.label}</span>
                                                         </div>
                                                         <p className="mt-1 text-xs text-gray-600">{formatDate(movement.fecha)} · {movement.metodoPago} · {movement.cuenta}</p>
                                                     </div>
-                                                    <p className={`shrink-0 font-black ${isReversal ? 'text-status-success' : 'text-orange-700'}`}>{isReversal ? '+' : '-'}{formatCurrency(movement.monto, movement.moneda || liquidacion.moneda)}</p>
+                                                    <p className={`shrink-0 font-semibold ${isReversal ? 'text-status-success' : 'text-orange-700'}`}>{isReversal ? '+' : '-'}{formatCurrency(movement.monto, movement.moneda || liquidacion.moneda)}</p>
                                                 </div>
                                                 <dl className="mt-3 grid grid-cols-2 gap-2 rounded-xl bg-orange-50/60 p-3 text-xs">
-                                                    <div><dt className="font-bold text-gray-600">Comprobante</dt><dd className="mt-0.5 font-black text-gray-900">{movement.comprobante}</dd></div>
-                                                    <div><dt className="font-bold text-gray-600">Saldo posterior</dt><dd className="mt-0.5 font-black text-gray-900">{formatCurrency(movement.saldoPosterior, movement.moneda || liquidacion.moneda)}</dd></div>
+                                                    <div><dt className="font-bold text-gray-600">Comprobante</dt><dd className="mt-0.5 font-semibold text-gray-900">{movement.comprobante}</dd></div>
+                                                    <div><dt className="font-bold text-gray-600">Saldo posterior</dt><dd className="mt-0.5 font-semibold text-gray-900">{formatCurrency(movement.saldoPosterior, movement.moneda || liquidacion.moneda)}</dd></div>
                                                 </dl>
                                                 <p className="mt-3 text-sm text-gray-700">{movement.observaciones || 'Sin observaciones'} · Registró {movement.creadoPor?.nombreCompleto || 'Sistema'}</p>
                                                 {movement.reversionDeId && <p className="mt-2 text-xs font-semibold text-indigo-700">Revierte el asiento #{movement.reversionDeId}.</p>}
@@ -541,13 +546,13 @@ export default function LiquidacionDetalle() {
                                     <table className="tabular-nums w-full min-w-[66rem]">
                                         <thead>
                                             <tr className="border-b border-orange-100 bg-orange-50/70">
-                                                <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-gray-600">Fecha</th>
-                                                <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-gray-600">Operación</th>
-                                                <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-gray-600">Medio / cuenta</th>
-                                                <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-gray-600">Comprobante</th>
-                                                <th className="px-4 py-3 text-left text-xs font-black uppercase tracking-wide text-gray-600">Registró / vínculo</th>
-                                                <th className="px-4 py-3 text-right text-xs font-black uppercase tracking-wide text-gray-600">Importe</th>
-                                                <th className="px-4 py-3 text-right text-xs font-black uppercase tracking-wide text-gray-600">Saldo dueño</th>
+                                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Fecha</th>
+                                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Operación</th>
+                                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Medio / cuenta</th>
+                                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Comprobante</th>
+                                                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">Registró / vínculo</th>
+                                                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-600">Importe</th>
+                                                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-600">Saldo dueño</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-orange-50">
@@ -561,8 +566,8 @@ export default function LiquidacionDetalle() {
                                                         <td className="px-4 py-4 text-sm text-gray-700"><p className="font-semibold">{movement.metodoPago}</p><p className="text-xs text-gray-600">{movement.cuenta}</p></td>
                                                         <td className="px-4 py-4 text-sm font-bold text-indigo-700">{movement.comprobante}</td>
                                                         <td className="max-w-64 px-4 py-4 text-sm text-gray-700"><p>{movement.creadoPor?.nombreCompleto || 'Sistema'}</p><p className="mt-1 text-xs text-gray-600">{movement.reversionDeId ? `Revierte asiento #${movement.reversionDeId}` : movement.reversionId ? `Revertido por asiento #${movement.reversionId}` : movement.observaciones || 'Sin observaciones'}</p>{movement.montoAdelantoPropio > 0 && <p className="mt-1 text-xs font-bold text-rose-800">Adelanto {formatCurrency(movement.montoAdelantoPropio, movement.moneda || liquidacion.moneda)}</p>}{canReverseOwnerPayments && movement.tipo === 'PAGO' && movement.estado === 'VIGENTE' && <button type="button" data-danger-trigger="true" onClick={() => setOwnerPaymentToReverse(movement.pagoPropietarioId)} className="mt-2 rounded-lg border border-red-300 px-2 py-1 text-xs font-bold text-red-800">Anular</button>}</td>
-                                                        <td className={`whitespace-nowrap px-4 py-4 text-right tabular-nums text-sm font-black ${isReversal ? 'text-status-success' : 'text-orange-700'}`}>{isReversal ? '+' : '-'}{formatCurrency(movement.monto, movement.moneda || liquidacion.moneda)}</td>
-                                                        <td className="whitespace-nowrap px-4 py-4 text-right tabular-nums text-sm font-black text-gray-900">{formatCurrency(movement.saldoPosterior, movement.moneda || liquidacion.moneda)}</td>
+                                                        <td className={`whitespace-nowrap px-4 py-4 text-right tabular-nums text-sm font-semibold ${isReversal ? 'text-status-success' : 'text-orange-700'}`}>{isReversal ? '+' : '-'}{formatCurrency(movement.monto, movement.moneda || liquidacion.moneda)}</td>
+                                                        <td className="whitespace-nowrap px-4 py-4 text-right tabular-nums text-sm font-semibold text-gray-900">{formatCurrency(movement.saldoPosterior, movement.moneda || liquidacion.moneda)}</td>
                                                     </tr>
                                                 );
                                             })}
@@ -576,7 +581,7 @@ export default function LiquidacionDetalle() {
             </details>
 
             <details className="ui-panel p-4">
-                <summary className="flex min-h-11 cursor-pointer items-center justify-between font-black text-gray-950">Datos del contrato y del período <ChevronDownIcon className="h-4 w-4 text-gray-600" /></summary>
+                <summary className="flex min-h-[var(--ui-control-height)] cursor-pointer items-center justify-between font-semibold text-gray-950">Datos del contrato y del período <ChevronDownIcon className="h-4 w-4 text-gray-600" /></summary>
                 <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
                     <div><dt className="text-xs font-bold text-gray-600">Próxima actualización</dt><dd>{liquidacion.contrato?.requiereActualizacion ? formatDate(liquidacion.contrato.fechaProximaActualizacion) : 'No programada'}</dd></div>
                     <div><dt className="text-xs font-bold text-gray-600">Fin de contrato</dt><dd>{formatDate(liquidacion.contrato?.fechaFin)}</dd></div>
@@ -588,11 +593,11 @@ export default function LiquidacionDetalle() {
                 {liquidacion.motivoCambioAlquiler && <p className="mt-3 rounded-xl bg-amber-50 p-3 text-sm text-amber-950"><strong>{liquidacion.alquilerExcepcional ? 'Alquiler excepcional: ' : 'Actualización del alquiler: '}</strong>{liquidacion.motivoCambioAlquiler}</p>}
             </details>
 
-            {liquidacion.cuotas && liquidacion.cuotas.length > 0 && <details className="rounded-2xl border border-blue-200 bg-blue-50 p-4"><summary className="min-h-11 cursor-pointer font-black text-blue-950">Cuotas incorporadas ({liquidacion.cuotas.length})</summary><div className="mt-2 grid gap-2 sm:grid-cols-2">{liquidacion.cuotas.map(cuota => <div key={cuota.id} className="rounded-lg bg-white p-3 text-sm"><p className="font-bold">{cuota.plan.concepto} · cuota {cuota.numeroCuota}/{cuota.plan._count.cuotas}</p><p>{formatCurrencyWithCents(cuota.monto, cuota.moneda || liquidacion.moneda)} · {cuota.estado.toLowerCase()}</p><p>Saldo propio: {formatCurrencyWithCents(installmentOutstanding(cuota), cuota.moneda || liquidacion.moneda)}</p></div>)}</div></details>}
+            {liquidacion.cuotas && liquidacion.cuotas.length > 0 && <details className="rounded-2xl border border-blue-200 bg-blue-50 p-4"><summary className="min-h-[var(--ui-control-height)] cursor-pointer font-semibold text-blue-950">Cuotas incorporadas ({liquidacion.cuotas.length})</summary><div className="mt-2 grid gap-2 sm:grid-cols-2">{liquidacion.cuotas.map(cuota => <div key={cuota.id} className="rounded-lg bg-white p-3 text-sm"><p className="font-bold">{cuota.plan.concepto} · cuota {cuota.numeroCuota}/{cuota.plan._count.cuotas}</p><p>{formatCurrencyWithCents(cuota.monto, cuota.moneda || liquidacion.moneda)} · {cuota.estado.toLowerCase()}</p><p>Saldo propio: {formatCurrencyWithCents(installmentOutstanding(cuota), cuota.moneda || liquidacion.moneda)}</p></div>)}</div></details>}
 
             {(liquidacion.contrato?.serviciosGastos || []).length > 0 && (
                 <details className="rounded-2xl border border-sky-200 bg-sky-50 px-5 py-4">
-                    <summary className="cursor-pointer list-none font-black text-sky-950 marker:hidden">
+                    <summary className="cursor-pointer list-none font-semibold text-sky-950 marker:hidden">
                         Servicios y gastos acordados <span className="ml-2 text-xs font-medium text-sky-800">Referencia del contrato</span>
                     </summary>
                     <p className="mt-2 text-sm text-sky-900">No modifica esta liquidación: cargá manualmente sólo los importes reales del período.</p>
@@ -609,24 +614,24 @@ export default function LiquidacionDetalle() {
                 </details>
             )}
 
-            {deudaResumen && (deudaResumen.porMoneda?.some(item => item.monto > 0) ?? deudaResumen.totalDeuda > 0) && <section data-testid="historical-debt" className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><h2 className="font-black text-amber-950">Saldo pendiente de otros períodos: <CurrencyAmounts amounts={deudaResumen.porMoneda?.filter(item => item.monto > 0) || [{ moneda: deudaResumen.moneda, monto: deudaResumen.totalDeuda }]} /></h2><p className="mt-1 text-sm text-amber-900">Se muestra como referencia para decidir cómo cobrarlo. No se agrega dos veces a esta liquidación.</p><div className="mt-3 flex flex-wrap gap-2">{deudaResumen.detalle.map(item => <button key={`${item.id}-${item.moneda}`} type="button" onClick={() => navigate(`/liquidaciones/${item.id}`)} className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-left text-xs font-bold text-amber-950">{formatMonthYear(item.periodo)} · debe {formatMoney(item.deuda, item.moneda)} →</button>)}</div></section>}
+            {deudaResumen && (deudaResumen.porMoneda?.some(item => item.monto > 0) ?? deudaResumen.totalDeuda > 0) && <section data-testid="historical-debt" className="rounded-2xl border border-amber-200 bg-amber-50 p-4"><h2 className="font-semibold text-amber-950">Saldo pendiente de otros períodos: <CurrencyAmounts amounts={deudaResumen.porMoneda?.filter(item => item.monto > 0) || [{ moneda: deudaResumen.moneda, monto: deudaResumen.totalDeuda }]} /></h2><p className="mt-1 text-sm text-amber-900">Se muestra como referencia para decidir cómo cobrarlo. No se agrega dos veces a esta liquidación.</p><div className="mt-3 flex flex-wrap gap-2">{deudaResumen.detalle.map(item => <button key={`${item.id}-${item.moneda}`} type="button" onClick={() => navigate(`/liquidaciones/${item.id}`)} className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-left text-xs font-bold text-amber-950">{formatMonthYear(item.periodo)} · debe {formatMoney(item.deuda, item.moneda)} →</button>)}</div></section>}
 
-            <details className="ui-panel p-4" aria-label="Historial de este contrato"><summary className="flex min-h-11 cursor-pointer items-center justify-between font-black text-gray-950">Meses anteriores de esta propiedad <ChevronDownIcon className="h-4 w-4 text-gray-600" /></summary><div className="mt-2"><button type="button" onClick={() => navigate(`/liquidaciones/contrato/${liquidacion.contratoId}?periodo=${liquidacion.periodo.slice(0, 7)}`)} className="text-sm font-bold text-indigo-700">Ver todos los meses →</button></div><div className="mt-3 flex gap-2 overflow-x-auto">{earlierPeriods.length ? earlierPeriods.slice(0, 8).map(item => <button key={item.periodo} type="button" onClick={() => navigate(`/liquidaciones/${item.liquidacionId}`)} className="min-w-40 rounded-lg border border-gray-200 p-2 text-left text-xs hover:bg-indigo-50"><span className="block font-bold capitalize">{formatMonthYear(item.periodo)}</span><span className="block">{item.estado === 'EN_MORA' ? 'En mora' : item.estado.toLowerCase().replaceAll('_', ' ')}</span><span className="block">Saldo <CurrencyAmounts amounts={getPeriodCurrencySummaries(item, liquidacion.moneda).map(summary => ({ moneda: summary.moneda, monto: summary.saldoInquilino }))} /></span><span className="block">{item.ajustes.length} ajuste(s) · {item.cuotas.length} cuota(s)</span></button>) : <p className="text-sm text-gray-600">No hay liquidaciones anteriores.</p>}</div></details>
+            <details className="ui-panel p-4" aria-label="Historial de este contrato"><summary className="flex min-h-[var(--ui-control-height)] cursor-pointer items-center justify-between font-semibold text-gray-950">Meses anteriores de esta propiedad <ChevronDownIcon className="h-4 w-4 text-gray-600" /></summary><div className="mt-2"><button type="button" onClick={() => navigate(`/liquidaciones/contrato/${liquidacion.contratoId}?periodo=${liquidacion.periodo.slice(0, 7)}`)} className="text-sm font-bold text-indigo-700">Ver todos los meses →</button></div><div className="mt-3 flex gap-2 overflow-x-auto">{earlierPeriods.length ? earlierPeriods.slice(0, 8).map(item => <button key={item.periodo} type="button" onClick={() => navigate(`/liquidaciones/${item.liquidacionId}`)} className="min-w-40 rounded-lg border border-gray-200 p-2 text-left text-xs hover:bg-indigo-50"><span className="block font-bold capitalize">{formatMonthYear(item.periodo)}</span><span className="block">{item.estado === 'EN_MORA' ? 'En mora' : item.estado.toLowerCase().replaceAll('_', ' ')}</span><span className="block">Saldo <CurrencyAmounts amounts={getPeriodCurrencySummaries(item, liquidacion.moneda).map(summary => ({ moneda: summary.moneda, monto: summary.saldoInquilino }))} /></span><span className="block">{item.ajustes.length} ajuste(s) · {item.cuotas.length} cuota(s)</span></button>) : <p className="text-sm text-gray-600">No hay liquidaciones anteriores.</p>}</div></details>
 
             {(Boolean(liquidacion.comprobantes?.length) || location.hash === '#comprobantes') && (
-                <details id="liquidation-vouchers" data-testid="liquidation-vouchers" className="rounded-3xl border border-indigo-100 bg-indigo-50/40 p-4 shadow-sm" aria-labelledby="liquidation-vouchers-title">
-                    <summary id="liquidation-vouchers-title" className="flex min-h-11 cursor-pointer items-center justify-between gap-2 font-black text-indigo-950">Comprobantes emitidos <span className="text-xs font-semibold">{liquidacion.comprobantes?.length || 0} versiones <ChevronDownIcon className="ml-2 inline h-4 w-4" /></span></summary>
+                <details id="liquidation-vouchers" data-testid="liquidation-vouchers" className="ui-panel p-4" aria-labelledby="liquidation-vouchers-title">
+                    <summary id="liquidation-vouchers-title" className="flex min-h-[var(--ui-control-height)] cursor-pointer items-center justify-between gap-2 font-semibold text-indigo-950">Comprobantes emitidos <span className="text-xs font-semibold">{liquidacion.comprobantes?.length || 0} versiones <ChevronDownIcon className="ml-2 inline h-4 w-4" /></span></summary>
                     <div className="mt-4 space-y-3">
                         {!liquidacion.comprobantes?.length && <p className="text-sm text-gray-600">Todavía no hay comprobantes emitidos para esta liquidación.</p>}
                         {(liquidacion.comprobantes || []).map(comprobante => {
                             const tieneAjustes = comprobante.ajustes.length > 0;
                             const voucherAmounts = comprobante.importesPorMoneda?.length ? comprobante.importesPorMoneda : [comprobante];
                             return (
-                                <article key={comprobante.id} className="rounded-2xl border border-indigo-100 bg-white p-4">
+                                <article key={comprobante.id} className="rounded-md border border-slate-200 bg-white p-3">
                                     <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                         <div className="min-w-0">
                                             <div className="flex flex-wrap items-center gap-2">
-                                                <h3 className="font-black text-gray-900">Versión {comprobante.version}</h3>
+                                                <h3 className="font-semibold text-gray-900">Versión {comprobante.version}</h3>
                                                 <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${tieneAjustes ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
                                                     {comprobante.evento === 'NOTA_LIQUIDACION' ? 'Aclaración actualizada' : comprobante.evento === 'AJUSTE' ? `Corregida · ${comprobante.ajustes.length} ajuste${comprobante.ajustes.length === 1 ? '' : 's'}` : comprobante.evento === 'COBRO_INQUILINO' ? 'Cobro registrado' : comprobante.evento === 'PAGO_PROPIETARIO' ? 'Pago al propietario' : comprobante.evento === 'ANULACION_COBRO' ? 'Cobro anulado' : comprobante.evento === 'ANULACION_PAGO_PROPIETARIO' ? 'Entrega anulada' : 'Original confirmada'}
                                                 </span>
@@ -660,32 +665,32 @@ export default function LiquidacionDetalle() {
             )}
 
             {((liquidacion.ajustes?.length || 0) > 0 || (liquidacion.aplicacionesCredito?.length || 0) > 0) && (
-                <section className="space-y-3 rounded-3xl border border-indigo-100 bg-indigo-50/40 p-5 print:hidden">
+                <section className="space-y-3 rounded-xl border border-indigo-100 bg-indigo-50/40 p-5 print:hidden">
                     <div>
-                        <h3 className="text-lg font-black text-indigo-950">Ajustes y saldos a favor</h3>
+                        <h3 className="text-lg font-semibold text-indigo-950">Ajustes y saldos a favor</h3>
                         <p className="text-sm text-indigo-800">Las correcciones conservan el importe, motivo y destino del excedente.</p>
                     </div>
                     <div className="space-y-3">
                         {liquidacion.ajustes?.map(adjustment => {
                             const credit = adjustment.creditoInquilino;
                             return (
-                                <article key={adjustment.id} className="rounded-2xl border border-indigo-100 bg-white p-4">
+                                <article key={adjustment.id} className="rounded-md border border-slate-200 bg-white p-3">
                                     <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-start">
                                         <div>
-                                            <p className="font-black text-gray-950">{adjustment.tipo === 'CREDITO' ? 'Nota de crédito' : 'Nota de débito'} #{adjustment.id} · {adjustment.concepto}</p>
+                                            <p className="font-semibold text-gray-950">{adjustment.tipo === 'CREDITO' ? 'Nota de crédito' : 'Nota de débito'} #{adjustment.id} · {adjustment.concepto}</p>
                                             <p className="mt-1 text-sm text-gray-700">{adjustment.motivo}</p>
                                             <p className="mt-1 text-xs font-semibold text-gray-600">{formatDate(adjustment.fechaCreacion)} · {adjustment.creadoPor.nombreCompleto}</p>
                                         </div>
                                         <div className={`text-right ${adjustment.tipo === 'CREDITO' ? 'text-status-success' : 'text-status-danger'}`}>
-                                            {Number(adjustment.montoInquilino) > 0 && <p className="font-black">Inquilino {adjustment.tipo === 'CREDITO' ? '−' : '+'}{formatCurrency(Number(adjustment.montoInquilino))}</p>}
-                                            {Number(adjustment.montoPropietario) > 0 && <p className="mt-1 font-black">Propietario {adjustment.tipo === 'CREDITO' ? '−' : '+'}{formatCurrency(Number(adjustment.montoPropietario))}</p>}
+                                            {Number(adjustment.montoInquilino) > 0 && <p className="font-semibold">Inquilino {adjustment.tipo === 'CREDITO' ? '−' : '+'}{formatCurrency(Number(adjustment.montoInquilino))}</p>}
+                                            {Number(adjustment.montoPropietario) > 0 && <p className="mt-1 font-semibold">Propietario {adjustment.tipo === 'CREDITO' ? '−' : '+'}{formatCurrency(Number(adjustment.montoPropietario))}</p>}
                                         </div>
                                     </div>
                                     {credit && (
                                         <div className="mt-3 rounded-xl bg-indigo-50 p-3 text-sm text-indigo-950">
-                                            {credit.estado === 'DEVUELTO' && <p><span className="font-black">Devuelto:</span> {formatCurrency(Number(credit.montoOriginal))}{credit.movimientoDevolucion ? ` por ${credit.movimientoDevolucion.metodoPago}` : ''}.</p>}
-                                            {credit.estado === 'APLICADO' && <p><span className="font-black">Compensado totalmente:</span> {formatCurrency(Number(credit.montoOriginal))}.</p>}
-                                            {credit.estado === 'DISPONIBLE' && <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><p><span className="font-black">Saldo a favor disponible:</span> {formatCurrency(Number(credit.saldoPendiente))}.</p>{canAdjustLiquidations && <button type="button" onClick={() => setCreditToApply({ id: credit.id, saldo: Number(credit.saldoPendiente) })} className="rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs font-bold text-indigo-800 hover:bg-indigo-100">Aplicar a otra liquidación</button>}</div>}
+                                            {credit.estado === 'DEVUELTO' && <p><span className="font-semibold">Devuelto:</span> {formatCurrency(Number(credit.montoOriginal))}{credit.movimientoDevolucion ? ` por ${credit.movimientoDevolucion.metodoPago}` : ''}.</p>}
+                                            {credit.estado === 'APLICADO' && <p><span className="font-semibold">Compensado totalmente:</span> {formatCurrency(Number(credit.montoOriginal))}.</p>}
+                                            {credit.estado === 'DISPONIBLE' && <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><p><span className="font-semibold">Saldo a favor disponible:</span> {formatCurrency(Number(credit.saldoPendiente))}.</p>{canAdjustLiquidations && <button type="button" onClick={() => setCreditToApply({ id: credit.id, saldo: Number(credit.saldoPendiente) })} className="rounded-lg border border-indigo-300 bg-white px-3 py-2 text-xs font-bold text-indigo-800 hover:bg-indigo-100">Aplicar a otra liquidación</button>}</div>}
                                             {credit.aplicaciones.length > 0 && <p className="mt-2 text-xs text-indigo-800">Aplicaciones: {credit.aplicaciones.map(application => `${formatCurrency(Number(application.monto))} a ${formatPeriod(application.liquidacion.periodo)}`).join(' · ')}</p>}
                                         </div>
                                     )}
@@ -693,10 +698,10 @@ export default function LiquidacionDetalle() {
                             );
                         })}
                         {liquidacion.aplicacionesCredito?.map(application => (
-                            <article key={`credit-application-${application.id}`} className="rounded-2xl border border-indigo-100 bg-white p-4">
-                                <p className="font-black text-gray-950">Saldo a favor aplicado · Crédito #{application.creditoInquilinoId}</p>
+                            <article key={`credit-application-${application.id}`} className="rounded-md border border-slate-200 bg-white p-3">
+                                <p className="font-semibold text-gray-950">Saldo a favor aplicado · Crédito #{application.creditoInquilinoId}</p>
                                 <p className="mt-1 text-sm text-gray-700">Compensación proveniente de la nota de crédito #{application.creditoInquilino.ajusteLiquidacion.id}: {application.creditoInquilino.ajusteLiquidacion.concepto}.</p>
-                                <p className="mt-2 font-black text-status-success">-{formatCurrency(Number(application.monto))}</p>
+                                <p className="mt-2 font-semibold text-status-success">-{formatCurrency(Number(application.monto))}</p>
                             </article>
                         ))}
                     </div>
@@ -704,18 +709,18 @@ export default function LiquidacionDetalle() {
             )}
 
             <details className="space-y-4 ui-panel p-4 print:hidden">
-                <summary className="flex min-h-11 cursor-pointer items-center justify-between font-black text-gray-950">Auditoría <ChevronDownIcon className="h-4 w-4 text-gray-600" /></summary>
+                <summary className="flex min-h-[var(--ui-control-height)] cursor-pointer items-center justify-between font-semibold text-gray-950">Auditoría <ChevronDownIcon className="h-4 w-4 text-gray-600" /></summary>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="border-t border-slate-100 py-3">
-                        <p className="text-xs font-black uppercase tracking-wider text-gray-600">Creada por</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-600">Creada por</p>
                         <p className="break-words text-sm font-semibold text-gray-800 [overflow-wrap:anywhere]">{liquidacion.creadoPor?.nombreCompleto || "Sin dato"}</p>
                     </div>
                     <div className="border-t border-slate-100 py-3">
-                        <p className="text-xs font-black uppercase tracking-wider text-gray-600">Cierre administrativo registrado por</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-600">Cierre administrativo registrado por</p>
                         <p className="break-words text-sm font-semibold text-gray-800 [overflow-wrap:anywhere]">{liquidacion.cerradoPor?.nombreCompleto || "Sin responsable de cierre registrado"}</p>
                     </div>
                     <div className="border-t border-slate-100 py-3">
-                        <p className="text-xs font-black uppercase tracking-wider text-gray-600">Confirmada por</p>
+                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-600">Confirmada por</p>
                         <p className="break-words text-sm font-semibold text-gray-800 [overflow-wrap:anywhere]">{liquidacion.confirmadoPor?.nombreCompleto || "Todavía no confirmada"}</p>
                         {liquidacion.fechaConfirmacion && <p className="mt-1 text-xs text-gray-600">{formatDateTime(liquidacion.fechaConfirmacion)}</p>}
                     </div>
@@ -731,29 +736,29 @@ export default function LiquidacionDetalle() {
 
             {canDeleteLiquidations && liquidacion.estado === 'BORRADOR' && (
                 <details className="print:hidden rounded-2xl border border-gray-200 bg-white">
-                    <summary className="flex min-h-11 cursor-pointer items-center px-4 text-sm font-bold text-gray-700">Acciones de administración</summary>
+                    <summary className="flex min-h-[var(--ui-control-height)] cursor-pointer items-center px-4 text-sm font-bold text-gray-700">Acciones de administración</summary>
                     <div className="border-t border-gray-200 p-4">
                         <p className="text-sm text-gray-700">Si este borrador fue creado por error, podés eliminarlo. Las cuotas vinculadas volverán a quedar disponibles.</p>
-                        <button type="button" data-danger-trigger="true" onClick={() => setIsDeleteModalOpen(true)} className="mt-3 min-h-11 rounded-xl border border-red-300 px-4 text-sm font-bold text-red-800 hover:bg-red-50">Eliminar borrador</button>
+                        <button type="button" data-danger-trigger="true" onClick={() => setIsDeleteModalOpen(true)} className="mt-3 min-h-[var(--ui-control-height)] rounded-xl border border-red-300 px-4 text-sm font-bold text-red-800 hover:bg-red-50">Eliminar borrador</button>
                     </div>
                 </details>
             )}
 
             {/* Final Summary Card for Print */}
-            <div className="hidden print:block bg-gray-50 p-8 rounded-3xl border-2 border-dashed border-gray-200 mt-12">
+            <div className="hidden print:block bg-gray-50 p-8 rounded-xl border-2 border-dashed border-gray-200 mt-12">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h4 className="text-sm font-black text-gray-600 uppercase tracking-widest mb-1">Resumen Final</h4>
+                        <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-widest mb-1">Resumen Final</h4>
                         <p className="text-gray-600 text-sm font-medium">Esta liquidación contempla todos los conceptos del período {formatPeriod(liquidacion.periodo)}</p>
                     </div>
                     <div className="text-right flex items-center gap-8 border-t sm:border-t-0 sm:border-l border-gray-200 sm:pl-8 pt-4 sm:pt-0 w-full sm:w-auto">
                         <div>
-                            <p className="text-xs font-black text-gray-600 uppercase tracking-widest mb-1">A cobrar al inquilino</p>
-                            <p className="text-2xl font-black text-gray-900">{formatCurrency(Number(liquidacion.netoACobrar))}</p>
+                            <p className="text-xs font-semibold text-gray-600 uppercase tracking-widest mb-1">A cobrar al inquilino</p>
+                            <p className="text-2xl font-semibold text-gray-900">{formatCurrency(Number(liquidacion.netoACobrar))}</p>
                         </div>
                         <div>
-                            <p className="text-xs font-black text-gray-600 uppercase tracking-widest mb-1">Neto Dueño (con Hon. Inmob.)</p>
-                            <p className="text-2xl font-black text-indigo-600">{formatCurrency(getOwnerNetAmount(liquidacion))}</p>
+                            <p className="text-xs font-semibold text-gray-600 uppercase tracking-widest mb-1">Neto Dueño (con Hon. Inmob.)</p>
+                            <p className="text-2xl font-semibold text-indigo-600">{formatCurrency(getOwnerNetAmount(liquidacion))}</p>
                         </div>
                     </div>
                 </div>

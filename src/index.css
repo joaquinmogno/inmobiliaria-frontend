@@ -8,7 +8,10 @@
  * varios no alcanzan 4.5:1 cuando se combinan con esas superficies.
  */
 @theme {
-  --color-navigation: var(--color-indigo-800);
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --color-navigation: #292348;
+  --color-workspace: #f6f7fa;
+  --color-brand: #5b43d6;
   --color-content-muted: #4b5563;
   --color-status-success: #166534;
   --color-status-success-strong: #14532d;
@@ -24,24 +27,32 @@
 
 /* Controles compartidos: misma altura y foco en filtros y acciones. */
 @layer components {
+  .ui-page { @apply mx-auto w-full min-w-0 space-y-4; }
+  .ui-title { @apply text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl; }
+  .ui-section-title { @apply text-base font-semibold text-slate-900; }
   .ui-page-header {
-    @apply flex flex-col items-stretch justify-between gap-4 sm:flex-row sm:flex-wrap sm:items-center;
+    @apply flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:flex-wrap sm:items-center;
   }
+  .ui-page-header > :first-child { @apply min-w-0 flex-1; }
 
   .ui-page-actions {
     @apply flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end;
   }
 
   .ui-button {
-    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-transparent px-4 py-2 text-sm font-semibold leading-5 transition-colors;
+    @apply inline-flex items-center justify-center gap-2 rounded-md border border-transparent px-3 py-1.5 text-sm font-medium leading-5 transition-colors;
+    min-height: var(--ui-control-height);
+    transition-duration: var(--ui-motion-fast);
   }
+  .ui-button > svg { @apply h-4 w-4 shrink-0; }
+  .ui-icon-button { @apply inline-flex shrink-0 items-center justify-center rounded-md text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900; width: var(--ui-control-height); height: var(--ui-control-height); }
 
   .ui-button:disabled {
     @apply cursor-not-allowed opacity-50;
   }
 
   .ui-button-primary {
-    @apply bg-indigo-600 text-white hover:bg-indigo-700;
+    @apply bg-brand text-white hover:bg-indigo-700 active:bg-indigo-800;
   }
 
   .ui-button-secondary {
@@ -53,7 +64,8 @@
   }
 
   .ui-field {
-    @apply min-h-11 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium leading-5 text-slate-800 transition-colors placeholder:font-normal placeholder:text-slate-500;
+    @apply w-full min-w-0 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-normal leading-5 text-slate-800 transition-colors placeholder:font-normal placeholder:text-slate-500;
+    min-height: var(--ui-control-height);
   }
 
   .ui-field:hover:not(:disabled) {
@@ -70,7 +82,7 @@
   }
 
   .ui-status {
-    @apply inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold normal-case tracking-normal;
+    @apply inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium normal-case tracking-normal;
   }
 
   .ui-field[aria-invalid="true"] {
@@ -78,8 +90,24 @@
   }
 
   .ui-panel {
-    @apply rounded-xl border border-slate-200 bg-white;
+    @apply rounded-lg border border-slate-200 bg-white;
   }
+  .ui-tabs { @apply flex flex-wrap gap-1 border-b border-slate-200; }
+  .ui-tab { @apply inline-flex items-center justify-center rounded-t-md border-b-2 border-transparent px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-950; min-height: var(--ui-control-height); }
+  .ui-tab[aria-current="page"] { @apply border-brand text-indigo-800; }
+  .ui-metric { @apply min-w-0 rounded-lg border border-slate-200 bg-white p-3 text-left; }
+  button.ui-metric { @apply transition-colors hover:border-indigo-300 hover:bg-indigo-50/40; }
+  .ui-metric[aria-pressed="true"] { @apply border-indigo-400 bg-indigo-50/50; box-shadow: inset 0 2px 0 var(--color-brand); }
+  .ui-metric-value { @apply text-2xl font-semibold leading-tight tracking-tight text-slate-950 tabular-nums; }
+  .ui-metric-label { @apply text-xs font-medium leading-5 text-slate-600; }
+  .ui-form-section { @apply min-w-0 space-y-3 rounded-lg border border-slate-200 bg-slate-50/50 p-4; }
+  .ui-financial-line { @apply flex items-start justify-between gap-3 py-1.5 text-sm; }
+  .ui-financial-line > :last-child { @apply text-right font-medium text-slate-950 tabular-nums; overflow-wrap: anywhere; }
+  .ui-table { @apply w-full text-left text-sm; }
+  .ui-table th { @apply border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600; }
+  .ui-table td { @apply border-b border-slate-100 px-3 py-2 align-top; }
+  .ui-table tbody tr:hover { @apply bg-slate-50/70; }
+  .ui-table tbody tr:last-child td { border-bottom: 0; }
 }
 
 @keyframes spin {
@@ -107,13 +135,8 @@ textarea {
   touch-action: manipulation;
 }
 
-button,
-[role="button"] {
-  min-height: 44px;
-}
-
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 3px solid #f59e0b;
+  outline: 2px solid var(--ui-focus);
   outline-offset: 2px;
 }
 
@@ -221,6 +244,8 @@ body,
 
 /* Movimiento breve: no transformar páginas, ya que contienen ventanas fijas. */
 :root {
+  --ui-focus: #6d28d9;
+  --ui-control-height: 2.25rem;
   --ui-motion-enter: 180ms;
   --ui-motion-exit: 140ms;
   --ui-motion-fast: 120ms;
@@ -309,7 +334,10 @@ body,
   background: white;
   padding: 0.75rem 1rem;
 }
-.ui-dialog-footer > button { min-height: 44px; }
+@media (max-width: 767px), (pointer: coarse) {
+  :root { --ui-control-height: 2.75rem; }
+  button:not([role="switch"]), [role="button"] { min-height: 44px; }
+}
 @media (min-width: 1280px) {
   .ui-notebook-table { width: 100%; table-layout: fixed; }
   .ui-notebook-table th, .ui-notebook-table td {

@@ -11,7 +11,7 @@ import {
     type InmobiliariaProfileInput
 } from '../../services/inmobiliaria.service';
 
-const inputClass = 'mt-1 min-h-11 w-full rounded-xl border border-gray-300 px-3 py-2 text-sm shadow-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100';
+const inputClass = 'mt-1 min-h-[var(--ui-control-height)] w-full rounded-xl border border-gray-300 px-3 py-2 text-sm shadow-sm outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100';
 
 const emptyProfile: InmobiliariaProfileInput = {
     nombre: '', razonSocial: null, cuit: null, direccion: null, domicilioFiscal: null,
@@ -162,8 +162,8 @@ export default function InstallationProfileSettings({ refreshToken }: { refreshT
     );
 
     return (
-        <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-            <div className="flex flex-col gap-2 border-b border-gray-100 p-4 sm:p-6 sm:flex-row sm:items-center sm:justify-between">
+        <section className="overflow-hidden ui-panel">
+            <div className="flex flex-col gap-2 border-b border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h2 className="flex items-center text-lg font-semibold text-gray-900">
                         <BuildingOfficeIcon className="mr-2 h-5 w-5 text-indigo-600" />
@@ -174,7 +174,7 @@ export default function InstallationProfileSettings({ refreshToken }: { refreshT
                 {success && <span className="text-sm font-medium text-status-success">✓ Cambios guardados</span>}
             </div>
 
-            <form ref={formRef} onSubmit={handleSubmit} className="space-y-8 p-4 sm:p-6">
+            <form ref={formRef} onSubmit={handleSubmit} className="space-y-5 p-4">
                 <FormError message={error} />
 
                 <fieldset>
@@ -252,10 +252,10 @@ export default function InstallationProfileSettings({ refreshToken }: { refreshT
                             <label htmlFor="agency-logo" className="block text-sm font-medium text-gray-700">Logo institucional</label>
                             <div className="mt-2 flex flex-wrap items-center gap-2">
                                 <input id="agency-logo" type="file" accept="image/jpeg,image/png,image/webp" onChange={event => handleLogoSelection(event.target.files?.[0])} className="block max-w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-indigo-50 file:px-3 file:py-2 file:text-sm file:font-medium file:text-indigo-700 hover:file:bg-indigo-100" />
-                                <button type="button" onClick={handleUploadLogo} disabled={!selectedLogo || logoLoading} className="min-h-11 rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300">
+                                <button type="button" onClick={handleUploadLogo} disabled={!selectedLogo || logoLoading} className="min-h-[var(--ui-control-height)] rounded-xl bg-indigo-600 px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-indigo-300">
                                     {logoLoading ? 'Cargando...' : 'Cargar logo'}
                                 </button>
-                                {getAgencyLogoUrl(agency) && <button type="button" onClick={handleRemoveLogo} disabled={logoLoading} className="min-h-11 rounded-xl px-4 text-sm font-semibold text-status-danger transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Quitar logo</button>}
+                                {getAgencyLogoUrl(agency) && <button type="button" onClick={handleRemoveLogo} disabled={logoLoading} className="min-h-[var(--ui-control-height)] rounded-xl px-4 text-sm font-semibold text-status-danger transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50">Quitar logo</button>}
                             </div>
                             {selectedLogo && <p className="mt-2 truncate text-xs text-indigo-700" title={selectedLogo.name}>Seleccionado: {selectedLogo.name} ({(selectedLogo.size / 1024 / 1024).toFixed(2)} MB)</p>}
                         </div>
@@ -263,7 +263,7 @@ export default function InstallationProfileSettings({ refreshToken }: { refreshT
                 </fieldset>
 
                 <div className="flex justify-end border-t border-gray-100 pt-6">
-                    <button type="submit" disabled={loading} className={`min-h-11 w-full rounded-xl px-6 font-semibold text-white shadow-md transition-all sm:w-auto ${loading ? 'cursor-not-allowed bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95'}`}>
+                    <button type="submit" disabled={loading} className={`min-h-[var(--ui-control-height)] w-full rounded-xl px-6 font-semibold text-white shadow-md transition-all sm:w-auto ${loading ? 'cursor-not-allowed bg-indigo-400' : 'bg-indigo-600 hover:bg-indigo-700 active:scale-95'}`}>
                         {loading ? 'Guardando...' : 'Guardar perfil institucional'}
                     </button>
                 </div>

@@ -1,3 +1,4 @@
+import PageHeader from '../components/PageHeader';
 import { useSearchParams } from 'react-router-dom';
 import LiquidationHistory from '../features/liquidations/LiquidationHistory';
 import MonthlyLiquidationWorkspace from '../features/liquidations/MonthlyLiquidationWorkspace';
@@ -16,16 +17,13 @@ export default function Liquidaciones() {
     setSearchParams(nextParams);
   };
 
-  return <div className="mx-auto max-w-7xl space-y-4">
-    <header>
-      <h1 className="text-2xl font-black tracking-tight text-gray-950">Liquidaciones</h1>
-      <p className="mt-1 text-sm text-gray-700">Prepará el mes, registrá cobros y completá los pagos a propietarios desde un flujo guiado.</p>
-    </header>
-
-    <nav aria-label="Vistas de liquidaciones" className="inline-flex rounded-xl border border-gray-300 bg-white p-1 shadow-sm">
-      <button type="button" aria-current={view === 'MES' ? 'page' : undefined} onClick={() => selectView('MES')} className={`min-h-11 rounded-lg px-4 text-sm font-bold ${view === 'MES' ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>Trabajo del mes</button>
-      <button type="button" aria-current={view === 'HISTORIAL' ? 'page' : undefined} onClick={() => selectView('HISTORIAL')} className={`min-h-11 rounded-lg px-4 text-sm font-bold ${view === 'HISTORIAL' ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}>Historial</button>
-    </nav>
+  return <div className="ui-page">
+    <PageHeader title="Liquidaciones" description="Prepará el mes, registrá cobros y completá los pagos a propietarios desde un flujo guiado." actions={
+      <nav aria-label="Vistas de liquidaciones" className="ui-tabs">
+        <button type="button" aria-current={view === 'MES' ? 'page' : undefined} onClick={() => selectView('MES')} className="ui-tab">Trabajo del mes</button>
+        <button type="button" aria-current={view === 'HISTORIAL' ? 'page' : undefined} onClick={() => selectView('HISTORIAL')} className="ui-tab">Historial</button>
+      </nav>
+    } />
 
     <p className="text-xs text-gray-600">Estados independientes: documento, cobro, pago al propietario y cierre administrativo. “Cobro y pago resueltos” no acredita cierre administrativo ni cierre de Caja.</p>
 

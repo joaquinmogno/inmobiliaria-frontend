@@ -25,10 +25,10 @@ export default function ContractPartyFields({
     const searchLabel = owner ? 'Buscar Propietario' : 'Buscar Inquilino';
 
     return (
-        <section id={`contract-${kind}-group`} tabIndex={-1} aria-describedby={validation.errors[`contract-${kind}-group`] ? `contract-${kind}-group-error` : undefined} className="rounded-xl border border-gray-100 bg-gray-50 p-4">
+        <section id={`contract-${kind}-group`} tabIndex={-1} aria-describedby={validation.errors[`contract-${kind}-group`] ? `contract-${kind}-group-error` : undefined} className="ui-form-section">
             <div className="mb-3 flex items-center justify-between">
                 <h4 className="text-sm font-semibold uppercase tracking-wide text-indigo-900">{title} *</h4>
-                {!editing && <button type="button" onClick={() => onAdd(null)} className="text-xs font-bold text-indigo-600 hover:text-indigo-800">+ AGREGAR OTRO</button>}
+                {!editing && <button type="button" onClick={() => onAdd(null)} className="min-h-6 text-xs font-medium text-indigo-700 hover:text-indigo-900">+ AGREGAR OTRO</button>}
             </div>
             <FieldError id={`contract-${kind}-group`} message={validation.errors[`contract-${kind}-group`]} />
             <div className="space-y-3">
@@ -45,10 +45,10 @@ export default function ContractPartyFields({
                         </p>
                         <div className="space-y-2">
                             <label className="sr-only" htmlFor={`${owner ? 'owner' : 'tenant'}-${index}-name`}>Nombre completo de {singular.toLowerCase()} {index + 1}</label>
-                            <input {...validation.inputProps(`${kind}-${index}-name`)} type="text" placeholder="Nombre Completo *" required className="w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" value={party.nombreCompleto} onChange={event => onUpdate(index, 'nombreCompleto', event.target.value)} disabled={!!party.id || editing} />
+                            <input {...validation.inputProps(`${kind}-${index}-name`)} type="text" placeholder="Nombre Completo *" required className="ui-field" value={party.nombreCompleto} onChange={event => onUpdate(index, 'nombreCompleto', event.target.value)} disabled={!!party.id || editing} />
                             <FieldError id={`${kind}-${index}-name`} message={validation.errors[`${kind}-${index}-name`]} />
                             <label className="sr-only" htmlFor={`${owner ? 'owner' : 'tenant'}-${index}-phone`}>Teléfono de {singular.toLowerCase()} {index + 1}</label>
-                            <input id={`${owner ? 'owner' : 'tenant'}-${index}-phone`} type="text" placeholder="Teléfono" className="w-full rounded-lg border-gray-300 px-3 py-2.5 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500" value={party.telefono} onChange={event => onUpdate(index, 'telefono', event.target.value)} disabled={!!party.id || editing} />
+                            <input id={`${owner ? 'owner' : 'tenant'}-${index}-phone`} type="text" placeholder="Teléfono" className="ui-field" value={party.telefono} onChange={event => onUpdate(index, 'telefono', event.target.value)} disabled={!!party.id || editing} />
                         </div>
                     </div>
                 ))}

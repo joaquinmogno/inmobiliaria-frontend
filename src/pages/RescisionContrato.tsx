@@ -31,8 +31,8 @@ const initialKeys = (context: RescissionContext): KeyDeliveryForm => ({
     estadoInmueble: '', observaciones: '', inmuebleDesocupado: false, version: context.contrato.version
 });
 
-const section = 'rounded-2xl border border-gray-200 bg-white p-5 shadow-sm';
-const inputClass = 'w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-100';
+const section = 'ui-panel p-4';
+const inputClass = 'ui-field';
 const labelClass = 'block space-y-1 text-sm font-semibold text-gray-700';
 
 export default function RescisionContrato() {
@@ -160,10 +160,10 @@ export default function RescisionContrato() {
     const hasClosure = context.actas.length > 0;
     const isEditable = canEdit && hasKeys && (revision || !hasClosure);
 
-    return <div className="mx-auto max-w-7xl space-y-5 pb-12">
+    return <div className="ui-page pb-12">
         <div className="flex flex-wrap items-start justify-between gap-3">
             <div><Link to="/contratos" className="text-sm font-semibold text-orange-700 hover:underline">← Contratos</Link>
-                <h1 className="mt-2 text-2xl font-bold text-gray-900">{hasClosure ? 'Cierre definitivo' : hasKeys ? 'Liquidación final y cierre pendiente' : 'Entrega de llaves'} · {contrato.direccion}</h1>
+                <h1 className="ui-title">{hasClosure ? 'Cierre definitivo' : hasKeys ? 'Liquidación final y cierre pendiente' : 'Entrega de llaves'} · {contrato.direccion}</h1>
                 <p className="mt-1 text-sm text-gray-600">Contrato #{contrato.id} · {contrato.fechaInicio} al {contrato.fechaFin} · {contrato.moneda}</p></div>
             {hasClosure && canEdit && !revision && <button type="button" onClick={loadLatestForRevision} disabled={busy} className="rounded-xl bg-orange-600 px-4 py-2 text-sm font-bold text-white hover:bg-orange-700">Emitir nueva versión del cierre</button>}
         </div>

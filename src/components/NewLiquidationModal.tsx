@@ -194,7 +194,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                     </Dialog.Title>
                                     <button type="button"
                                         onClick={onClose}
-                                        className="grid h-11 w-11 place-items-center rounded-xl text-gray-600 hover:bg-gray-100 hover:text-content-muted transition-colors focus:outline-none"
+                                        className="grid h-[var(--ui-control-height)] w-[var(--ui-control-height)] place-items-center rounded-xl text-gray-600 hover:bg-gray-100 hover:text-content-muted transition-colors focus:outline-none"
                                      aria-label="Cerrar ventana">
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
@@ -298,7 +298,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                             id="liquidation-period"
                                             type="month"
                                             required
-                                            className="block min-h-11 w-full px-4 py-2 text-base text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white"
+                                            className="block min-h-[var(--ui-control-height)] w-full px-4 py-2 text-base text-gray-900 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white"
                                             value={period}
                                             onChange={(e) => setPeriod(e.target.value)}
                                         />
@@ -323,7 +323,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                         id="liquidation-fee-percentage"
                                                         min={0}
                                                         max={100}
-                                                        className="block min-h-11 w-full px-3 py-2 text-base text-gray-900 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white"
+                                                        className="block min-h-[var(--ui-control-height)] w-full px-3 py-2 text-base text-gray-900 border border-indigo-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all sm:text-sm bg-white"
                                                         value={porcentajeHonorarios}
                                                         onChange={(val) => setPorcentajeHonorarios(val.toString())}
                                                         placeholder="Ej: 5"
@@ -333,7 +333,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                     <label htmlFor="liquidation-fee-amount" className="block text-xs font-bold text-indigo-900 uppercase tracking-wide mb-1">
 	                                                        Monto ({selectedMoneda})
                                                     </label>
-                                                    <output id="liquidation-fee-amount" className="block min-h-11 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-base font-bold text-gray-900">{formatCurrency(honorarios, selectedMoneda)}</output>
+                                                    <output id="liquidation-fee-amount" className="block min-h-[var(--ui-control-height)] rounded-lg border border-indigo-200 bg-white px-3 py-2 text-base font-bold text-gray-900">{formatCurrency(honorarios, selectedMoneda)}</output>
                                                </div>
                                             </div>
                                         </div>
@@ -398,7 +398,7 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                                                     </p>
                                                                 </div>
                                                             </div>
-                                                            <span className="shrink-0 text-sm font-black text-gray-900">
+                                                            <span className="shrink-0 text-sm font-semibold text-gray-900">
 	                                                                {formatCurrencyWithCents(cuota.monto, cuota.moneda || selectedMoneda)}
                                                             </span>
                                                         </label>
@@ -420,41 +420,41 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                     {/* Summary section */}
                                     {selectedContractId && (
                                         <div className="p-5 bg-indigo-50/50 rounded-2xl border border-indigo-100 shadow-sm">
-                                            <h4 className="text-xs font-black text-status-accent mb-4 uppercase tracking-[0.2em] flex items-center gap-2">
+                                            <h4 className="text-xs font-semibold text-status-accent mb-4 uppercase tracking-[0.2em] flex items-center gap-2">
                                                 <div className="w-1 h-3 bg-indigo-500 rounded-full" />
                                                 Resumen de Liquidación
                                             </h4>
                                             <div className="space-y-4">
                                                 <div className="flex flex-col gap-1 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
                                                     <div className="flex flex-col">
-                                                        <span className="text-xs font-black text-content-muted uppercase tracking-widest">Inquilino paga</span>
+                                                        <span className="text-xs font-semibold text-content-muted uppercase tracking-widest">Inquilino paga</span>
                                                         <span className="text-xs text-gray-600 font-medium">
                                                             Alquiler + conceptos
                                                         </span>
                                                     </div>
-                                                    <span className="text-xl font-black text-gray-900">
+                                                    <span className="text-xl font-semibold text-gray-900">
 	                                                        {formatCurrency(totalInquilino, selectedMoneda)}
                                                     </span>
                                                 </div>
                                                 
                                                 <div className="flex flex-col gap-1 pt-3 border-t border-indigo-100/50 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
                                                     <div className="flex flex-col">
-                                                        <span className="text-xs font-black text-indigo-600 uppercase tracking-widest">Honorarios Inmob.</span>
+                                                        <span className="text-xs font-semibold text-indigo-600 uppercase tracking-widest">Honorarios Inmob.</span>
                                                         <span className="text-xs text-status-accent font-medium">
                                                             Los abona el propietario
                                                         </span>
                                                     </div>
-                                                    <span className="text-lg font-black text-indigo-600">
+                                                    <span className="text-lg font-semibold text-indigo-600">
 	                                                        {formatCurrency(honorarios, selectedMoneda)}
                                                     </span>
                                                 </div>
 
                                                 <div className="flex flex-col gap-1 pt-3 border-t border-indigo-100/50 p-3 bg-indigo-600 rounded-xl shadow-lg shadow-indigo-200 min-[380px]:flex-row min-[380px]:items-center min-[380px]:justify-between">
                                                     <div className="flex flex-col">
-                                                        <span className="text-xs font-black text-indigo-100 uppercase tracking-widest">Dueño recibe</span>
+                                                        <span className="text-xs font-semibold text-indigo-100 uppercase tracking-widest">Dueño recibe</span>
                                                         <span className="text-xs text-on-accent-muted font-medium">Liquidez neta (-)</span>
                                                     </div>
-                                                    <span className="text-xl font-black text-white">
+                                                    <span className="text-xl font-semibold text-white">
 	                                                        {formatCurrency(totalPropietario, selectedMoneda)}
                                                     </span>
                                                 </div>
@@ -471,14 +471,14 @@ export default function NewLiquidationModal({ isOpen, onClose, onSave, contracts
                                         <button
                                             type="button"
                                             onClick={onClose}
-                                            className="min-h-11 flex-1 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors sm:flex-none"
+                                            className="min-h-[var(--ui-control-height)] flex-1 rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors sm:flex-none"
                                         >
                                             Cancelar
                                         </button>
                                         <button
                                             type="submit"
                                             disabled={!selectedContractId || contracts.length === 0 || totalPropietario <= 0}
-                                            className="min-h-11 flex-1 rounded-xl bg-indigo-600 px-6 py-2 text-sm font-bold text-white hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer sm:flex-none"
+                                            className="min-h-[var(--ui-control-height)] flex-1 rounded-xl bg-indigo-600 px-6 py-2 text-sm font-bold text-white hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer sm:flex-none"
                                         >
                                             Crear Borrador
                                         </button>

@@ -84,8 +84,8 @@ export default function ReversalModal({ isOpen, title, description, onClose, onC
                                     </div>
                                     {error && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{error}</p>}
                                     <div className="flex gap-3 border-t border-gray-100 pt-4">
-                                        <button type="button" onClick={onClose} disabled={isSubmitting} className="min-h-11 flex-1 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancelar</button>
-                                        <button type="submit" disabled={isSubmitting || motivo.trim().length < 5} className="min-h-11 flex-1 rounded-xl bg-status-warning px-4 py-2 text-sm font-bold text-white hover:bg-status-warning-strong disabled:cursor-not-allowed disabled:opacity-50">
+                                        <button type="button" onClick={onClose} disabled={isSubmitting} className="min-h-[var(--ui-control-height)] flex-1 rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancelar</button>
+                                        <button type="submit" disabled={isSubmitting || motivo.trim().length < 5} className="min-h-[var(--ui-control-height)] flex-1 rounded-xl bg-status-warning px-4 py-2 text-sm font-bold text-white hover:bg-status-warning-strong disabled:cursor-not-allowed disabled:opacity-50">
                                             {isSubmitting ? "Anulando…" : "Anular y revertir"}
                                         </button>
                                     </div>

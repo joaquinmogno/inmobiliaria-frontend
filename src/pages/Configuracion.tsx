@@ -22,11 +22,11 @@ export default function Configuracion() {
     const availableTabs = user?.tipo === 'ADMIN' ? ADMIN_TABS : [];
 
     return (
-        <div className="mx-auto w-full max-w-6xl space-y-6">
+        <div className="ui-page">
             <header className="ui-page-header">
                 <div>
-                    <h1 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">Configuración del Sistema</h1>
-                    <p className="mt-1 text-sm text-gray-600 sm:text-base">Gestión de respaldos y seguridad de datos.</p>
+                    <h1 className="ui-title">Configuración del Sistema</h1>
+                    <p className="mt-1 text-sm text-gray-600 ">Gestión de respaldos y seguridad de datos.</p>
                 </div>
                 <button
                     onClick={() => setRefreshToken(current => current + 1)}
@@ -37,7 +37,7 @@ export default function Configuracion() {
                 </button>
             </header>
 
-            <nav className="grid grid-cols-2 gap-1 rounded-lg border border-gray-200 bg-white p-1 sm:flex sm:flex-wrap" aria-label="Secciones de configuración">
+            <nav className="ui-tabs" aria-label="Secciones de configuración">
                 {availableTabs.map(tab => (
                     <button
                         key={tab.id}
@@ -45,7 +45,7 @@ export default function Configuracion() {
                         onClick={() => setActiveTab(tab.id)}
                         aria-current={activeTab === tab.id ? 'page' : undefined}
                         aria-controls="configuration-content"
-                        className={`min-h-11 min-w-0 rounded-md px-3 py-2 text-sm font-semibold transition-colors sm:px-4 ${activeTab === tab.id ? 'bg-indigo-600 text-white' : 'text-gray-700 hover:bg-gray-100'}`}
+                        className={"ui-tab"}
                     >
                         {tab.label}
                     </button>

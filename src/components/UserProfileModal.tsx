@@ -65,7 +65,7 @@ export default function UserProfileModal({ isOpen, onClose, user }: UserProfileM
             <KeyIcon aria-hidden="true" className="h-6 w-6 shrink-0 text-indigo-600" />
             <div className="min-w-0"><DialogTitle className="text-xl font-bold text-gray-900">Mi perfil</DialogTitle><p className="break-words text-sm text-gray-600">{user?.email}</p></div>
           </div>
-          <button type="button" onClick={close} disabled={busy} aria-label="Cerrar mi perfil" className="ui-button ui-button-ghost h-11 w-11 shrink-0 p-0"><XMarkIcon aria-hidden="true" className="h-5 w-5" /></button>
+          <button type="button" onClick={close} disabled={busy} aria-label="Cerrar mi perfil" className="ui-button ui-button-ghost h-[var(--ui-control-height)] w-[var(--ui-control-height)] shrink-0 p-0"><XMarkIcon aria-hidden="true" className="h-5 w-5" /></button>
         </div>
         <form id="profile-password-form" ref={formRef} onSubmit={handleSubmit} aria-busy={loading} className="modal-scroll min-h-0 flex-1 space-y-4 p-5">
           <h3 className="text-lg font-semibold text-gray-900">Cambiar contraseña</h3>

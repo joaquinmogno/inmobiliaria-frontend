@@ -66,6 +66,17 @@ for (const module of ['cajachica', 'control-interno', 'teodoro', 'daniel'] as co
         await dialog.getByRole('button', { name: 'Vista previa', exact: true }).click();
         await expect(dialog.locator('iframe')).toHaveAttribute('src', /^blob:/);
         await expect(dialog.getByRole('button', { name: 'Emitir recibo', exact: true })).toBeEnabled();
+        await expect(dialog.getByLabel('Recibe el dinero *')).toHaveCount(0);
+        await expect(dialog.getByRole('region', { name: 'Vista previa del recibo', exact: true })).toBeFocused();
+        await expect(dialog.getByRole('heading', { name: '2. Revisar y emitir' })).toBeInViewport();
+        const back = dialog.getByRole('button', { name: 'Volver a editar', exact: true });
+        await expect(back).toBeInViewport({ ratio: 1 });
+        await back.focus();
+        await page.keyboard.press('Enter');
+        await expect(dialog.getByRole('heading', { name: '1. Datos del recibo' })).toBeFocused();
+        await expect(dialog.getByLabel('Recibe el dinero *')).toHaveValue('José Albañil');
+        await expect(dialog.getByLabel('DNI/CUIT de quien recibe')).toHaveValue('20-12345678-3');
+        await expect(dialog.getByLabel('Inmueble (opcional)')).toHaveValue('Cabildo 1532');
         // Any public edit requires checking a fresh preview.
         await dialog.getByLabel('Concepto del recibo *').fill('Reparación de baño y cambio de grifería');
         await expect(dialog.getByRole('button', { name: 'Emitir recibo', exact: true })).toHaveCount(0);
@@ -99,6 +110,9 @@ test('corregir conserva versiones y pide motivo; formulario accesible', async ({
     await expect(dialog.locator('.ui-modal-panel')).toHaveCSS('opacity', '1');
     expect((await new AxeBuilder({ page }).include('[role="dialog"]').analyze()).violations).toEqual([]);
     await dialog.getByRole('button', { name: 'Vista previa', exact: true }).click();
+    await dialog.getByRole('button', { name: 'Volver a editar', exact: true }).click();
+    await expect(dialog.getByLabel('Motivo de la nueva versión')).toHaveValue('Corrección del apellido');
+    await dialog.getByRole('button', { name: 'Vista previa', exact: true }).click();
     await dialog.getByRole('button', { name: 'Emitir nueva versión' }).click();
     await expect(dialog.getByRole('region', { name: 'Historial de recibos' })).toContainText('Reemplazado');
     await expect(dialog.getByRole('button', { name: 'Ver PDF versión 2' })).toBeVisible();
@@ -119,6 +133,7 @@ for (const status of [500, 409]) test(`error ${status} conserva datos sin mostra
     await dialog.getByRole('button', { name: 'Vista previa', exact: true }).click();
     await dialog.getByRole('button', { name: 'Emitir recibo', exact: true }).click();
     await expect(dialog.getByRole('alert')).toBeVisible();
+    if (status === 500) await dialog.getByRole('button', { name: 'Volver a editar', exact: true }).click();
     await expect(dialog.getByLabel('Recibe el dinero *')).toHaveValue('José Albañil');
     await expect(dialog.getByRole('region', { name: 'Historial de recibos' })).toHaveCount(0);
     if (status === 409) {

@@ -79,7 +79,7 @@ export default function Papelera() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="ui-page">
       {/* Page Header */}
       <div className="bg-white rounded-lg shadow-sm p-4 border-l-4 border-red-600 mb-6">
         <div className="flex items-center gap-2">
@@ -87,7 +87,7 @@ export default function Papelera() {
             <TrashIcon className="w-5 h-5 text-status-danger" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Papelera de Contratos</h1>
+            <h1 className="ui-title">Papelera de Contratos</h1>
             <p className="text-gray-600 text-xs">Contratos eliminados y archivados</p>
           </div>
         </div>

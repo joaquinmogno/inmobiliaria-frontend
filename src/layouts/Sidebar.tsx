@@ -50,9 +50,9 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
   const canViewConfiguration = user?.tipo === "ADMIN";
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex min-h-11 items-center rounded-lg py-2 text-sm transition-colors duration-200 whitespace-nowrap overflow-hidden ${menuExpanded ? "gap-3 px-4" : "justify-center px-0"} ${isActive
-      ? "bg-indigo-600 text-white font-semibold"
-      : "text-indigo-100 hover:bg-indigo-700/50 hover:text-white"
+    `flex min-h-10 items-center rounded-md py-2 text-sm transition-colors duration-200 whitespace-nowrap overflow-hidden ${menuExpanded ? "gap-2.5 px-2.5" : "justify-center px-0"} ${isActive
+      ? "bg-white/12 text-white font-medium ring-1 ring-inset ring-white/10"
+      : "text-indigo-100 hover:bg-white/8 hover:text-white"
     }`;
 
   return (
@@ -94,12 +94,12 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
           setIsContratosOpen(false);
           contractsMenuButtonRef.current?.focus();
         }}
-        className={`bg-navigation text-white h-full p-4 flex-shrink-0 flex flex-col transition-[width,transform] duration-300 ease-in-out z-40 absolute left-0 top-0 xl:relative ${
+        className={`bg-navigation [--ui-focus:#ddd6fe] text-white h-full p-3 flex-shrink-0 flex flex-col transition-[width,transform] duration-150 ease-in-out z-40 absolute left-0 top-0 xl:relative ${
           mobileOpen ? "translate-x-0 w-64" : "-translate-x-full xl:translate-x-0"
-        } ${isExpanded && !mobileOpen ? "xl:w-64" : "xl:w-20"}`}
+        } ${isExpanded && !mobileOpen ? "xl:w-60" : "xl:w-16"}`}
     >
       {/* Logo / Branding */}
-        <Link to="/home" onClick={closeMobile} title="Ir al inicio" className={`flex h-12 shrink-0 items-center mb-6 rounded-lg transition-all duration-300 ${menuExpanded ? 'px-2' : 'justify-center px-0'}`}>
+        <Link to="/home" onClick={closeMobile} title="Ir al inicio" className={`flex h-12 shrink-0 items-center mb-4 rounded-lg transition-all duration-150 ${menuExpanded ? 'px-2' : 'justify-center px-0'}`}>
           {menuExpanded ? (
             <div className="bg-white rounded-lg flex items-center justify-center overflow-hidden h-12 w-full">
                <AgencyLogo inmobiliaria={user?.inmobiliaria} />
@@ -113,14 +113,14 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
 
         <hr className="border-white/10 mb-3" />
 
-        <nav className="sidebar-scrollbar flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden" aria-label="Navegación principal" onClick={(event) => {
+        <nav className="sidebar-scrollbar flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden" aria-label="Navegación principal" onClick={(event) => {
           if ((event.target as HTMLElement).closest("a")) closeMobile?.();
         }}>
         {/* Home */}
-        <NavLink to="/home" className={linkClass}>
-          <HomeIcon className="w-6 h-6 min-w-[24px]" />
+        <NavLink to="/home" className={linkClass} title={!menuExpanded ? "Inicio" : undefined}>
+          <HomeIcon className="w-5 h-5 min-w-[20px]" />
           <span
-            className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
+            className={`transition-opacity duration-150 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
               }`}
           >
             Inicio
@@ -131,16 +131,16 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
         {canViewContracts && <div>
           <div className="flex items-center">
           <NavLink to="/contratos" className={({isActive}) => `${linkClass({isActive})} flex-1`} title={!menuExpanded ? "Contratos" : undefined}>
-            <DocumentTextIcon className="w-6 h-6 min-w-[24px]" />
+            <DocumentTextIcon className="w-5 h-5 min-w-[20px]" />
             <span
-              className={`flex-1 text-left transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
+              className={`flex-1 text-left transition-opacity duration-150 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
                 }`}
             >
               Contratos
             </span>
           </NavLink>
             {menuExpanded && (canCreateContracts || canDeleteContracts || canRestoreContracts) && (
-              <button ref={contractsMenuButtonRef} type="button" aria-label="Mostrar opciones de contratos" aria-expanded={isContratosOpen} aria-controls="contracts-submenu" onClick={() => setIsContratosOpen(prev => !prev)} className="ml-1 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-indigo-100 hover:bg-indigo-700/50">
+              <button ref={contractsMenuButtonRef} type="button" aria-label="Mostrar opciones de contratos" aria-expanded={isContratosOpen} aria-controls="contracts-submenu" onClick={() => setIsContratosOpen(prev => !prev)} className="ml-1 flex h-9 w-8 shrink-0 items-center justify-center rounded-lg text-indigo-100 hover:bg-indigo-700/50">
               <ChevronDownIcon
                 className={`w-4 h-4 min-w-[16px] transition-transform duration-200 ${isContratosOpen ? "rotate-180" : ""
                   }`}
@@ -157,7 +157,7 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
                   navigate("/contratos", { state: { openNewContractModal: true } });
                   if (mobileOpen && closeMobile) closeMobile();
                 }}
-                className="w-full flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-200 whitespace-nowrap overflow-hidden text-indigo-100 hover:bg-indigo-700/50 hover:text-white"
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg transition-all duration-200 whitespace-nowrap overflow-hidden text-indigo-100 hover:bg-white/8 hover:text-white"
               >
                 <PlusIcon className="w-5 h-5 min-w-[20px]" />
                 <span className="text-sm">Crear Contrato</span>
@@ -171,10 +171,10 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
         </div>}
 
         {/* Liquidaciones */}
-        {canViewLiquidations && <NavLink to="/liquidaciones" className={linkClass}>
-          <CalculatorIcon className="w-6 h-6 min-w-[24px]" />
+        {canViewLiquidations && <NavLink to="/liquidaciones" className={linkClass} title={!menuExpanded ? "Liquidaciones" : undefined}>
+          <CalculatorIcon className="w-5 h-5 min-w-[20px]" />
           <span
-            className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
+            className={`transition-opacity duration-150 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
               }`}
           >
             Liquidaciones
@@ -182,20 +182,20 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
         </NavLink>}
 
 
-        {canViewCash && <NavLink to="/cajachica" className={linkClass}>
-          <BanknotesIcon className="w-6 h-6 min-w-[24px]" />
+        {canViewCash && <NavLink to="/cajachica" className={linkClass} title={!menuExpanded ? "Gestión financiera" : undefined}>
+          <BanknotesIcon className="w-5 h-5 min-w-[20px]" />
           <span
-            className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
+            className={`transition-opacity duration-150 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
               }`}
           >
             Gestión financiera
           </span>
         </NavLink>}
 
-        {canViewPayments && <NavLink to="/pagos" className={linkClass}>
-          <CreditCardIcon className="w-6 h-6 min-w-[24px]" />
+        {canViewPayments && <NavLink to="/pagos" className={linkClass} title={!menuExpanded ? "Cobros de inquilinos" : undefined}>
+          <CreditCardIcon className="w-5 h-5 min-w-[20px]" />
           <span
-            className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
+            className={`transition-opacity duration-150 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
               }`}
           >
             Cobros de inquilinos
@@ -204,24 +204,24 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
 
         {/* Personas */}
         {canViewInternalControl && <NavLink to="/control-interno" className={linkClass} title={!menuExpanded ? "Control interno" : undefined}>
-          <ClipboardDocumentListIcon className="h-6 w-6 min-w-[24px]" />
-          <span className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"}`}>Control interno</span>
+          <ClipboardDocumentListIcon className="h-5 w-5 min-w-[20px]" />
+          <span className={`transition-opacity duration-150 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"}`}>Control interno</span>
         </NavLink>}
 
         {canViewTeodoro && <NavLink to="/teodoro" className={linkClass} title={!menuExpanded ? "Teodoro" : undefined}>
-          <ClipboardDocumentListIcon className="h-6 w-6 min-w-[24px]" />
-          <span className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"}`}>Teodoro</span>
+          <ClipboardDocumentListIcon className="h-5 w-5 min-w-[20px]" />
+          <span className={`transition-opacity duration-150 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"}`}>Teodoro</span>
         </NavLink>}
 
         {canViewDaniel && <NavLink to="/daniel" className={linkClass} title={!menuExpanded ? "Daniel" : undefined}>
-          <ClipboardDocumentListIcon className="h-6 w-6 min-w-[24px]" />
-          <span className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"}`}>Daniel</span>
+          <ClipboardDocumentListIcon className="h-5 w-5 min-w-[20px]" />
+          <span className={`transition-opacity duration-150 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"}`}>Daniel</span>
         </NavLink>}
 
-        {canViewPeople && <NavLink to="/personas" className={linkClass}>
-          <UserGroupIcon className="w-6 h-6 min-w-[24px]" />
+        {canViewPeople && <NavLink to="/personas" className={linkClass} title={!menuExpanded ? "Personas" : undefined}>
+          <UserGroupIcon className="w-5 h-5 min-w-[20px]" />
           <span
-            className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
+            className={`transition-opacity duration-150 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
               }`}
           >
             Personas
@@ -231,10 +231,10 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
         <hr className="my-1 border-white/10" />
 
         {/* Configuración */}
-        {canViewConfiguration && <NavLink to="/configuracion" className={linkClass}>
-          <Cog6ToothIcon className="w-6 h-6 min-w-[24px]" />
+        {canViewConfiguration && <NavLink to="/configuracion" className={linkClass} title={!menuExpanded ? "Configuración" : undefined}>
+          <Cog6ToothIcon className="w-5 h-5 min-w-[20px]" />
           <span
-            className={`transition-opacity duration-300 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
+            className={`transition-opacity duration-150 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"
               }`}
           >
             Configuración
@@ -250,7 +250,7 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
 
         {/* Footer de marca */}
         {menuExpanded && (
-          <div className="mt-4 border-t border-white/10 pt-4">
+          <div className="mt-2 border-t border-white/10 pt-3">
             <div className="flex flex-col items-center justify-center">
               <span className="text-xs text-on-accent-muted">© {new Date().getFullYear()} PropControl</span>
             </div>

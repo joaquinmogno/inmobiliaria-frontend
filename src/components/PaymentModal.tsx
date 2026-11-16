@@ -115,19 +115,19 @@ export default function PaymentModal({ operationScope, isOpen, onClose, onSave, 
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-[0.98]"
                         >
-                            <Dialog.Panel className="flex max-h-[100dvh] w-full max-w-md sm:max-w-xl transform flex-col overflow-hidden rounded-t-3xl border border-gray-100 bg-white text-left align-middle shadow-2xl transition-all sm:max-h-[90dvh] sm:rounded-3xl">
+                            <Dialog.Panel className="flex max-h-[100dvh] w-full max-w-md sm:max-w-xl transform flex-col overflow-hidden rounded-t-xl border border-gray-100 bg-white text-left align-middle shadow-2xl transition-all sm:max-h-[90dvh] sm:rounded-xl">
                                 <div className="flex shrink-0 items-start justify-between gap-3 border-b border-gray-100 p-4">
                                     <div>
-                                        <Dialog.Title as="h3" className="text-2xl font-black leading-6 text-gray-900 tracking-tight">
+                                        <Dialog.Title as="h3" className="text-lg font-semibold leading-6 text-gray-900 tracking-tight">
                                             Registrar pago
                                         </Dialog.Title>
-                                        <p className="text-content-muted text-sm mt-1 font-medium italic">Cobro del inquilino</p>
+                                        <p className="text-content-muted text-sm mt-1 font-normal">Cobro del inquilino</p>
                                     </div>
                                     <button
                                         type="button"
                                         onClick={onClose} disabled={submitting}
                                         aria-label="Cerrar ventana"
-                                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-gray-600 transition-all hover:bg-gray-100 hover:text-gray-900 focus:outline-none"
+                                        className="flex h-[var(--ui-control-height)] w-[var(--ui-control-height)] shrink-0 items-center justify-center rounded-xl text-gray-600 transition-all hover:bg-gray-100 hover:text-gray-900 focus:outline-none"
                                     >
                                         <XMarkIcon className="w-6 h-6" />
                                     </button>
@@ -138,9 +138,9 @@ export default function PaymentModal({ operationScope, isOpen, onClose, onSave, 
                                     <FinancialRetryNotice endpoint="/pagos" scope={operationScope} disabled={submitting} onRetry={body => void savePayment(JSON.parse(body))} />
                                     <FormError message={formError} />
                                     {/* Amount Input */}
-	                                    <div className="bg-indigo-50/50 p-4 rounded-2xl border border-indigo-100/50">
+	                                    <div className="ui-form-section">
                                         {availableCurrencies.length > 1 && (
-                                            <label htmlFor="tenant-payment-currency" className="mb-3 block text-xs font-black uppercase tracking-widest text-indigo-600">Moneda
+                                            <label htmlFor="tenant-payment-currency" className="mb-3 block text-xs font-semibold  text-indigo-600">Moneda
                                                 <AppSelect
                                                     id="tenant-payment-currency"
                                                     ariaLabel="Moneda del cobro"
@@ -173,7 +173,7 @@ export default function PaymentModal({ operationScope, isOpen, onClose, onSave, 
 	                                                )}
 	                                            </div>
 	                                        )}
-	                                        <label htmlFor="tenant-payment-amount" className="block text-xs font-black text-indigo-600 uppercase tracking-widest mb-2">
+	                                        <label htmlFor="tenant-payment-amount" className="block text-xs font-semibold text-indigo-600  mb-2">
                                             Monto Entregado
                                         </label>
                                         <NumericInput
@@ -182,7 +182,7 @@ export default function PaymentModal({ operationScope, isOpen, onClose, onSave, 
                                             min="0.01"
                                             max={activeBalance}
                                             placeholder="0.00"
-                                            className="block w-full pl-12 pr-4 py-4 text-2xl font-black text-indigo-900 bg-white border-2 border-transparent focus:border-indigo-500 focus:ring-0 rounded-2xl transition-all shadow-sm"
+                                            className="block w-full pl-12 pr-4 py-2.5 text-xl font-semibold text-indigo-900 bg-white border-2 border-transparent focus:border-indigo-500 focus:ring-0 rounded-md transition-colors"
                                             value={monto}
                                             onChange={(val) => setMonto(val.toString())}
                                             icon={<BanknotesIcon className="w-6 h-6 text-status-accent" />}
@@ -192,7 +192,7 @@ export default function PaymentModal({ operationScope, isOpen, onClose, onSave, 
                                     <div className="grid grid-cols-2 gap-4">
                                         {/* Date Input */}
                                         <div>
-                                            <label htmlFor="tenant-payment-date" className="block text-xs font-black text-gray-600 uppercase tracking-widest mb-2">
+                                            <label htmlFor="tenant-payment-date" className="block text-xs font-semibold text-gray-600  mb-2">
                                                 Fecha
                                             </label>
                                             <div className="relative">
@@ -213,7 +213,7 @@ export default function PaymentModal({ operationScope, isOpen, onClose, onSave, 
 
                                         {/* Method Selection */}
                                         <div>
-                                            <label htmlFor="tenant-payment-method" className="block text-xs font-black text-gray-600 uppercase tracking-widest mb-2">
+                                            <label htmlFor="tenant-payment-method" className="block text-xs font-semibold text-gray-600  mb-2">
                                                 Método
                                             </label>
                                             <AppSelect
@@ -229,7 +229,7 @@ export default function PaymentModal({ operationScope, isOpen, onClose, onSave, 
                                     </div>
 
                                     {metodoPago !== 'EFECTIVO' && <div>
-                                        <label htmlFor="tenant-payment-bank" className="mb-2 block text-xs font-black uppercase tracking-widest text-gray-600">Cuenta donde ingresó *</label>
+                                        <label htmlFor="tenant-payment-bank" className="mb-2 block text-xs font-semibold  text-gray-600">Cuenta donde ingresó *</label>
                                         <AppSelect id="tenant-payment-bank" required ariaLabel="Cuenta bancaria" value={cuentaBancariaId} onChange={setCuentaBancariaId} options={[{ value: '', label: 'Seleccionar cuenta' }, ...cuentas.filter(c => c.moneda === monedaPago).map(c => ({ value: String(c.id), label: `${c.banco} — ${c.nombre}` }))]} buttonClassName="border-transparent bg-gray-50 font-bold" />
                                     </div>}
 
@@ -237,9 +237,9 @@ export default function PaymentModal({ operationScope, isOpen, onClose, onSave, 
 
                                     {/* Observations */}
                                     <div>
-                                        <label htmlFor="tenant-payment-reference" className="block text-xs font-black text-gray-600 uppercase tracking-widest mb-2">Referencia o comprobante</label>
-                                        <input id="tenant-payment-reference" value={comprobante} maxLength={120} onChange={event => setComprobante(event.target.value)} className="mb-3 min-h-11 w-full rounded-xl border border-gray-300 px-3 text-sm" placeholder="N.º de transferencia, cheque o recibo" />
-                                        <label htmlFor="tenant-payment-observations" className="block text-xs font-black text-gray-600 uppercase tracking-widest mb-2">
+                                        <label htmlFor="tenant-payment-reference" className="block text-xs font-semibold text-gray-600  mb-2">Referencia o comprobante</label>
+                                        <input id="tenant-payment-reference" value={comprobante} maxLength={120} onChange={event => setComprobante(event.target.value)} className="mb-3 min-h-[var(--ui-control-height)] w-full rounded-xl border border-gray-300 px-3 text-sm" placeholder="N.º de transferencia, cheque o recibo" />
+                                        <label htmlFor="tenant-payment-observations" className="block text-xs font-semibold text-gray-600  mb-2">
                                             Observaciones (opcional)
                                         </label>
                                         <div className="relative">

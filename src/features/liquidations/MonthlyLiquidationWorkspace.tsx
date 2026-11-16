@@ -1,3 +1,4 @@
+import MetricCard from '../../components/MetricCard';
 import CurrencyAmounts from '../../components/CurrencyAmounts';
 import LiquidationStates from './LiquidationStates';
 import EmptyState from '../../components/EmptyState';
@@ -78,20 +79,20 @@ export default function MonthlyLiquidationWorkspace() {
   ] : [];
   const open = (row: LiquidationPreparationRow) => navigate(`/liquidaciones/contrato/${row.contratoId}?periodo=${workspace.period}`);
 
-  return <section aria-labelledby="monthly-workspace-title" className="space-y-4">
+  return <section aria-labelledby="monthly-workspace-title" className="space-y-3">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div><h2 id="monthly-workspace-title" className="text-xl font-black text-gray-950 sm:text-2xl">Liquidaciones de {formatMonthYear(`${workspace.period}-01`)}</h2><p className="mt-1 text-sm text-gray-600">Contratos administrados del período · una fila por contrato, no por inmueble.</p></div>
-      <input aria-label="Mes de trabajo" type="month" value={workspace.period} onChange={event => workspace.setPeriod(event.target.value)} className="ui-field sm:w-56" />
+      <div><h2 id="monthly-workspace-title" className="ui-section-title">Liquidaciones de {formatMonthYear(`${workspace.period}-01`)}</h2><p className="mt-1 text-sm text-gray-600">Contratos administrados del período · una fila por contrato, no por inmueble.</p></div>
+      <input aria-label="Mes de trabajo" type="month" value={workspace.period} onChange={event => workspace.setPeriod(event.target.value)} className="ui-field sm:w-48" />
     </div>
 
     {workspace.loading ? <LoadingState label="Cargando el mes…" /> : !workspace.preparation ? <div role="alert" className="ui-panel p-5 text-sm text-red-800">No se pudo cargar el período.<button type="button" className="ui-button ui-button-secondary ml-3" onClick={() => void workspace.load()}>Reintentar</button></div> : <>
       <details className="text-xs text-gray-600">
-        <summary className="min-h-11 cursor-pointer py-3 font-semibold">Criterios del conteo · Mora al {formatDate(todayDateInput())}, de cualquier período</summary>
+        <summary className="cursor-pointer py-1.5 font-semibold">Criterios del conteo · Mora al {formatDate(todayDateInput())}, de cualquier período</summary>
         <p className="text-xs text-gray-600">Se cuentan contratos administrados no eliminados que corresponden a {formatMonthYear(`${workspace.period}-01`)} por sus fechas de inicio, fin y entrega de llaves. Incluye borradores, omitidos y casos a revisar; no cuenta propiedades únicas. Los indicadores no cambian al buscar o filtrar.</p>
         <p className="mt-2 text-xs text-gray-600">Mora al {formatDate(todayDateInput())}: contratos de este listado con liquidaciones confirmadas vencidas y cobro pendiente o parcial, de cualquier período. Los demás indicadores corresponden al mes seleccionado. Cobros y pagos pendientes incluyen parciales; pendientes de liquidar incluye casos listos y a revisar.</p>
       </details>
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-        {cards.map(card => <button key={card.label} type="button" onClick={() => setFilter(card.filter)} className={`rounded-xl border bg-white p-3 text-left transition-colors hover:border-indigo-400 ${filter === card.filter ? 'border-indigo-500 ring-2 ring-indigo-100' : 'border-gray-200'}`}><span className="block text-2xl font-black text-indigo-900">{card.value}</span><span className="mt-1 block text-xs font-bold text-gray-700">{card.label}</span></button>)}
+        {cards.map(card => <MetricCard key={card.label} label={card.label} value={card.value} onClick={() => setFilter(card.filter)} selected={filter === card.filter} />)}
       </div>
 
       <div className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 sm:flex-row">
@@ -104,10 +105,10 @@ export default function MonthlyLiquidationWorkspace() {
           {rows.map(row => {
             const status = stateOf(row);
             const address = [row.propiedad.direccion, row.propiedad.piso && `Piso ${row.propiedad.piso}`, row.propiedad.departamento && `Depto. ${row.propiedad.departamento}`].filter(Boolean).join(' · ');
-            return <button key={row.contratoId} type="button" onClick={() => open(row)} className="grid w-full gap-3 p-4 text-left hover:bg-indigo-50/40 focus-visible:outline-indigo-500 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto] sm:items-center">
-              <span className="min-w-0"><span className="block break-words font-black text-gray-950">{address}</span><span className="mt-1 block text-sm text-gray-700">{row.inquilino?.nombreCompleto || 'Inquilino sin definir'} · {row.propietario?.nombreCompleto || 'Propietario sin definir'}</span></span>
+            return <button key={row.contratoId} type="button" onClick={() => open(row)} className="grid w-full gap-3 p-3 text-left transition-colors hover:bg-slate-50 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] sm:items-start">
+              <span className="min-w-0"><span className="block break-words font-semibold text-gray-950">{address}</span><span className="mt-1 block text-sm text-gray-700">{row.inquilino?.nombreCompleto || 'Inquilino sin definir'} · {row.propietario?.nombreCompleto || 'Propietario sin definir'}</span></span>
               <span className="min-w-0"><span className={`ui-status ${tone[status]}`}>{labels[status]}</span><LiquidationStates documentState={row.estadoLiquidacion} tenantState={row.estadoCobroInquilino} ownerState={row.estadoPagoPropietario} closedAt={row.fechaLiquidacion} closedById={row.cerradoPorId} className="mt-2 flex-col" />{row.moraHoy && status !== 'EN_MORA' && <span className="mt-1 block text-xs font-bold text-red-800">Tiene otra liquidación vencida al día de hoy</span>}{row.motivos[0] && status === 'REQUIERE_REVISION' && <span className="mt-1 block text-xs text-orange-900">{row.motivos[0]}</span>}{row.vencida && <span className="mt-1 block text-xs font-bold text-red-800">Vence {formatDate(row.fechaVencimiento)}</span>}</span>
-              <span className="min-w-0 space-y-1 tabular-nums sm:text-right">
+              <span className="min-w-0 space-y-1 tabular-nums sm:col-span-2 xl:col-span-1 sm:text-right">
                 {row.resumenMonedas?.length ? <>
                   <span className="block text-xs text-gray-600">Total documentado</span>
                   <span className="block font-bold text-gray-950"><CurrencyAmounts amounts={row.resumenMonedas.map(item => ({ moneda: item.moneda, monto: item.netoACobrar }))} /></span>

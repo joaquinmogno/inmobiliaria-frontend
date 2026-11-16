@@ -23,7 +23,7 @@ test('la bandeja de liquidaciones y las demás vistas no desbordan en notebooks'
   ]) {
     await page.goto(route);
     await expect(page.locator('main')).toBeVisible();
-    await expect(page.locator('table:visible')).toHaveCount(['/contratos', '/pagos', '/cajachica'].includes(route) ? 1 : 0);
+    await expect(page.locator('table:visible')).toHaveCount(['/contratos', '/personas', '/pagos', '/cajachica', '/usuarios'].includes(route) ? 1 : 0);
 
     const dimensions = await page.locator('main').evaluate(element => ({
       clientWidth: element.clientWidth,
@@ -33,10 +33,10 @@ test('la bandeja de liquidaciones y las demás vistas no desbordan en notebooks'
   }
 
   await page.goto('/usuarios');
-  const userCards = page.getByTestId('mobile-user-list');
-  await expect(userCards).toBeVisible();
-  await expect(userCards.getByText(admin.email)).toBeVisible();
-  await expect(userCards.getByRole('button', { name: 'Acciones' }).first()).toBeVisible();
+  const notebookTable = page.locator('table:visible');
+  await expect(notebookTable).toBeVisible();
+  await expect(notebookTable.getByText(admin.email)).toBeVisible();
+  await expect(notebookTable.getByRole('button', { name: /Editar Administrador Integration/ })).toBeVisible();
 
   await page.goto('/configuracion');
   await page.getByRole('button', { name: 'Auditoría', exact: true }).click();

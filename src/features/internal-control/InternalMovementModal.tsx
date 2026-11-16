@@ -17,14 +17,14 @@ export const internalFileValidation = (file: File) => {
     return null;
 };
 
-export function InternalDialog({ title, busy, close, children, footer }: { title: string; busy: boolean; close: () => void; children: ReactNode; footer: ReactNode }) {
+export function InternalDialog({ title, busy, close, children, footer, wide = false }: { wide?: boolean; title: string; busy: boolean; close: () => void; children: ReactNode; footer: ReactNode }) {
     return <Dialog open onClose={() => !busy && close()} className="relative z-[90]">
         <DialogBackdrop className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
         <div className="fixed inset-0 flex items-center justify-center p-3 sm:p-5">
-            <DialogPanel className="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
-                <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4"><DialogTitle className="text-lg font-black text-gray-950">{title}</DialogTitle><button type="button" onClick={close} disabled={busy} aria-label="Cerrar ventana" className="flex h-11 w-11 items-center justify-center rounded-xl text-gray-600 hover:bg-gray-100"><XMarkIcon className="h-5 w-5" /></button></div>
+            <DialogPanel className={`flex max-h-[calc(100dvh-2rem)] w-full ${wide ? "max-w-3xl" : "max-w-xl"} flex-col overflow-hidden rounded-xl bg-white shadow-2xl`}>
+                <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4"><DialogTitle className="text-lg font-semibold text-gray-950">{title}</DialogTitle><button type="button" onClick={close} disabled={busy} aria-label="Cerrar ventana" className="flex h-[var(--ui-control-height)] w-[var(--ui-control-height)] items-center justify-center rounded-xl text-gray-600 hover:bg-gray-100"><XMarkIcon className="h-5 w-5" /></button></div>
                 <div className="modal-scroll flex-1 px-5 py-4">{children}</div>
-                <div className="flex shrink-0 flex-wrap justify-end gap-2 border-t border-gray-100 px-5 py-4">{footer}</div>
+                <div className="ui-dialog-footer">{footer}</div>
             </DialogPanel>
         </div>
     </Dialog>;
@@ -100,7 +100,7 @@ export default function InternalMovementModal({ service = controlInternoService,
             <label className="block text-sm font-bold text-gray-800">Observaciones (opcional)<textarea rows={2} maxLength={2000} value={data.observaciones} onChange={event => change('observaciones', event.target.value)} className={internalInputClass} /></label>
             {!record && <>
                 <LocalizedFilePicker id="internal-receipts" errorMessage={fileError} label="Comprobantes (opcional)" accept=".pdf,.jpg,.jpeg,.png,.webp" formatsLabel="PDF, JPG, PNG o WEBP" multiple selectedFiles={files} onFilesSelected={next => { setFiles(next); setFileError(''); }} validateFile={internalFileValidation} onValidationError={setFileError} disabled={busy} />
-                {files.length > 0 && <ul className="space-y-1 text-sm text-gray-700">{files.map((file, index) => <li key={`${file.name}-${index}`} className="flex items-center justify-between gap-2"><span className="min-w-0 break-words">{file.name}</span><button type="button" onClick={() => setFiles(current => current.filter((_, position) => position !== index))} className="min-h-11 shrink-0 px-2 font-bold text-red-800">Quitar</button></li>)}</ul>}
+                {files.length > 0 && <ul className="space-y-1 text-sm text-gray-700">{files.map((file, index) => <li key={`${file.name}-${index}`} className="flex items-center justify-between gap-2"><span className="min-w-0 break-words">{file.name}</span><button type="button" onClick={() => setFiles(current => current.filter((_, position) => position !== index))} className="min-h-[var(--ui-control-height)] shrink-0 px-2 font-bold text-red-800">Quitar</button></li>)}</ul>}
             </>}
             {record && <p className="text-xs text-gray-600">Podés agregar archivos desde «Comprobantes» en la planilla.</p>}
             </fieldset>

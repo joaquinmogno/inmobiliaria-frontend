@@ -259,10 +259,10 @@ export default function Personas() {
     if (loading && personas.length === 0) return <LoadingState label="Cargando personas…" />;
 
     return (
-        <div className="mx-auto w-full max-w-7xl">
+        <div className="ui-page">
             <div className="ui-page-header mb-6">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">Personas</h1>
+                    <h1 className="ui-title">Personas</h1>
                     <p className="mt-1 text-sm text-content-muted sm:text-base">Centraliza la información de inquilinos, propietarios y garantes</p>
                 </div>
                 {canCreate && <button
@@ -283,35 +283,36 @@ export default function Personas() {
             </div>
 
             {/* VISTA DESKTOP */}
-            <div className="hidden bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden 2xl:block">
+            <div className="hidden ui-panel overflow-hidden xl:block">
                 <div className="overflow-x-auto">
-                    <table className="tabular-nums w-full text-left border-collapse">
+                    <table className="ui-table table-fixed tabular-nums w-full text-left border-collapse">
+                        <colgroup><col className="w-[28%]" /><col className="w-[25%]" /><col className="w-[17%]" /><col className="w-[12%]" /><col className="w-[18%]" /></colgroup>
                         <thead className="sticky top-0 z-10 bg-gray-50">
                             <tr className="bg-gray-50/50 border-b border-gray-100">
-                                <th className="px-6 py-4 text-xs font-bold text-content-muted uppercase tracking-wider">Persona</th>
-                                <th className="px-6 py-4 text-xs font-bold text-content-muted uppercase tracking-wider">Contacto</th>
-                                <th className="px-6 py-4 text-xs font-bold text-content-muted uppercase tracking-wider">Roles</th>
-                                <th className="px-6 py-4 text-xs font-bold text-content-muted uppercase tracking-wider">Estado</th>
-                                <th className="sticky right-0 z-20 bg-gray-50 px-6 py-4 text-xs font-bold text-content-muted uppercase tracking-wider text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">Acciones</th>
+                                <th className="px-3 py-2.5 text-xs font-bold text-content-muted uppercase tracking-wider">Persona</th>
+                                <th className="px-3 py-2.5 text-xs font-bold text-content-muted uppercase tracking-wider">Contacto</th>
+                                <th className="px-3 py-2.5 text-xs font-bold text-content-muted uppercase tracking-wider">Roles</th>
+                                <th className="px-3 py-2.5 text-xs font-bold text-content-muted uppercase tracking-wider">Estado</th>
+                                <th className="sticky right-0 z-20 bg-gray-50 px-3 py-2.5 text-xs font-bold text-content-muted uppercase tracking-wider text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-50">
                             {personas.map((p) => (
                                 <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
-                                    <td className="px-6 py-4">
+                                    <td className="px-3 py-2.5">
                                         <div className="flex items-center gap-3">
                                             <div className="bg-indigo-50 p-2 rounded-lg">
                                                 <UserGroupIcon className="w-5 h-5 text-indigo-600" />
                                             </div>
-                                            <div className="min-w-0 max-w-64">
+                                            <div className="min-w-0">
                                                 <p className="truncate font-semibold text-gray-900" title={p.nombreCompleto}>{p.nombreCompleto}</p>
                                                 <p className="text-sm text-content-muted">{p.dni || "Sin ID"}</p>
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-3 py-2.5">
                                         <div className="text-sm">
-                                            <p className="text-gray-900">{p.email || "-"}</p>
+                                            <p className="break-words text-gray-900">{p.email || "-"}</p>
                                             {p.telefono ? (
                                                 <WhatsAppLink phone={p.telefono} className="text-content-muted" />
                                             ) : (
@@ -320,7 +321,7 @@ export default function Personas() {
                                             <p className="text-gray-600 text-xs truncate max-w-[150px]" title={p.direccion || undefined}>{p.direccion}</p>
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-3 py-2.5">
                                         <div className="flex flex-wrap gap-1">
                                             {p.roles && p.roles.length > 0 ? (
                                                 p.roles.map(role => (
@@ -333,17 +334,17 @@ export default function Personas() {
                                             )}
                                         </div>
                                     </td>
-                                    <td className="px-6 py-4">
+                                    <td className="px-3 py-2.5">
                                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${p.estado === 'ACTIVO' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                                             }`}>
                                             {getStatusLabel(p.estado)}
                                         </span>
                                     </td>
-                                    <td className="sticky right-0 z-10 bg-white px-6 py-4 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">
+                                    <td className="sticky right-0 z-10 bg-white px-3 py-2.5 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">
                                         <div className="flex justify-end gap-2">
                                             <button
                                                 onClick={() => setSelectedPersona(p)}
-                                                className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-white text-indigo-700 transition-colors hover:bg-indigo-50"
+                                                className="inline-flex h-[var(--ui-control-height)] w-[var(--ui-control-height)] items-center justify-center rounded-lg bg-white text-indigo-700 transition-colors hover:bg-indigo-50"
                                                 title="Ver ficha completa"
                                                 aria-label={`Ver ficha de ${p.nombreCompleto}`}
                                             >
@@ -351,7 +352,7 @@ export default function Personas() {
                                             </button>
                                             {canEdit && <button
                                                 onClick={() => handleEdit(p)}
-                                                className="inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-blue-700 transition-colors bg-white hover:bg-blue-50 rounded-lg"
+                                                className="inline-flex h-[var(--ui-control-height)] w-[var(--ui-control-height)] items-center justify-center text-gray-600 hover:text-blue-700 transition-colors bg-white hover:bg-blue-50 rounded-lg"
                                                 title="Editar"
                                             >
                                                 <PencilSquareIcon className="w-5 h-5" />
@@ -359,7 +360,7 @@ export default function Personas() {
                                             {canDelete && <button
                                                 onClick={() => handleDelete(p.id)}
                                                 data-danger-trigger="true"
-                                                className="destructive-icon-action inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors"
+                                                className="destructive-icon-action inline-flex h-[var(--ui-control-height)] w-[var(--ui-control-height)] items-center justify-center rounded-lg transition-colors"
                                                 title="Eliminar"
                                             >
                                                 <TrashIcon className="w-5 h-5" />
@@ -381,7 +382,7 @@ export default function Personas() {
             </div>
 
             {/* VISTA MOBILE */}
-            <div className="space-y-4 2xl:hidden">
+            <div className="grid gap-3 md:grid-cols-2 xl:hidden">
                 {personas.map((p) => (
                     <div key={p.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex flex-col gap-3">
                         <div className="flex justify-between items-start">
@@ -463,7 +464,7 @@ export default function Personas() {
                             <h2 className="text-2xl font-bold text-gray-900">
                                 {editingPersona ? "Editar persona" : "Nueva persona"}
                             </h2>
-                            <button type="button" disabled={saving} aria-label="Cerrar ventana" onClick={() => setIsModalOpen(false)} className="h-11 w-11 text-gray-600 hover:text-gray-900">
+                            <button type="button" disabled={saving} aria-label="Cerrar ventana" onClick={() => setIsModalOpen(false)} className="h-[var(--ui-control-height)] w-[var(--ui-control-height)] text-gray-600 hover:text-gray-900">
                                 ✕
                             </button>
                         </div>

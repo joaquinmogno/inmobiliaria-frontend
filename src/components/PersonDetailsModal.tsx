@@ -39,12 +39,12 @@ export default function PersonDetailsModal({ isOpen, person, canEdit, onClose, o
                                 {canEdit && <button
                                     type="button"
                                     onClick={() => { onClose(); onEdit(person); }}
-                                    className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-blue-50 px-3 text-sm font-semibold text-blue-800 hover:bg-blue-100"
+                                    className="inline-flex min-h-[var(--ui-control-height)] items-center gap-2 rounded-xl bg-blue-50 px-3 text-sm font-semibold text-blue-800 hover:bg-blue-100"
                                 >
                                     <PencilSquareIcon className="h-5 w-5" />
                                     <span className="hidden sm:inline">Editar</span>
                                 </button>}
-                                <button type="button" onClick={onClose} aria-label="Cerrar ficha" className="inline-flex h-11 w-11 items-center justify-center rounded-xl text-gray-700 hover:bg-gray-100">
+                                <button type="button" onClick={onClose} aria-label="Cerrar ficha" className="inline-flex h-[var(--ui-control-height)] w-[var(--ui-control-height)] items-center justify-center rounded-xl text-gray-700 hover:bg-gray-100">
                                     <XMarkIcon className="h-6 w-6" />
                                 </button>
                             </div>

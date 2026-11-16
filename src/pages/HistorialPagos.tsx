@@ -1,3 +1,4 @@
+import PageHeader from '../components/PageHeader';
 import { getStatusLabel } from '../utils/status';
 import AppSelect from "../components/AppSelect";
 import EmptyState from '../components/EmptyState';
@@ -235,13 +236,8 @@ export default function HistorialPagos() {
         : 'Caja';
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6 xl:space-y-4">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Cobros de inquilinos</h1>
-                    <p className="text-sm text-content-muted">Registro histórico de todos los cobros recibidos</p>
-                </div>
-            </div>
+        <div className="ui-page">
+            <PageHeader title="Cobros de inquilinos" description="Registro histórico de todos los cobros recibidos" />
 
             <FilterBar collapsibleOnMobile collapsibleOnDesktop context={<>Estado: {estadoFilter === "ANULADO" ? "Anulados" : estadoFilter === "VIGENTE" ? "Vigentes" : "Todos"} · {desdeFilter || hastaFilter ? `Período: ${desdeFilter ? formatDate(desdeFilter) : "Desde el inicio"} – ${hastaFilter ? formatDate(hastaFilter) : "Hasta hoy"}` : "Todos los períodos"}</>} activeFilterCount={activeFilterCount} query={searchTerm} onQueryChange={setSearchTerm} onClear={clearFilters} resultCount={totalItems} placeholder="Buscar por propiedad, inquilino u observaciones..." filters={<>
                 <div className="grid gap-3 min-[380px]:grid-cols-2 xl:grid-cols-4">
@@ -261,7 +257,7 @@ export default function HistorialPagos() {
                 </div>
             )}
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="ui-panel overflow-hidden">
                 <div className="divide-y divide-gray-100 xl:hidden">
                     {isLoading ? (
                         <div className="px-4 py-12 text-center text-sm text-content-muted">
@@ -278,10 +274,10 @@ export default function HistorialPagos() {
                             <article key={pago.id} className={`p-4 ${pago.anuladoEn ? "bg-gray-50" : ""}`}>
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
-                                        <p className="text-xs font-black uppercase tracking-wider text-gray-600">
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-600">
                                             {formatDate(pago.fechaPago)} · {getStatusLabel(pago.metodoPago)}
                                         </p>
-                                        <h3 className="mt-1 text-sm font-black leading-snug text-gray-900">
+                                        <h3 className="mt-1 text-sm font-semibold leading-snug text-gray-900">
                                             {formatAddress(pago.liquidacion?.contrato?.propiedad)}
                                         </h3>
                                         <p className="mt-1 text-xs text-content-muted">
@@ -297,13 +293,13 @@ export default function HistorialPagos() {
                                         </span>
                                         {canVoid && !pago.anuladoEn && (
                                             <Menu as="div" className="relative">
-                                                <MenuButton aria-label={`Acciones del pago del ${formatDate(pago.fechaPago)}`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900">
+                                                <MenuButton aria-label={`Acciones del pago del ${formatDate(pago.fechaPago)}`} className="inline-flex h-[var(--ui-control-height)] w-[var(--ui-control-height)] items-center justify-center rounded-lg text-gray-600 hover:bg-gray-100 hover:text-gray-900">
                                                     <EllipsisVerticalIcon className="h-5 w-5" aria-hidden="true" />
                                                 </MenuButton>
                                                 <Transition as={Fragment} enter="transition ease-out duration-100" enterFrom="scale-95 opacity-0" enterTo="scale-100 opacity-100" leave="transition ease-in duration-75" leaveFrom="scale-100 opacity-100" leaveTo="scale-95 opacity-0">
                                                     <MenuItems anchor="bottom end" className="z-50 mt-1 w-48 origin-top-right rounded-xl border border-gray-200 bg-white p-1 shadow-xl focus:outline-none">
                                                         <MenuItem>
-                                                            <button type="button" onClick={() => setSelectedPayment(pago)} className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold text-status-warning data-focus:bg-amber-50">
+                                                            <button type="button" onClick={() => setSelectedPayment(pago)} className="flex min-h-[var(--ui-control-height)] w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-bold text-status-warning data-focus:bg-amber-50">
                                                                 <NoSymbolIcon className="h-4 w-4" aria-hidden="true" /> Anular pago
                                                             </button>
                                                         </MenuItem>
@@ -316,7 +312,7 @@ export default function HistorialPagos() {
                                 <div className="mt-2 flex flex-wrap items-center gap-2"><span className="ui-status">{pago.anuladoEn ? "Anulado" : "Vigente"}</span>{canViewVouchers && pago.liquidacion?.id && <Link to={`/liquidaciones/${pago.liquidacion.id}#comprobantes`} className="ui-button ui-button-secondary mb-1 px-2 text-xs">Comprobantes</Link>}</div>
                                 {pago.anuladoEn && (
                                     <div className="mt-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-                                        <p className="font-black uppercase tracking-wider">Pago anulado</p>
+                                        <p className="font-semibold uppercase tracking-wider">Pago anulado</p>
                                         <p className="mt-1">{pago.motivoAnulacion}</p>
                                         <p className="mt-1 text-amber-700">Por {pago.anuladoPor?.nombreCompleto || "Sistema"} · {formatDateTime(pago.anuladoEn)}</p>
                                     </div>
@@ -330,7 +326,7 @@ export default function HistorialPagos() {
                     )}
                 </div>
                 <div className="hidden overflow-x-auto xl:block">
-                    <table className="ui-notebook-table tabular-nums divide-y divide-gray-200">
+                    <table className="ui-table ui-notebook-table tabular-nums divide-y divide-gray-200">
                         <thead className="bg-gray-50/50 whitespace-nowrap">
                             <tr>
                                 <th scope="col" className="w-[17%] 2xl:w-auto px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Fecha / Método</th>
@@ -384,7 +380,7 @@ export default function HistorialPagos() {
                                             <div className="text-sm text-gray-900">
                                                 {pago.liquidacion?.contrato?.inquilinos.find((i: any) => i.esPrincipal)?.persona.nombreCompleto || 'N/A'}
                                             </div>
-                                        </div><details className="mt-1 text-xs 2xl:hidden"><summary className="min-h-11 cursor-pointer py-3 font-semibold text-indigo-800">Datos del registro</summary>
+                                        </div><details className="mt-1 text-xs 2xl:hidden"><summary className="min-h-[var(--ui-control-height)] cursor-pointer py-3 font-semibold text-indigo-800">Datos del registro</summary>
                                             <div className="text-sm font-medium text-gray-900">
                                                 {pago.creadoPor?.nombreCompleto || pago.auditLogs?.[0]?.usuario?.nombreCompleto || 'Sistema'}
                                             </div>

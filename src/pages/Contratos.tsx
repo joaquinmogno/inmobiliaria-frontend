@@ -501,12 +501,12 @@ export default function Contratos() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6 xl:space-y-4">
+    <div className="ui-page">
       {preparingRenewal && <p role="status" className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-900">Cargando datos para la renovación…</p>}
       {/* Header & Actions */}
       <div className="ui-page-header">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="ui-title">
             {selectedList.label}
           </h1>
           <p className="text-sm text-content-muted">
@@ -613,7 +613,7 @@ export default function Contratos() {
               setCurrentPage(1);
             }}
             options={contractListOptions}
-            className="w-full sm:w-64"
+            className="w-full sm:w-56"
           />
       </FilterBar>
       <ActiveFilterChips filters={[
@@ -627,7 +627,7 @@ export default function Contratos() {
         {/* VISTA DESKTOP */}
         <div className="relative hidden overflow-x-auto rounded-t-xl xl:block">
           <p className="sr-only">Deslizá horizontalmente para ver más columnas.</p>
-          <table className="ui-notebook-table tabular-nums divide-y divide-gray-200">
+          <table className="ui-table ui-notebook-table tabular-nums divide-y divide-gray-200">
             <thead className="sticky top-0 z-10 bg-gray-50 whitespace-nowrap">
               <tr>
                 <th
@@ -679,9 +679,9 @@ export default function Contratos() {
                     className="hover:bg-gray-50 transition-colors"
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="truncate text-sm font-medium text-gray-900" title={formatAddress(contract.propiedad)}>
+                      <button type="button" onClick={() => handleViewDetails(contract)} className="break-words text-left text-sm font-medium text-slate-900 hover:text-indigo-700 hover:underline" title={formatAddress(contract.propiedad)}>
                         {formatAddress(contract.propiedad)}
-                      </div>
+                      </button>
                       <div className="flex flex-wrap gap-1">
                         {contractStatusBadge(contract.estado)}
                         <div className={`text-xs font-bold mt-1 inline-block px-2 py-0.5 rounded border ${contract.administrado ? 'bg-green-50 text-green-700 border-green-100' : 'bg-amber-50 text-amber-700 border-amber-100'}`}>
@@ -719,10 +719,10 @@ export default function Contratos() {
                     </td>
 
                     <td className="sticky right-0 z-10 bg-white px-6 py-4 whitespace-nowrap text-right text-sm font-medium shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">
-                      <div className="flex items-start justify-end gap-1">{canViewFinancials && <button type="button" aria-label="Liquidaciones y comprobantes" onClick={() => navigate(`/liquidaciones/contrato/${contract.id}`)} className="ui-button ui-button-secondary px-2 text-xs">Comprobantes</button>}
+                      <div className="flex items-start justify-end gap-1">{canViewFinancials && <button type="button" aria-label="Liquidaciones y comprobantes" onClick={() => navigate(`/liquidaciones/contrato/${contract.id}`)} className="ui-button ui-button-secondary px-2">Comprobantes</button>}
                       <Menu as="div" className="inline-block text-left">
                         <div>
-                          <MenuButton aria-label="Acciones del contrato" className="inline-flex h-11 w-11 items-center justify-center text-gray-600 hover:text-indigo-600 rounded-full hover:bg-indigo-50 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
+                          <MenuButton aria-label="Acciones del contrato" className="inline-flex h-[var(--ui-control-height)] w-[var(--ui-control-height)] items-center justify-center text-gray-600 hover:text-indigo-600 rounded-full hover:bg-indigo-50 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500/20">
                             <EllipsisVerticalIcon className="w-5 h-5" />
                           </MenuButton>
                         </div>
@@ -849,7 +849,7 @@ export default function Contratos() {
                              </div>
                         </div>
                         <Menu as="div" className="relative">
-                            <MenuButton aria-label="Acciones del contrato" className="flex h-11 w-11 items-center justify-center text-gray-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-full transition-all duration-200 cursor-pointer focus:outline-none">
+                            <MenuButton aria-label="Acciones del contrato" className="flex h-[var(--ui-control-height)] w-[var(--ui-control-height)] items-center justify-center text-gray-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-full transition-all duration-200 cursor-pointer focus:outline-none">
                                 <EllipsisVerticalIcon className="w-6 h-6" />
                             </MenuButton>
                             <Transition

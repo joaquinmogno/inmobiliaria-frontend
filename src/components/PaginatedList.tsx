@@ -35,10 +35,10 @@ export default function PaginatedList<T>({
     };
 
     return (
-        <section>
+        <section className="ui-panel p-4">
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold text-gray-900">{title}</h2>
+                    <h2 className="text-base font-semibold text-gray-900">{title}</h2>
                     {items.length > 0 && (
                         <span
                             className={`${badgeColors[badgeColor]} px-2 py-0.5 rounded-full text-xs font-semibold`}
@@ -55,17 +55,17 @@ export default function PaginatedList<T>({
                             {currentPage} de {totalPages}
                         </span>
                         <div className="flex gap-1">
-                            <button
+                            <button aria-label="Página anterior"
                                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                                 disabled={currentPage === 1}
-                                className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
+                                className="flex h-[var(--ui-control-height)] w-[var(--ui-control-height)] items-center justify-center rounded-md hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
                             >
                                 <ChevronLeftIcon className="w-4 h-4 text-gray-600" />
                             </button>
-                            <button
+                            <button aria-label="Página siguiente"
                                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                                 disabled={currentPage === totalPages}
-                                className="flex h-11 w-11 items-center justify-center rounded-md hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
+                                className="flex h-[var(--ui-control-height)] w-[var(--ui-control-height)] items-center justify-center rounded-md hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer disabled:cursor-not-allowed"
                             >
                                 <ChevronRightIcon className="w-4 h-4 text-gray-600" />
                             </button>

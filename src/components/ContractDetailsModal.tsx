@@ -165,12 +165,12 @@ export default function ContractDetailsModal({
 
     const getStatusBadge = (estado: string) => {
         switch (estado) {
-            case 'BORRADOR': return <span className="bg-gray-50 text-content-muted px-2 py-0.5 rounded text-xs font-black border border-gray-200 uppercase tracking-widest">Borrador</span>;
-            case 'PENDIENTE_PAGO': return <span className="bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded text-xs font-black border border-yellow-200 uppercase tracking-widest">Pendiente</span>;
-            case 'PAGADA_POR_INQUILINO': return <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-black border border-blue-200 uppercase tracking-widest">Cobrada</span>;
-            case 'LIQUIDADA': return <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-xs font-black border border-green-200 uppercase tracking-widest">Finalizada</span>;
-            case 'CONFIRMADA': return <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs font-black border border-indigo-200 uppercase tracking-widest">Confirmada</span>;
-            case 'ANULADA': return <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded text-xs font-black border border-red-200 uppercase tracking-widest">Anulada</span>;
+            case 'BORRADOR': return <span className="bg-gray-50 text-content-muted px-2 py-0.5 rounded text-xs font-semibold border border-gray-200 uppercase tracking-widest">Borrador</span>;
+            case 'PENDIENTE_PAGO': return <span className="bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded text-xs font-semibold border border-yellow-200 uppercase tracking-widest">Pendiente</span>;
+            case 'PAGADA_POR_INQUILINO': return <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs font-semibold border border-blue-200 uppercase tracking-widest">Cobrada</span>;
+            case 'LIQUIDADA': return <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded text-xs font-semibold border border-green-200 uppercase tracking-widest">Finalizada</span>;
+            case 'CONFIRMADA': return <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-xs font-semibold border border-indigo-200 uppercase tracking-widest">Confirmada</span>;
+            case 'ANULADA': return <span className="bg-red-50 text-red-700 px-2 py-0.5 rounded text-xs font-semibold border border-red-200 uppercase tracking-widest">Anulada</span>;
             default: return <span className="text-gray-600 text-xs font-bold uppercase tracking-widest">{getStatusLabel(estado)}</span>;
         }
     };
@@ -219,7 +219,7 @@ export default function ContractDetailsModal({
             CONDONADO: "bg-teal-50 text-teal-700 border-teal-200"
         };
         const labels = { VIGENTE: "Vigente", CUMPLIDO: "Cumplido", CANCELADO: "Cancelado", REPROGRAMADO: "Reprogramado", CONDONADO: "Condonado" };
-        return <span className={`rounded border px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${styles[estado]}`}>{labels[estado]}</span>;
+        return <span className={`rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${styles[estado]}`}>{labels[estado]}</span>;
     };
 
     const getInstallmentStatusBadge = (estado: NonNullable<PlanCuotas["cuotas"]>[number]["estado"]) => {
@@ -549,7 +549,7 @@ export default function ContractDetailsModal({
                                                                         <p className="font-bold text-gray-800 flex items-center gap-1.5">
 	                                                                            <span className="text-gray-600 font-medium">{formatMoney(Number(actualizacion.montoAnterior), actualizacion.moneda || contract.moneda)}</span>
 	                                                                            <span className="text-status-warning">→</span>
-	                                                                            <span className="text-indigo-600 font-black tracking-tight">{formatMoney(Number(actualizacion.montoNuevo), actualizacion.moneda || contract.moneda)}</span>
+	                                                                            <span className="text-indigo-600 font-semibold tracking-tight">{formatMoney(Number(actualizacion.montoNuevo), actualizacion.moneda || contract.moneda)}</span>
                                                                         </p>
                                                                     </div>
                                                                     <div>
@@ -557,7 +557,7 @@ export default function ContractDetailsModal({
                                                                         <p className="font-bold text-gray-800 flex items-center gap-1.5">
                                                                             <span className="text-gray-600 font-medium">{formatDate(actualizacion.fechaProximaAnterior || "")}</span>
                                                                             <span className="text-status-warning">→</span>
-                                                                            <span className="text-indigo-600 font-black tracking-tight">{formatDate(actualizacion.fechaProximaNueva)}</span>
+                                                                            <span className="text-indigo-600 font-semibold tracking-tight">{formatDate(actualizacion.fechaProximaNueva)}</span>
                                                                         </p>
                                                                     </div>
                                                                 </div>
@@ -776,7 +776,7 @@ export default function ContractDetailsModal({
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center gap-2">
-                                                                <span className="text-sm font-black text-gray-900">{`${plan.moneda} ${formatCurrencyWithCents(plan.montoTotal, plan.moneda)}`}</span>
+                                                                <span className="text-sm font-semibold text-gray-900">{`${plan.moneda} ${formatCurrencyWithCents(plan.montoTotal, plan.moneda)}`}</span>
                                                                 {canEditLiquidations && plan.estado === "VIGENTE" && (
                                                                     <div className="flex flex-wrap justify-end gap-1">
                                                                         <button onClick={() => setPlanLifecycleAction({ plan, action: "CANCELAR" })} className="rounded-md border border-orange-200 bg-orange-50 px-2 py-1 text-[10px] font-bold text-orange-700 hover:bg-orange-100">Cancelar</button>
@@ -860,7 +860,7 @@ export default function ContractDetailsModal({
                                     {onRenew && !hasRenewedContract && contract.estado !== 'PAPELERA' && (
                                         <button
                                             onClick={() => onRenew(contract)}
-                                            className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 text-sm font-medium text-violet-800 transition-colors hover:bg-violet-100"
+                                            className="flex min-h-[var(--ui-control-height)] items-center justify-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 text-sm font-medium text-violet-800 transition-colors hover:bg-violet-100"
                                         >
                                             <ArrowPathIcon className="w-5 h-5" />
                                             Renovar contrato
@@ -869,7 +869,7 @@ export default function ContractDetailsModal({
                                     {onRescind && canEditContracts && ['ACTIVO', 'EN_CIERRE', 'FINALIZADO', 'RESCINDIDO'].includes(contract.estado) && (
                                         <button
                                             onClick={() => onRescind(contract)}
-                                            className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 text-sm font-medium text-orange-800 transition-colors hover:bg-orange-100"
+                                            className="flex min-h-[var(--ui-control-height)] items-center justify-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 text-sm font-medium text-orange-800 transition-colors hover:bg-orange-100"
                                         >
                                             <NoSymbolIcon className="w-5 h-5" />
                                             Entrega de llaves y cierre
@@ -879,7 +879,7 @@ export default function ContractDetailsModal({
                                         <button
                                             onClick={() => onDelete(contract.id)}
                                             data-danger-trigger="true"
-                                            className="destructive-action flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors"
+                                            className="destructive-action flex min-h-[var(--ui-control-height)] items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium transition-colors"
                                         >
                                             <TrashIcon className="w-5 h-5" />
                                             Mover a papelera
@@ -888,7 +888,7 @@ export default function ContractDetailsModal({
                                     </div>
                                     <button
                                         type="button"
-                                        className="min-h-11 px-6 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100"
+                                        className="min-h-[var(--ui-control-height)] px-6 py-2 text-sm font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-100"
                                         onClick={onClose}
                                     >
                                         Cerrar

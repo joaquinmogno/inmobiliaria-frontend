@@ -163,7 +163,7 @@ export default function PlanLifecycleModal({ isOpen, plan, action, onClose, onCo
                                             </div>
                                             <div>
                                                 <label htmlFor="reprogram-first-period" className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-gray-700">Primer período</label>
-                                                <input id="reprogram-first-period" type="month" required value={fechaPrimeraCuota} onChange={event => setFechaPrimeraCuota(event.target.value)} className="block min-h-11 w-full rounded-xl border border-gray-300 bg-gray-50/50 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
+                                                <input id="reprogram-first-period" type="month" required value={fechaPrimeraCuota} onChange={event => setFechaPrimeraCuota(event.target.value)} className="block min-h-[var(--ui-control-height)] w-full rounded-xl border border-gray-300 bg-gray-50/50 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500" />
                                             </div>
                                             {totalChanged && !loading && Number(montoTotal) > 0 && <p role="status" className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">El nuevo total cambia de {formatCurrencyWithCents(effectiveSummary!.montoPendienteDisponible, plan.moneda)} a {formatCurrencyWithCents(montoTotal, plan.moneda)}. Explicá esa diferencia en el motivo; quedará registrada.</p>}
                                             <InstallmentPreviewPanel {...quote} />

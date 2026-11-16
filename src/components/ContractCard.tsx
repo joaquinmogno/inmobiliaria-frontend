@@ -30,25 +30,25 @@ export default function ContractCard({
     const badgeTextClass = badgeColor === "red" ? "text-red-700" : "text-orange-700";
 
     return (
-        <div className={`bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 border-l-4 ${borderClass}`}>
-            <div className="flex justify-between items-start gap-4">
+        <div className={`bg-white p-3 rounded-md border border-slate-200 transition-colors hover:bg-slate-50 border-l-2 ${borderClass}`}>
+            <div className="flex flex-wrap justify-between items-start gap-3">
                 <div className="flex-1 min-w-0">
-                    <a
+                    <button type="button"
                         onClick={onClick}
-                        className="font-semibold text-base text-indigo-600 hover:text-indigo-800 cursor-pointer transition-colors"
+                        className="text-left font-medium text-sm text-indigo-700 hover:text-indigo-800 cursor-pointer transition-colors"
                     >
                         {address}
-                    </a>
+                    </button>
 
                     <div className="mt-2 space-y-1">
                         <div className="flex items-center gap-1.5 text-sm text-gray-600">
                             <UserIcon className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                            <span className="truncate"><span className="font-medium">Propietario:</span> {owner}</span>
+                            <span className="break-words"><span className="font-medium">Propietario:</span> {owner}</span>
                         </div>
 
                         <div className="flex items-center gap-1.5 text-sm text-gray-600">
                             <UsersIcon className="w-4 h-4 text-gray-600 flex-shrink-0" />
-                            <span className="truncate"><span className="font-medium">Inquilino:</span> {tenant}</span>
+                            <span className="break-words"><span className="font-medium">Inquilino:</span> {tenant}</span>
                         </div>
                     </div>
                 </div>

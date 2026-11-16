@@ -44,7 +44,7 @@ export default function Header({ toggleMobileMenu, mobileMenuOpen = false, menuB
 
   return (
     <>
-    <header inert={inert || undefined} className="relative z-30 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 text-slate-700 sm:px-6">
+    <header inert={inert || undefined} className="relative z-30 flex h-14 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 text-slate-700 sm:px-5">
 
       {/* En escritorio, la marca permanece en el menú lateral. */}
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
@@ -68,7 +68,7 @@ export default function Header({ toggleMobileMenu, mobileMenuOpen = false, menuB
         {/* Dropdown del usuario */}
         <Menu as="div" className="relative">
           <MenuButton
-            className="group flex items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-slate-100 sm:gap-3 sm:px-3 sm:py-2"
+            className="group flex items-center gap-2 rounded-lg p-1.5 transition-colors hover:bg-slate-100 sm:gap-3 sm:px-3 sm:py-1"
           >
             <span className="sr-only">Menú de usuario</span>
             <div className="hidden max-w-40 text-right xl:block">
@@ -76,7 +76,7 @@ export default function Header({ toggleMobileMenu, mobileMenuOpen = false, menuB
               <p className="hidden truncate text-xs text-slate-500 2xl:block">{user?.tipo === "ADMIN" ? "Administrador" : user?.rol?.nombre || "Usuario"}</p>
             </div>
 
-            <div aria-hidden="true" className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700 ring-1 ring-slate-200">
+            <div aria-hidden="true" className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-slate-700 ring-1 ring-slate-200">
               {user ? getInitials(user.fullName) : "U"}
             </div>
 

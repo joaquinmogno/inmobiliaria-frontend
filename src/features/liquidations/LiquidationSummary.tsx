@@ -26,21 +26,21 @@ export default function LiquidationSummary({ liquidacion, summaries, canEdit, on
         || liquidacion.contrato?.propietarios.find(person => person.esPrincipal)?.persona.nombreCompleto || 'Sin definir';
     const tenant = liquidacion.inquilinoNombre
         || liquidacion.contrato?.inquilinos.find(person => person.esPrincipal)?.persona.nombreCompleto || 'Sin definir';
-    const moneyClass = 'mt-1 break-words text-xl font-black tracking-tight [overflow-wrap:anywhere]';
-    const cardClass = 'min-w-0 p-3';
+    const moneyClass = 'mt-1 break-words text-lg font-semibold tracking-tight tabular-nums [overflow-wrap:anywhere]';
+    const cardClass = 'min-w-0 rounded-md border border-slate-200 p-3';
 
-    return <section data-testid="liquidation-document" aria-labelledby="liquidation-title" className="ui-panel min-w-0 p-4 sm:p-5">
+    return <section data-testid="liquidation-document" aria-labelledby="liquidation-title" className="ui-panel min-w-0 p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-            <h1 id="liquidation-title" className="text-xl font-black text-gray-950 sm:text-2xl">
+            <h1 id="liquidation-title" className="ui-title">
                 Resumen de liquidación <span className="capitalize">· {formatMonthYear(liquidacion.periodo)}</span>
             </h1>
-            <span className={`rounded-full px-3 py-1 text-xs font-bold ${liquidacion.estado === 'BORRADOR' ? 'bg-amber-100 text-amber-900' : liquidacion.estado === 'CONFIRMADA' ? 'bg-emerald-100 text-emerald-900' : 'bg-gray-100 text-gray-700'}`}>
+            <span className={`rounded-full px-3 py-1 text-xs font-bold ${liquidacion.estado === 'BORRADOR' ? 'bg-amber-100 text-amber-900' : liquidacion.estado === 'CONFIRMADA' ? 'bg-emerald-100 text-slate-950' : 'bg-gray-100 text-gray-700'}`}>
                 Documento: {getLiquidationStatusLabel(liquidacion.estado)} · N° {String(liquidacion.id).padStart(6, '0')}
             </span>
         </div>
         <LiquidationStates documentState={liquidacion.estado} tenantState={liquidacion.estadoCobroInquilino} ownerState={liquidacion.estadoPagoPropietario} closedAt={liquidacion.fechaLiquidacion} closedById={liquidacion.cerradoPorId ?? liquidacion.cerradoPor?.id} className="mt-2" />
         <dl className="mt-3 grid gap-4 border-y border-slate-100 py-3 text-sm sm:grid-cols-2 xl:grid-cols-[1.4fr_1fr_1fr_auto]">
-            <div className="min-w-0"><dt className="text-xs font-bold text-gray-600">Inmueble</dt><dd data-testid="liquidation-fact-value" className="break-words font-black text-gray-950">{address}</dd></div>
+            <div className="min-w-0"><dt className="text-xs font-bold text-gray-600">Inmueble</dt><dd data-testid="liquidation-fact-value" className="break-words font-semibold text-gray-950">{address}</dd></div>
             <div className="min-w-0"><dt className="text-xs font-bold text-gray-600">Propietario</dt><dd data-testid="liquidation-fact-value" className="break-words font-bold text-gray-900">{owner}</dd></div>
             <div className="min-w-0"><dt className="text-xs font-bold text-gray-600">Inquilino</dt><dd data-testid="liquidation-fact-value" className="break-words font-bold text-gray-900">{tenant}</dd></div>
             <div><dt className="text-xs font-bold text-gray-600">Vencimiento de pago</dt><dd className="font-bold text-gray-900">{formatDate(liquidacion.fechaVencimiento)}</dd></div>
@@ -68,10 +68,10 @@ export default function LiquidationSummary({ liquidacion, summaries, canEdit, on
                 {summaries.map(summary => <p data-testid="liquidation-summary-amount" key={summary.moneda} className={`${moneyClass} text-gray-950`}>{formatCurrency(summary.netoACobrar, summary.moneda)}</p>)}
                 <p className="mt-2 text-xs text-gray-600">Total de este período</p>
             </div>
-            <div data-testid="liquidation-summary-card" className={`${cardClass} rounded-lg bg-emerald-50`}>
-                <h2 className="text-xs font-bold text-emerald-800">Neto propietario</h2>
-                {summaries.map(summary => <p data-testid="liquidation-summary-amount" key={summary.moneda} className={`${moneyClass} text-emerald-900`}>{formatCurrency(summary.montoPropietario, summary.moneda)}</p>)}
-                <p className="mt-2 text-xs text-emerald-800">Luego de honorarios y descuentos</p>
+            <div data-testid="liquidation-summary-card" className={`${cardClass} bg-slate-50`}>
+                <h2 className="text-xs font-bold text-slate-700">Neto propietario</h2>
+                {summaries.map(summary => <p data-testid="liquidation-summary-amount" key={summary.moneda} className={`${moneyClass} text-slate-950`}>{formatCurrency(summary.montoPropietario, summary.moneda)}</p>)}
+                <p className="mt-2 text-xs text-slate-700">Luego de honorarios y descuentos</p>
             </div>
         </div>
         {summaries.length > 1 && <p className="mt-2 text-xs font-semibold text-indigo-800">Pesos y dólares se administran por separado. Cada importe conserva su moneda.</p>}

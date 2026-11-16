@@ -163,7 +163,7 @@ export default function NewPlanCuotasModal({ isOpen, onClose, contratoId, onSucc
                                             id="installment-plan-first-period"
                                             type="month"
                                             required
-                                            className="block min-h-11 w-full rounded-xl border border-gray-300 bg-gray-50/50 px-4 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                            className="block min-h-[var(--ui-control-height)] w-full rounded-xl border border-gray-300 bg-gray-50/50 px-4 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500"
                                             value={fechaPrimeraCuota}
                                             onChange={(event) => setFechaPrimeraCuota(event.target.value)}
                                         />

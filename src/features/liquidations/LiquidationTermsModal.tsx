@@ -68,15 +68,15 @@ export default function LiquidationTermsModal({ mode, liquidacion, canEditContra
             if (saved) onClose();
         } finally { setSaving(false); }
     };
-    const inputClass = 'mt-1 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200';
+    const inputClass = 'mt-1 min-h-[var(--ui-control-height)] w-full rounded-xl border border-gray-300 bg-white px-3 text-sm text-gray-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200';
 
     return <Dialog open onClose={close} className="relative z-[100]">
         <DialogBackdrop className="fixed inset-0 bg-black/40 backdrop-blur-sm" />
         <div className="fixed inset-0 flex items-center justify-center p-3 sm:p-5">
             <DialogPanel className="flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
                 <div className="flex shrink-0 items-center justify-between border-b border-gray-100 px-5 py-4">
-                    <DialogTitle className="text-xl font-black text-gray-950">{isRent ? 'Editar alquiler' : 'Editar honorarios'}</DialogTitle>
-                    <button type="button" onClick={close} disabled={saving} aria-label="Cerrar edición" className="flex h-11 w-11 items-center justify-center rounded-xl text-gray-600 hover:bg-gray-100"><XMarkIcon className="h-5 w-5" /></button>
+                    <DialogTitle className="text-xl font-semibold text-gray-950">{isRent ? 'Editar alquiler' : 'Editar honorarios'}</DialogTitle>
+                    <button type="button" onClick={close} disabled={saving} aria-label="Cerrar edición" className="flex h-[var(--ui-control-height)] w-[var(--ui-control-height)] items-center justify-center rounded-xl text-gray-600 hover:bg-gray-100"><XMarkIcon className="h-5 w-5" /></button>
                 </div>
                 <form id="liquidation-terms-form" onSubmit={event => void submit(event)} className="modal-scroll flex-1 space-y-4 px-5 py-4">
                     {isRent ? <>
@@ -98,7 +98,7 @@ export default function LiquidationTermsModal({ mode, liquidacion, canEditContra
                     </>}
                     <label className="block text-sm font-bold text-gray-800">Motivo del cambio<textarea value={reason} onChange={event => setReason(event.target.value)} required minLength={5} maxLength={1000} rows={2} placeholder={isRent ? 'Ej.: actualización según IPC o acuerdo del período' : 'Ej.: porcentaje acordado en el contrato'} className={`${inputClass} py-2`} /></label>
                     <div aria-live="polite" className="rounded-xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-950">
-                        <p className="mb-2 font-black">Vista previa · {liquidacion.moneda}</p>
+                        <p className="mb-2 font-semibold">Vista previa · {liquidacion.moneda}</p>
                         <p className="flex justify-between gap-3">Alquiler completo <strong>{formatCurrency(isRent ? rent : Number(liquidacion.montoAlquilerBase), liquidacion.moneda)}</strong></p>
                         <p className="mt-1 flex justify-between gap-3">Honorarios <strong>{formatCurrency(fee, liquidacion.moneda)}</strong></p>
                         <p className="mt-2 flex justify-between gap-3 border-t border-indigo-200 pt-2">Neto propietario <strong>{formatCurrency(ownerPreview, liquidacion.moneda)}</strong></p>
@@ -107,8 +107,8 @@ export default function LiquidationTermsModal({ mode, liquidacion, canEditContra
                     </div>
                 </form>
                 <div className="flex shrink-0 justify-end gap-2 border-t border-gray-100 px-5 py-4">
-                    <button type="button" disabled={saving} onClick={close} className="min-h-11 rounded-xl border border-gray-300 px-4 text-sm font-bold text-gray-700">Cancelar</button>
-                    <button type="submit" form="liquidation-terms-form" disabled={!valid || saving} className="min-h-11 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50">{saving ? 'Guardando…' : 'Guardar y recalcular'}</button>
+                    <button type="button" disabled={saving} onClick={close} className="min-h-[var(--ui-control-height)] rounded-xl border border-gray-300 px-4 text-sm font-bold text-gray-700">Cancelar</button>
+                    <button type="submit" form="liquidation-terms-form" disabled={!valid || saving} className="min-h-[var(--ui-control-height)] rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50">{saving ? 'Guardando…' : 'Guardar y recalcular'}</button>
                 </div>
             </DialogPanel>
         </div>

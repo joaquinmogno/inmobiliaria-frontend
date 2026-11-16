@@ -405,14 +405,14 @@ export default function CajaChica() {
         : movimiento.cuentaBancaria ? `${movimiento.cuentaBancaria.banco} — ${movimiento.cuentaBancaria.nombre}` : 'Banco histórico';
 
     return (
-        <div className="max-w-7xl mx-auto space-y-6 xl:space-y-4 pb-20">
+        <div className="ui-page pb-4">
             <header data-testid="cash-header" className="space-y-3">
             <div className="flex flex-col items-stretch justify-between gap-4 xl:flex-row xl:items-center">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Gestión Financiera</h1>
+                    <h1 className="ui-title">Gestión Financiera</h1>
                     <p className="text-sm text-content-muted">Caja por fecha real de movimiento. Los saldos se muestran al cierre del período elegido.</p>
                 </div>
-                <div className="ui-page-actions xl:max-2xl:w-[440px] xl:max-2xl:shrink-0">
+                <div className="ui-page-actions">
                     {canCreate && <button
                         onClick={() => setIsModalOpen(true)}
                         className="ui-button ui-button-primary w-full sm:w-auto"
@@ -433,16 +433,16 @@ export default function CajaChica() {
                 {(['ARS', 'USD'] as Moneda[]).map(moneda => {
                     const totals = meta?.totalesPorMoneda?.[moneda];
                     const money = (amount: number | undefined) => amount === undefined ? '—' : formatCurrency(amount, moneda);
-                    return <section key={moneda} aria-label={`Caja ${moneda}`} className="ui-panel min-w-0 p-3">
+                    return <section key={moneda} aria-label={`Caja ${moneda}`} className="ui-panel min-w-0 p-3 tabular-nums">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                            <h2 className="text-sm font-black text-gray-900">{moneda}</h2>
+                            <h2 className="text-sm font-semibold text-indigo-800">{moneda}</h2>
                             <p className="text-xs text-gray-600">Saldo acumulado al cierre · {String(selectedMonth).padStart(2, '0')}/{selectedYear}: <strong className="text-gray-950">{money(totals?.balance)}</strong></p>
                         </div>
-                        <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                            <div><dt className="inline text-gray-600">Efectivo: </dt><dd className="inline font-bold">{money(totals?.balanceCaja)}</dd></div>
-                            <div><dt className="inline text-gray-600">Banco: </dt><dd className="inline font-bold">{money(totals?.balanceBanco)}</dd></div>
-                            <div><dt className="inline text-gray-600">Ingresos del mes: </dt><dd className="inline font-bold">{money(totals?.totalIngresos)}</dd></div>
-                            <div><dt className="inline text-gray-600">Egresos del mes: </dt><dd className="inline font-bold">{money(totals?.totalEgresos)}</dd></div>
+                        <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                            <div><dt className="text-xs text-gray-600">Efectivo: </dt><dd className="font-medium text-slate-900">{money(totals?.balanceCaja)}</dd></div>
+                            <div><dt className="text-xs text-gray-600">Banco: </dt><dd className="font-medium text-slate-900">{money(totals?.balanceBanco)}</dd></div>
+                            <div><dt className="text-xs text-gray-600">Ingresos del mes: </dt><dd className="font-medium text-slate-900">{money(totals?.totalIngresos)}</dd></div>
+                            <div><dt className="text-xs text-gray-600">Egresos del mes: </dt><dd className="font-medium text-slate-900">{money(totals?.totalEgresos)}</dd></div>
                         </dl>
                         <p className="mt-1 text-xs text-gray-600">Excedente de cobros sobre pagos a dueños · mes: <strong>{money(totals?.fondosEnCustodia)}</strong></p>
                     </section>;
@@ -450,10 +450,10 @@ export default function CajaChica() {
             </div>
             </header>
 
-            <details aria-labelledby="cash-closing-title" className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
+            <details aria-labelledby="cash-closing-title" className="ui-panel p-3">
                 <summary className="cursor-pointer text-sm font-semibold text-gray-900">
                     <span id="cash-closing-title">Cierres por cuenta y moneda</span> · Período {formatMonthYear(selectedPeriod)}
-                    <span className="mt-2 flex flex-wrap gap-2">{closingTargets.map(target => <span key={`${target.cuenta}-${target.cuentaBancariaId || 'caja'}-${target.moneda}`} className="ui-status bg-slate-50 text-slate-800">{target.label}: {getCashClosing(target)?.estado === 'CERRADO' ? 'Cerrado' : getCashClosing(target)?.estado === 'REABIERTO' ? 'Reabierto' : 'Abierto'}</span>)}</span>
+                    <span className="ml-2 inline-flex flex-wrap gap-2 font-normal text-slate-600">{closingTargets.length} cuentas / monedas · {closingTargets.filter(target => getCashClosing(target)?.estado === 'CERRADO').length} cerradas · {closingTargets.filter(target => getCashClosing(target)?.estado === 'REABIERTO').length} reabiertas · {closingTargets.filter(target => !getCashClosing(target)).length} abiertas</span>
                 </summary>
                 <p className="mt-3 text-sm text-gray-600">Cada conciliación bloquea únicamente los movimientos de esa cuenta, moneda y período.</p>
                 <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -470,21 +470,21 @@ export default function CajaChica() {
                         return <article key={`${target.cuenta}-${target.cuentaBancariaId || 'caja'}-${target.moneda}`} className={`min-w-0 rounded-xl border p-4 ${stateTone}`}>
                             <div className="flex items-start justify-between gap-2">
                                 <div className="min-w-0">
-                                    <h3 className="break-words font-black">{target.label}</h3>
+                                    <h3 className="break-words font-semibold">{target.label}</h3>
                                     <p className="mt-1 text-xs font-bold uppercase tracking-wide">{stateLabel}</p>
                                 </div>
-                                {isClosed ? <span className="rounded-full bg-white/70 px-2 py-1 text-[10px] font-black uppercase">Bloqueado</span> : <span className="rounded-full bg-white/70 px-2 py-1 text-[10px] font-black uppercase">Operable</span>}
+                                {isClosed ? <span className="rounded-full bg-white/70 px-2 py-1 text-[10px] font-semibold uppercase">Bloqueado</span> : <span className="rounded-full bg-white/70 px-2 py-1 text-[10px] font-semibold uppercase">Operable</span>}
                             </div>
                             <p className="mt-4 text-xs font-bold uppercase tracking-wide">Saldo de sistema</p>
-                            <p className="mt-1 text-lg font-black">{formatCurrency(Number(saldoSistema), target.moneda)}</p>
+                            <p className="mt-1 text-lg font-semibold">{formatCurrency(Number(saldoSistema), target.moneda)}</p>
                             {closing && <>
                                 <p className="mt-3 text-xs">Declarado {formatCurrency(Number(closing.saldoDeclarado), target.moneda)} · diferencia {formatCurrency(Number(closing.diferencia), target.moneda)}</p>
                                 <p className="mt-1 text-xs">V{closing.version} · {formatDateTime(closing.cerradoEn)} · {closing.cerradoPor.nombreCompleto}</p>
                                 {closing.estado === 'REABIERTO' && <p className="mt-1 text-xs font-semibold">Reabierto: {closing.motivoReapertura || 'sin motivo informado'}</p>}
                             </>}
                             <div className="mt-4 flex flex-wrap gap-2">
-                                {canCloseCash && !isClosed && (target.cuenta === 'CAJA' || target.cuentaBancariaId) && <button type="button" onClick={() => void handleClosePeriod(target)} className="min-h-10 rounded-lg border border-indigo-300 bg-white px-3 text-xs font-black text-indigo-800 hover:bg-indigo-50">Cerrar</button>}
-                                {canReopenCash && isClosed && closing && <button type="button" onClick={() => void handleReopenPeriod(target, closing)} className="min-h-10 rounded-lg border border-amber-300 bg-white px-3 text-xs font-black text-amber-900 hover:bg-amber-100">Reabrir</button>}
+                                {canCloseCash && !isClosed && (target.cuenta === 'CAJA' || target.cuentaBancariaId) && <button type="button" onClick={() => void handleClosePeriod(target)} className="min-h-10 rounded-lg border border-indigo-300 bg-white px-3 text-xs font-semibold text-indigo-800 hover:bg-indigo-50">Cerrar</button>}
+                                {canReopenCash && isClosed && closing && <button type="button" onClick={() => void handleReopenPeriod(target, closing)} className="min-h-10 rounded-lg border border-amber-300 bg-white px-3 text-xs font-semibold text-amber-900 hover:bg-amber-100">Reabrir</button>}
                                 {closing && <details className="relative text-xs text-gray-800"><summary className="flex min-h-10 cursor-pointer items-center rounded-lg border border-gray-300 bg-white px-3 font-bold hover:bg-gray-50">Historial ({closing.eventos.length})</summary><ol className="absolute right-0 z-20 mt-1 w-72 space-y-1 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">{closing.eventos.map(evento => <li key={evento.id}><span className="font-bold">V{evento.version} · {evento.tipo === 'CIERRE' ? 'Cierre' : 'Reapertura'}</span> · {formatDateTime(evento.fechaCreacion)} · {evento.usuario.nombreCompleto}{evento.motivo ? ` · ${evento.motivo}` : ''}</li>)}</ol></details>}
                             </div>
                         </article>;
@@ -497,7 +497,7 @@ export default function CajaChica() {
                 <div className="flex flex-wrap items-center gap-3">
                 {/* Período */}
                 <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-black text-gray-600 uppercase tracking-widest">Período:</span>
+                    <span className="text-xs font-semibold text-gray-600 uppercase tracking-widest">Período:</span>
                     <AppSelect
                         ariaLabel="Mes"
                         value={String(selectedMonth)}
@@ -558,7 +558,7 @@ export default function CajaChica() {
             ]} onClearAll={() => { const [year, month] = currentMonthInput().split('-').map(Number); setSearchTerm(''); setTipoFilter(''); setEstadoFilter(''); setCuentaFilter(''); setSelectedYear(year); setSelectedMonth(month); }} />
 
             {/* Table */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden min-h-[300px]">
+            <div className="ui-panel overflow-hidden min-h-[300px]">
                 <div className="divide-y divide-gray-100 xl:hidden">
                     {isLoading ? (
                         <LoadingState compact label="Cargando movimientos…" />
@@ -569,11 +569,11 @@ export default function CajaChica() {
                             <article key={mov.id} className={`p-4 ${mov.anuladoEn ? "bg-gray-50" : ""}`}>
                                 <div className="flex items-start justify-between gap-3">
                                     <div className="min-w-0">
-                                        <p className="text-xs font-black uppercase tracking-wider text-gray-600">{formatMovementDate(mov.fecha)}</p>
-                                        <h3 className="mt-1 text-sm font-black leading-snug text-gray-900">{mov.concepto}</h3>
+                                        <p className="text-xs font-semibold uppercase tracking-wider text-gray-600">{formatMovementDate(mov.fecha)}</p>
+                                        <h3 className="mt-1 text-sm font-semibold leading-snug text-gray-900">{mov.concepto}</h3>
                                         {mov.observaciones && <p className="mt-1 text-xs text-content-muted">{mov.observaciones}</p>}
                                     </div>
-                                    <span className={`shrink-0 text-sm font-black tabular-nums ${mov.tipo === 'INGRESO' ? 'text-status-success' : 'text-status-danger'}`}>
+                                    <span className={`shrink-0 text-sm font-semibold tabular-nums ${mov.tipo === 'INGRESO' ? 'text-status-success' : 'text-status-danger'}`}>
                                         {formatSignedCurrency(mov.tipo === 'INGRESO' ? Math.abs(Number(mov.monto)) : -Math.abs(Number(mov.monto)), mov.moneda, true)}
                                     </span>
                                 </div>
@@ -587,22 +587,22 @@ export default function CajaChica() {
                                     <span className="text-xs font-medium text-content-muted">{mov.creadoPor?.nombreCompleto || 'Sistema'}</span>
                                 </div>
                                 {mov.transferenciaInternaId && <p className="mt-2 text-xs font-bold text-indigo-700">Transferencia interna #{mov.transferenciaInternaId}</p>}
-                                {!mov.transferenciaInternaId && !mov.reversionDeId && <button type="button" onClick={() => setReceiptMovement(mov.id)} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 px-3 py-2 text-sm font-bold text-indigo-800 hover:bg-indigo-50"><DocumentTextIcon className="h-4 w-4" aria-hidden="true" /> Recibo PDF</button>}
+                                {!mov.transferenciaInternaId && !mov.reversionDeId && <button type="button" onClick={() => setReceiptMovement(mov.id)} className="mt-3 inline-flex min-h-[var(--ui-control-height)] w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 px-3 py-2 text-sm font-bold text-indigo-800 hover:bg-indigo-50"><DocumentTextIcon className="h-4 w-4" aria-hidden="true" /> Recibo PDF</button>}
                                 {((mov.adjuntos?.length || 0) > 0 || (canCreate && !mov.anuladoEn)) && (
-                                    <button type="button" onClick={() => { setMovementForAttachments(mov); setPendingAttachments([]); }} className="mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-800 hover:bg-indigo-100">
+                                    <button type="button" onClick={() => { setMovementForAttachments(mov); setPendingAttachments([]); }} className="mt-3 inline-flex min-h-[var(--ui-control-height)] w-full items-center justify-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-bold text-indigo-800 hover:bg-indigo-100">
                                         <PaperClipIcon className="h-4 w-4" /> {mov.adjuntos?.length ? `Comprobantes (${mov.adjuntos.length})` : 'Adjuntar comprobantes'}
                                     </button>
                                 )}
                                 {mov.anuladoEn && (
                                     <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-                                        <p className="font-black uppercase tracking-wider">Movimiento anulado</p>
+                                        <p className="font-semibold uppercase tracking-wider">Movimiento anulado</p>
                                         <p className="mt-1">{mov.motivoAnulacion}</p>
                                         <p className="mt-1 text-amber-700">Por {mov.anuladoPor?.nombreCompleto || "Sistema"}</p>
                                     </div>
                                 )}
                                 {mov.reversionDeId && <p className="mt-2 text-xs font-bold text-indigo-700">Asiento inverso del movimiento #{mov.reversionDeId}</p>}
                                 {canVoid && isManualReversible(mov) && (
-                                    <button type="button" onClick={() => setSelectedMovement(mov)} data-danger-trigger="true" className="destructive-action mt-3 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition-colors">
+                                    <button type="button" onClick={() => setSelectedMovement(mov)} data-danger-trigger="true" className="destructive-action mt-3 inline-flex min-h-[var(--ui-control-height)] w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition-colors">
                                         <NoSymbolIcon className="h-4 w-4" /> Anular movimiento
                                     </button>
                                 )}
@@ -611,7 +611,7 @@ export default function CajaChica() {
                     )}
                 </div>
                 <div className="hidden overflow-x-auto xl:block">
-                <table className="ui-notebook-table tabular-nums divide-y divide-gray-100">
+                <table className="ui-table ui-notebook-table tabular-nums divide-y divide-gray-100">
                     <thead className="bg-gray-50/50">
                         <tr>
                             <th scope="col" className="w-[13%] 2xl:w-auto px-6 py-4 text-left text-xs font-semibold text-content-muted uppercase tracking-wider">Fecha</th>
@@ -660,7 +660,7 @@ export default function CajaChica() {
                                         {mov.creadoPor?.nombreCompleto || 'Sistema'}
                                     </td>
                                     <td className={`sticky right-0 z-10 px-6 py-4 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)] ${mov.anuladoEn ? "bg-gray-50" : "bg-white"}`}>
-                                        {!mov.transferenciaInternaId && !mov.reversionDeId && <button type="button" onClick={() => setReceiptMovement(mov.id)} className="inline-flex min-h-11 items-center gap-1 rounded-lg px-3 py-2 text-sm font-bold text-indigo-800 hover:bg-indigo-50"><DocumentTextIcon className="h-4 w-4" aria-hidden="true" /> Recibo PDF</button>}
+                                        {!mov.transferenciaInternaId && !mov.reversionDeId && <button type="button" onClick={() => setReceiptMovement(mov.id)} className="inline-flex min-h-[var(--ui-control-height)] items-center gap-1 rounded-lg px-3 py-2 text-sm font-bold text-indigo-800 hover:bg-indigo-50"><DocumentTextIcon className="h-4 w-4" aria-hidden="true" /> Recibo PDF</button>}
                                         {((mov.adjuntos?.length || 0) > 0 || (canCreate && !mov.anuladoEn)) && (
                                             <button type="button" onClick={() => { setMovementForAttachments(mov); setPendingAttachments([]); }} className="inline-flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-bold text-indigo-700 hover:bg-indigo-50">
                                                 <PaperClipIcon className="h-4 w-4" /> Comprobantes ({mov.adjuntos?.length || 0})
@@ -688,11 +688,11 @@ export default function CajaChica() {
             </div>
 
             {meta?.saldosBancarios && Object.keys(meta.saldosBancarios).length > 0 && <details className="rounded-2xl border border-blue-100 bg-blue-50/40 p-4 sm:p-5">
-                <summary className="flex min-h-11 cursor-pointer items-center gap-2"><BuildingLibraryIcon className="h-5 w-5 text-blue-700" /><h2 className="font-bold text-gray-900">Saldos por cuenta bancaria</h2></summary>
+                <summary className="flex min-h-[var(--ui-control-height)] cursor-pointer items-center gap-2"><BuildingLibraryIcon className="h-5 w-5 text-blue-700" /><h2 className="font-bold text-gray-900">Saldos por cuenta bancaria</h2></summary>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                     {Object.values(meta.saldosBancarios).map(cuenta => <div key={cuenta.id} className="rounded-xl border border-blue-100 bg-white p-3">
                         <p className="text-sm font-bold text-gray-900">{cuenta.banco} — {cuenta.nombre}</p>
-                        <p className="mt-1 text-lg font-black text-blue-800">{formatCurrency(cuenta.saldo, cuenta.moneda)}</p>
+                        <p className="mt-1 text-lg font-semibold text-blue-800">{formatCurrency(cuenta.saldo, cuenta.moneda)}</p>
                         <p className="mt-1 text-xs text-gray-600">Ingresos {formatCurrency(cuenta.ingresos, cuenta.moneda)} · Egresos {formatCurrency(cuenta.egresos, cuenta.moneda)}</p>
                         {!cuenta.activa && <p className="mt-1 text-xs font-semibold text-gray-500">Cuenta inactiva / histórica</p>}
                     </div>)}
@@ -701,7 +701,7 @@ export default function CajaChica() {
 
             {/* KPIs Principales */}
             {meta && (
-                <details className="ui-panel p-3"><summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold">Indicadores adicionales del período · ARS</summary><p className="mt-3 text-sm text-gray-700">Efectivo al cierre: {formatCurrency(meta.balanceCaja)} · Banco al cierre: {formatCurrency(meta.balanceBanco)}</p><div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <details className="ui-panel p-3"><summary className="min-h-[var(--ui-control-height)] cursor-pointer py-3 text-sm font-semibold">Indicadores adicionales del período · ARS</summary><p className="mt-3 text-sm text-gray-700">Efectivo al cierre: {formatCurrency(meta.balanceCaja)} · Banco al cierre: {formatCurrency(meta.balanceBanco)}</p><div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                     {/* Cobrado Inquilinos */}
                     <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 transition-all hover:shadow-md">
                         <div className="flex items-center justify-between mb-3">
@@ -711,7 +711,7 @@ export default function CajaChica() {
                             <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">Caja del período</span>
                         </div>
                         <p className="text-xs font-medium text-content-muted mb-1">Cobrado a inquilinos</p>
-                        <p className="text-xl font-black text-gray-900">
+                        <p className="text-xl font-semibold text-gray-900">
                             {formatCurrency(meta.totalCobrado)}
                         </p>
                     </div>
@@ -725,7 +725,7 @@ export default function CajaChica() {
                             <span className="text-xs font-bold text-status-danger bg-red-50 px-2 py-0.5 rounded-full uppercase tracking-widest">Salidas</span>
                         </div>
                         <p className="text-xs font-medium text-content-muted mb-1">Pagado Propietarios</p>
-                        <p className="text-xl font-black text-gray-900">
+                        <p className="text-xl font-semibold text-gray-900">
                             {formatCurrency(meta.totalPagadoPropietarios)}
                         </p>
                     </div>
@@ -739,7 +739,7 @@ export default function CajaChica() {
                             <span className="text-xs font-bold text-white bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-widest">Inmobiliaria</span>
                         </div>
                         <p className="mb-1 text-xs font-medium text-indigo-100">Otros ingresos de caja</p>
-                        <p className="text-xl font-black text-white">
+                        <p className="text-xl font-semibold text-white">
                             {formatCurrency(meta.gananciaBruta)}
                         </p>
                     </div>
@@ -753,7 +753,7 @@ export default function CajaChica() {
                             <span className="text-xs font-bold text-status-warning bg-amber-50 px-2 py-0.5 rounded-full uppercase tracking-widest">Gastos</span>
                         </div>
                         <p className="text-xs font-medium text-content-muted mb-1">Otros egresos</p>
-                        <p className="text-xl font-black text-gray-900">
+                        <p className="text-xl font-semibold text-gray-900">
                             {formatCurrency(meta.gastosGenerales)}
                         </p>
                     </div>
@@ -767,7 +767,7 @@ export default function CajaChica() {
                             <span className="rounded-full bg-white/15 px-2 py-0.5 text-xs font-bold text-white">Al cierre del período</span>
                         </div>
                         <p className="text-xs font-medium text-content-on-dark-muted mb-1">Saldo total de caja</p>
-                        <p className="text-xl font-black text-white">
+                        <p className="text-xl font-semibold text-white">
                             {formatCurrency(meta.balanceGeneral)}
                         </p>
                     </div>
@@ -865,8 +865,8 @@ export default function CajaChica() {
 
                         </form>
                         <div className="ui-dialog-footer">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="min-h-11 flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 cursor-pointer">Cancelar</button>
-                                <button type="submit" form="cash-movement-form" className="min-h-11 flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-xl hover:bg-indigo-700 cursor-pointer">Guardar</button>
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="min-h-[var(--ui-control-height)] flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 cursor-pointer">Cancelar</button>
+                                <button type="submit" form="cash-movement-form" className="min-h-[var(--ui-control-height)] flex-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-xl hover:bg-indigo-700 cursor-pointer">Guardar</button>
                         </div>
                     </DialogPanel>
                 </Dialog>
@@ -932,7 +932,7 @@ export default function CajaChica() {
                                             ))}
                                         </ul>
                                     )}
-                                    <button type="button" onClick={() => void uploadPendingAttachments()} disabled={pendingAttachments.length === 0 || isUploadingAttachments} className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
+                                    <button type="button" onClick={() => void uploadPendingAttachments()} disabled={pendingAttachments.length === 0 || isUploadingAttachments} className="mt-4 inline-flex min-h-[var(--ui-control-height)] w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50">
                                         <PaperClipIcon className="h-4 w-4" /> {isUploadingAttachments ? 'Subiendo comprobantes…' : `Subir ${pendingAttachments.length || ''} comprobante${pendingAttachments.length === 1 ? '' : 's'}`}
                                     </button>
                                 </section>
@@ -961,7 +961,7 @@ export default function CajaChica() {
                             <label className="block text-sm font-medium text-gray-700">Concepto *<input required maxLength={255} value={transferData.concepto} onChange={event => setTransferData({ ...transferData, concepto: event.target.value })} placeholder="Ej. Fondeo de cuenta operativa" className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
                             <label className="block text-sm font-medium text-gray-700">Observación<textarea rows={2} maxLength={1000} value={transferData.observaciones} onChange={event => setTransferData({ ...transferData, observaciones: event.target.value })} className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2" /></label>
                         </form>
-                        <div className="ui-dialog-footer"><button type="button" onClick={() => setIsTransferModalOpen(false)} className="min-h-11 flex-1 rounded-xl border border-gray-300 px-4 text-sm font-bold text-gray-700">Cancelar</button><button type="submit" form="cash-transfer-form" className="min-h-11 flex-1 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white hover:bg-indigo-700">Transferir</button></div>
+                        <div className="ui-dialog-footer"><button type="button" onClick={() => setIsTransferModalOpen(false)} className="min-h-[var(--ui-control-height)] flex-1 rounded-xl border border-gray-300 px-4 text-sm font-bold text-gray-700">Cancelar</button><button type="submit" form="cash-transfer-form" className="min-h-[var(--ui-control-height)] flex-1 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white hover:bg-indigo-700">Transferir</button></div>
                     </DialogPanel>
                 </Dialog>
             )}

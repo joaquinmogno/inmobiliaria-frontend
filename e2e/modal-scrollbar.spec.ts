@@ -27,8 +27,11 @@ async function openFixture(page: Page, modal: string) {
     if (modal === 'reauthentication') await page.getByRole('button', { name: 'Abrir popup' }).click();
     if (modal === 'user-create') await page.getByRole('button', { name: 'Nuevo usuario' }).click();
     if (modal === 'user-reset') {
-        await page.getByRole('article', { name: 'Usuario de prueba' }).getByRole('button', { name: 'Acciones' }).click();
-        await page.getByRole('menuitem', { name: 'Cambiar contraseña' }).click();
+        if (page.viewportSize()!.width >= 1280) await page.getByRole('button', { name: 'Cambiar contraseña de Usuario de prueba', exact: true }).click();
+        else {
+            await page.getByRole('article', { name: 'Usuario de prueba' }).getByRole('button', { name: 'Acciones' }).click();
+            await page.getByRole('menuitem', { name: 'Cambiar contraseña' }).click();
+        }
     }
     if (modal === 'person-create') await page.getByRole('button', { name: /Nueva persona/i }).click();
     if (modal === 'cash-create') await page.getByRole('button', { name: /Nuevo movimiento/i }).click();

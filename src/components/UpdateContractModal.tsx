@@ -116,13 +116,13 @@ export default function UpdateContractModal({
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <p className="text-xs text-status-accent font-bold uppercase">Monto Actual</p>
-                                                <p className="text-sm font-black text-indigo-900">
+                                                <p className="text-sm font-semibold text-indigo-900">
 	                                                    {formatCurrency(contract.montoAlquiler, contract.moneda)}
                                                 </p>
                                             </div>
                                             <div>
                                                 <p className="text-xs text-status-accent font-bold uppercase">Próxima Fecha</p>
-                                                <p className="text-sm font-black text-indigo-900">
+                                                <p className="text-sm font-semibold text-indigo-900">
                                                     {contract.requiereActualizacion
                                                         ? formatDate(contract.fechaProximaActualizacion || "")
                                                         : "No programada"}

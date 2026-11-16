@@ -14,7 +14,7 @@ const PermissionList = ({ title, permissions }: { title: string; permissions?: s
     if (!permissions?.length) return null;
     return (
         <div className="space-y-1">
-            <p className="text-xs font-black uppercase tracking-wide text-gray-600">{title}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">{title}</p>
             <div className="flex flex-wrap gap-1.5">
                 {permissions.map(permission => <span key={`${title}-${permission}`} className="rounded-lg border border-gray-100 bg-gray-50 px-2 py-1 text-xs font-bold text-gray-600">{PERMISSION_LABELS[permission as PermissionKey] || permission}</span>)}
             </div>
@@ -103,8 +103,8 @@ export default function AuditLogSettings({ refreshToken }: { refreshToken: numbe
     const empty = <EmptyState filtered={filtered} title="Todavía no hay eventos de auditoría" description="Las operaciones registradas aparecerán aquí." onClear={clearFilters} />;
     const failure = <div role="alert" className="p-4 text-sm text-red-800">No se pudo cargar la auditoría. Los filtros se conservaron.<button type="button" onClick={() => void loadLogs(page)} className="ui-button ui-button-secondary ml-3">Reintentar</button></div>;
     return (
-        <section className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-            <div className="flex items-center justify-between border-b border-gray-100 p-4 sm:p-6">
+        <section className="overflow-hidden ui-panel">
+            <div className="flex items-center justify-between border-b border-gray-100 p-4">
                 <h2 className="flex items-center text-lg font-semibold text-gray-900"><ListBulletIcon className="mr-2 h-5 w-5 text-indigo-600" />Registro de actividad (auditoría)</h2>
             </div>
             <p className="px-4 pt-3 text-xs text-gray-600">Fechas y horas de Buenos Aires · formato de 24 horas.</p>
@@ -119,7 +119,7 @@ export default function AuditLogSettings({ refreshToken }: { refreshToken: numbe
             </div>
             <div className="divide-y divide-gray-100 2xl:hidden">
                 {loading ? <LoadingState compact label="Cargando auditoría…" /> : loadError ? failure : logs.length === 0 ? empty : logs.map(log => (
-                    <article key={log.id} className="p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-black uppercase tracking-wider text-indigo-700">{log.accion.replace(/_/g, ' ')}</p><h3 className="mt-1 text-sm font-bold text-gray-900">{log.usuario?.nombreCompleto || 'Sistema'}</h3></div><span className={`shrink-0 rounded-full px-2 py-1 text-xs font-bold ${log.resultado === 'FALLIDO' ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{log.resultado === 'FALLIDO' ? 'Fallido' : 'Éxito'}</span></div><p className="mt-2 text-xs text-gray-600">{formatDateTime(log.fechaCreacion)}</p><div className="mt-2 text-sm text-gray-600"><AuditDetail log={log} /></div>{log.entidadId && <p className="mt-1 text-xs text-gray-600">{log.entidad} #{log.entidadId}</p>}<p className="mt-2 break-all text-xs text-gray-600">IP: {log.ipAddress || '-'} · Solicitud: {log.requestId || '-'}</p></article>
+                    <article key={log.id} className="p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="text-xs font-semibold uppercase tracking-wider text-indigo-700">{log.accion.replace(/_/g, ' ')}</p><h3 className="mt-1 text-sm font-bold text-gray-900">{log.usuario?.nombreCompleto || 'Sistema'}</h3></div><span className={`shrink-0 rounded-full px-2 py-1 text-xs font-bold ${log.resultado === 'FALLIDO' ? 'bg-red-50 text-red-700' : 'bg-emerald-50 text-emerald-700'}`}>{log.resultado === 'FALLIDO' ? 'Fallido' : 'Éxito'}</span></div><p className="mt-2 text-xs text-gray-600">{formatDateTime(log.fechaCreacion)}</p><div className="mt-2 text-sm text-gray-600"><AuditDetail log={log} /></div>{log.entidadId && <p className="mt-1 text-xs text-gray-600">{log.entidad} #{log.entidadId}</p>}<p className="mt-2 break-all text-xs text-gray-600">IP: {log.ipAddress || '-'} · Solicitud: {log.requestId || '-'}</p></article>
                 ))}
             </div>
             <table className="tabular-nums hidden w-full text-left 2xl:table">

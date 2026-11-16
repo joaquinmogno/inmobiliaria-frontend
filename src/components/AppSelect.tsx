@@ -50,7 +50,7 @@ export default function AppSelect({
 
   return (
     <Listbox value={value} onChange={onChange} disabled={disabled} name={name}>
-      <div className={`relative ${className}`}>
+      <div className={`relative min-w-0 ${className}`}>
         <ListboxButton
           id={selectId}
           aria-label={accessibleLabel}
@@ -75,7 +75,7 @@ export default function AppSelect({
               key={option.value}
               value={option.value}
               disabled={option.disabled}
-              className="group flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-gray-700 outline-none transition data-disabled:cursor-not-allowed data-disabled:opacity-45 data-focus:bg-indigo-50 data-focus:text-indigo-950 data-selected:bg-indigo-600 data-selected:text-white"
+              className="group flex min-h-9 cursor-pointer items-center gap-3 rounded-md px-2.5 py-2 text-gray-700 outline-none transition data-disabled:cursor-not-allowed data-disabled:opacity-45 data-focus:bg-indigo-50 data-focus:text-indigo-950 data-selected:bg-indigo-600 data-selected:text-white"
             >
               <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-gray-300 group-data-selected:border-white/50 group-data-selected:bg-white/15">
                 <CheckIcon className="h-3.5 w-3.5 opacity-0 group-data-selected:opacity-100" aria-hidden="true" />

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { ApiError } from '../services/api';
 import { movementReceiptService as service, type ReceiptContext, type ReceiptFields, type ReceiptModule } from '../services/movement-receipt.service';
@@ -18,6 +18,9 @@ export default function MovementReceiptModal({ module, movementId, canIssue, clo
     const [error, setError] = useState('');
     const [conflict, setConflict] = useState(false);
     const [preview, setPreview] = useState<string | null>(null);
+    const previewSection = useRef<HTMLElement>(null);
+    const formHeading = useRef<HTMLHeadingElement>(null);
+    const wasPreview = useRef(false);
     const [reload, setReload] = useState(0);
 
     useEffect(() => {
@@ -30,6 +33,12 @@ export default function MovementReceiptModal({ module, movementId, canIssue, clo
         return () => { active = false; };
     }, [module, movementId, reload]);
     useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+    useEffect(() => {
+        const target = preview ? previewSection.current : wasPreview.current ? formHeading.current : null;
+        target?.scrollIntoView({ block: 'start' });
+        target?.focus({ preventScroll: true });
+        wasPreview.current = Boolean(preview);
+    }, [preview]);
 
     const handleError = (cause: unknown) => {
         setError(cause instanceof Error ? cause.message : 'No se pudo completar la operación');
@@ -66,18 +75,33 @@ export default function MovementReceiptModal({ module, movementId, canIssue, clo
         finally { setBusy(''); }
     };
     const allowed = canIssue && context?.puedeEmitir;
-    return <InternalDialog title={`Recibo del movimiento #${movementId}`} busy={Boolean(busy)} close={close} footer={<>
-        <button type="button" onClick={close} disabled={Boolean(busy)} className="min-h-11 rounded-xl border border-gray-300 px-4 text-sm font-bold text-gray-700">Cerrar</button>
+    return <InternalDialog wide title={`Recibo del movimiento #${movementId}`} busy={Boolean(busy)} close={close} footer={<>
+        <button type="button" onClick={close} disabled={Boolean(busy)} className="min-h-[var(--ui-control-height)] rounded-xl border border-gray-300 px-4 text-sm font-bold text-gray-700">Cerrar</button>
+        {preview && <button type="button" onClick={() => setPreview(null)} disabled={Boolean(busy)} className="ui-button ui-button-secondary">Volver a editar</button>}
         {allowed && editing && !conflict && (preview
-            ? <button type="button" onClick={() => void issue()} disabled={Boolean(busy)} className="min-h-11 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white disabled:opacity-50">{busy === 'emitir' ? 'Emitiendo…' : context.ultimaVersion ? 'Emitir nueva versión' : 'Emitir recibo'}</button>
-            : <button type="submit" form="movement-receipt-form" disabled={Boolean(busy)} className="min-h-11 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white disabled:opacity-50">{busy === 'preview' ? 'Preparando…' : 'Vista previa'}</button>)}
+            ? <button type="button" onClick={() => void issue()} disabled={Boolean(busy)} className="min-h-[var(--ui-control-height)] rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white disabled:opacity-50">{busy === 'emitir' ? 'Emitiendo…' : context.ultimaVersion ? 'Emitir nueva versión' : 'Emitir recibo'}</button>
+            : <button type="submit" form="movement-receipt-form" disabled={Boolean(busy)} className="min-h-[var(--ui-control-height)] rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white disabled:opacity-50">{busy === 'preview' ? 'Preparando…' : 'Vista previa'}</button>)}
     </>}>
         {busy === 'cargar' && <p role="status" className="text-sm text-gray-600">Cargando recibo…</p>}
-        {error && <div role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800"><p>{error}</p><button type="button" disabled={Boolean(busy)} onClick={refresh} className="mt-2 min-h-11 font-bold underline">Volver a cargar los datos</button></div>}
+        {error && <div role="alert" className="mb-4 rounded-xl bg-red-50 p-3 text-sm text-red-800"><p>{error}</p><button type="button" disabled={Boolean(busy)} onClick={refresh} className="mt-2 min-h-[var(--ui-control-height)] font-bold underline">Volver a cargar los datos</button></div>}
         {context && <>
-            <div className="mb-4 rounded-xl bg-indigo-50 p-4 text-sm text-indigo-950">
+            {preview ? <section ref={previewSection} tabIndex={-1} aria-label="Vista previa del recibo" className="space-y-3">
+                <div>
+                    <h3 className="ui-section-title">2. Revisar y emitir</h3>
+                    <p role="status" className="mt-1 text-sm text-slate-600">Vista previa generada. El recibo todavía no se emitió.</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+                    <a href={preview} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-[var(--ui-control-height)] items-center font-medium text-indigo-800 underline">Abrir vista previa en otra pestaña</a>
+                    <a href={preview} download={`vista-previa-recibo-${movementId}.pdf`} className="inline-flex min-h-[var(--ui-control-height)] items-center font-medium text-indigo-800 underline">Descargar vista previa</a>
+                </div>
+                <iframe title="Vista previa del recibo PDF" src={preview} className="h-[min(55dvh,36rem)] w-full rounded-lg border border-gray-200" />
+                <p className="text-xs text-slate-600">Si no ves el PDF, abrilo en otra pestaña o descargalo. Para corregir los datos, elegí «Volver a editar».</p>
+            </section> : <>
+            {allowed && editing && <h3 ref={formHeading} tabIndex={-1} className="ui-section-title mb-3">1. Datos del recibo</h3>}
+            {busy === 'preview' && <p role="status" className="mb-3 rounded-lg bg-indigo-50 p-3 text-sm text-indigo-800">Preparando la vista previa…</p>}
+            <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
                 <p className="break-words font-bold">{context.movimiento.concepto}</p>
-                <p className="mt-1 text-xl font-black">{formatCurrencyWithCents(Number(context.movimiento.monto), context.movimiento.moneda)} <span className="text-sm">{context.movimiento.moneda}</span></p>
+                <p className="mt-1 text-xl font-semibold">{formatCurrencyWithCents(Number(context.movimiento.monto), context.movimiento.moneda)} <span className="text-sm">{context.movimiento.moneda}</span></p>
                 <p className="mt-1">{formatDate(context.movimiento.fecha)} · {context.movimiento.metodoPago?.replace(/_/g, ' ') || 'Medio de pago no informado'}</p>
             </div>
             {context.bloqueo && <p className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{context.bloqueo}</p>}
@@ -87,28 +111,24 @@ export default function MovementReceiptModal({ module, movementId, canIssue, clo
                     <div className="flex flex-wrap items-center justify-between gap-2"><strong>Versión {row.version}</strong><span className={`rounded-full px-2 py-1 text-xs font-bold ${row.estado === 'VIGENTE' ? 'bg-emerald-50 text-emerald-800' : 'bg-amber-50 text-amber-900'}`}>{states[row.estado]}</span></div>
                     <p className="mt-1 break-words text-xs text-gray-600">{formatDateTime(row.fechaEmision)} · {row.creadoPor}</p>
                     {row.motivo && <p className="mt-2 break-words text-gray-700">Motivo: {row.motivo}</p>}
-                    <button type="button" onClick={() => void open(row.version)} disabled={Boolean(busy)} className="mt-2 min-h-11 rounded-lg border border-indigo-200 px-3 font-bold text-indigo-800 disabled:opacity-50" aria-label={`Ver PDF versión ${row.version}`}>Ver PDF / imprimir</button>
+                    <button type="button" onClick={() => void open(row.version)} disabled={Boolean(busy)} className="mt-2 min-h-[var(--ui-control-height)] rounded-lg border border-indigo-200 px-3 font-bold text-indigo-800 disabled:opacity-50" aria-label={`Ver PDF versión ${row.version}`}>Ver PDF / imprimir</button>
                 </li>)}</ul>
                 <p className="mt-2 text-xs text-gray-600">Podés descargar o imprimir el PDF y adjuntar la copia firmada en los comprobantes del movimiento.</p>
-                {allowed && !editing && <button type="button" disabled={Boolean(busy)} onClick={() => setEditing(true)} className="mt-3 min-h-11 rounded-xl border border-indigo-300 px-4 text-sm font-bold text-indigo-800">{context.versiones[0].estado === 'DESACTUALIZADO' ? 'Actualizar recibo' : 'Corregir recibo'}</button>}
+                {allowed && !editing && <button type="button" disabled={Boolean(busy)} onClick={() => setEditing(true)} className="mt-3 min-h-[var(--ui-control-height)] rounded-xl border border-indigo-300 px-4 text-sm font-bold text-indigo-800">{context.versiones[0].estado === 'DESACTUALIZADO' ? 'Actualizar recibo' : 'Corregir recibo'}</button>}
             </section>}
             {!context.versiones.length && !allowed && <p className="text-sm text-gray-600">Este movimiento todavía no tiene un recibo emitido.</p>}
             {allowed && editing && <form id="movement-receipt-form" onSubmit={event => void showPreview(event)} className="space-y-4">
                 <p className="text-sm text-gray-600">Completá los datos que verá quien recibe el comprobante. La firma se agrega al imprimirlo.</p>
-                <fieldset disabled={Boolean(busy) || conflict} className="space-y-4">
+                <fieldset disabled={Boolean(busy) || conflict} className="grid gap-4 sm:grid-cols-2">
                     <label className="block text-sm font-bold text-gray-800">Entrega el dinero *<input required maxLength={180} value={fields.pagador} onChange={event => change('pagador', event.target.value)} className={internalInputClass} /></label>
                     <label className="block text-sm font-bold text-gray-800">Recibe el dinero *<input required maxLength={180} value={fields.receptor} onChange={event => change('receptor', event.target.value)} className={internalInputClass} /></label>
                     <label className="block text-sm font-bold text-gray-800">DNI/CUIT de quien recibe (opcional)<input maxLength={40} value={fields.documentoReceptor} onChange={event => change('documentoReceptor', event.target.value)} className={internalInputClass} /></label>
                     <label className="block text-sm font-bold text-gray-800">Inmueble (opcional)<input maxLength={255} value={fields.inmueble} onChange={event => change('inmueble', event.target.value)} className={internalInputClass} /></label>
-                    <label className="block text-sm font-bold text-gray-800">Concepto del recibo *<textarea required rows={3} maxLength={1500} value={fields.descripcion} onChange={event => change('descripcion', event.target.value)} className={internalInputClass} /></label>
-                    {context.ultimaVersion > 0 && <label className="block text-sm font-bold text-gray-800">Motivo de la nueva versión *<textarea required rows={2} minLength={5} maxLength={500} value={reason} onChange={event => { setReason(event.target.value); setPreview(null); }} className={internalInputClass} /><span className="mt-1 block text-xs font-normal text-gray-600">Queda en el historial interno. El PDF conserva los datos de cada versión.</span></label>}
+                    <label className="block text-sm font-medium text-gray-800 sm:col-span-2">Concepto del recibo *<textarea required rows={3} maxLength={1500} value={fields.descripcion} onChange={event => change('descripcion', event.target.value)} className={internalInputClass} /></label>
+                    {context.ultimaVersion > 0 && <label className="block text-sm font-medium text-gray-800 sm:col-span-2">Motivo de la nueva versión *<textarea required rows={2} minLength={5} maxLength={500} value={reason} onChange={event => { setReason(event.target.value); setPreview(null); }} className={internalInputClass} /><span className="mt-1 block text-xs font-normal text-gray-600">Queda en el historial interno. El PDF conserva los datos de cada versión.</span></label>}
                 </fieldset>
-                {preview && <section aria-label="Vista previa del recibo" className="space-y-2">
-                    <h3 className="font-bold text-gray-900">Revisá el recibo antes de emitirlo</h3>
-                    <a href={preview} target="_blank" rel="noopener noreferrer" className="inline-flex min-h-11 items-center font-bold text-indigo-800 underline">Abrir vista previa en otra pestaña</a>
-                    <iframe title="Vista previa del recibo PDF" src={preview} className="h-96 w-full rounded-lg border border-gray-200" />
-                </section>}
             </form>}
+            </>}
         </>}
     </InternalDialog>;
 }

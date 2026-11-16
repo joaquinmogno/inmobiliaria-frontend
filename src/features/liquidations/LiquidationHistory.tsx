@@ -65,8 +65,8 @@ function OperationalBalanceChips({ liquidation }: { liquidation: Liquidacion }) 
   ] as const;
   return <div className="grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-4">
     {chips.map(chip => <div key={chip.label} className={`min-w-0 break-words rounded-lg border px-3 py-2 ${chip.tone}`}>
-      <p className="text-[10px] font-black uppercase leading-3 tracking-wide">{chip.label}</p>
-      <p className="mt-1 text-xs font-black"><CurrencyAmounts amounts={summaries.map(summary => ({ moneda: summary.moneda, monto: summary[chip.field] }))} /></p>
+      <p className="text-[10px] font-semibold uppercase leading-3 tracking-wide">{chip.label}</p>
+      <p className="mt-1 text-xs font-semibold"><CurrencyAmounts amounts={summaries.map(summary => ({ moneda: summary.moneda, monto: summary[chip.field] }))} /></p>
     </div>)}
   </div>;
 }
@@ -75,7 +75,7 @@ function HistoryAmounts({ liquidation }: { liquidation: Liquidacion }) {
   const summaries = getCurrencySummaries(liquidation);
   const pending = summaries.filter(summary => summary.saldoInquilino > 0);
   return <div className="min-w-0 break-words text-right">
-    <p className="text-sm font-black text-gray-950"><CurrencyAmounts amounts={summaries.map(summary => ({ moneda: summary.moneda, monto: summary.netoACobrar }))} /></p>
+    <p className="text-sm font-semibold text-gray-950"><CurrencyAmounts amounts={summaries.map(summary => ({ moneda: summary.moneda, monto: summary.netoACobrar }))} /></p>
     {pending.length > 0 && <div className="mt-2 text-xs text-amber-900"><p className="font-semibold">Pendiente inquilino</p><CurrencyAmounts amounts={pending.map(summary => ({ moneda: summary.moneda, monto: summary.saldoInquilino }))} /></div>}
   </div>;
 }
@@ -215,7 +215,7 @@ export default function LiquidationHistory() {
 
   return <section aria-labelledby="liquidation-history-title" className="space-y-4">
     <div>
-      <h2 id="liquidation-history-title" className="text-xl font-black text-gray-950">Historial de liquidaciones</h2>
+      <h2 id="liquidation-history-title" className="ui-section-title">Historial de liquidaciones</h2>
       <p className="mt-1 text-sm text-gray-700">Consultá períodos anteriores y encontrá operaciones por persona, propiedad, moneda o estado.</p>
     </div>
     <FilterBar query={search} onQueryChange={updateSearch} onClear={clear} resultCount={loading || loadError ? undefined : meta.total} placeholder="Propiedad, inquilino o propietario…"
@@ -230,7 +230,7 @@ export default function LiquidationHistory() {
       <div className="min-w-0"><label htmlFor="history-currency-filter" className="mb-1 block text-xs font-bold text-gray-700">Moneda</label>
       <AppSelect id="history-currency-filter" ariaLabel="Moneda" value={filters.moneda} onChange={value => updateFilter('moneda', value)} options={[{ value: '', label: 'Todas las monedas' }, ...options.monedas.map(value => ({ value, label: value }))]} className="w-full" /></div>
       <details className="min-w-0 rounded-xl border border-gray-300 bg-white sm:col-span-2 xl:col-span-3">
-        <summary className="min-h-11 cursor-pointer px-4 py-3 text-sm font-bold text-gray-800">Más filtros</summary>
+        <summary className="min-h-[var(--ui-control-height)] cursor-pointer px-4 py-3 text-sm font-bold text-gray-800">Más filtros</summary>
         <div className="grid min-w-0 gap-3 border-t border-gray-200 p-3 xl:grid-cols-3">
           <AutocompleteSelector<PropertyFilterOption>
             label="Propiedad"
@@ -262,7 +262,7 @@ export default function LiquidationHistory() {
             renderSelection={item => item.nombreCompleto}
             idField="id"
           />
-          {([['soloDeuda', 'Con deuda'], ['vencidas', 'Vencidas'], ['pendientePropietario', 'Pendientes de pago al propietario'], ['adelantos', 'Adelantos a recuperar'], ['conCuotas', 'Con cuotas o acuerdos']] as const).map(([key, label]) => <label key={key} className="flex min-h-11 items-center gap-3 rounded-lg px-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"><input type="checkbox" checked={filters[key]} onChange={event => updateFilter(key, event.target.checked)} className="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />{label}</label>)}
+          {([['soloDeuda', 'Con deuda'], ['vencidas', 'Vencidas'], ['pendientePropietario', 'Pendientes de pago al propietario'], ['adelantos', 'Adelantos a recuperar'], ['conCuotas', 'Con cuotas o acuerdos']] as const).map(([key, label]) => <label key={key} className="flex min-h-[var(--ui-control-height)] items-center gap-3 rounded-lg px-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"><input type="checkbox" checked={filters[key]} onChange={event => updateFilter(key, event.target.checked)} className="h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" />{label}</label>)}
         </div>
       </details>
       </div>
@@ -272,7 +272,7 @@ export default function LiquidationHistory() {
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
       {loading ? <LoadingState compact label="Cargando historial…" /> : loadError ? <div role="alert" className="p-6 text-sm text-red-800"><p>No se pudo cargar el historial de liquidaciones. Los filtros se conservaron.</p><button type="button" className="ui-button ui-button-secondary mt-3" onClick={() => setRetry(value => value + 1)}>Reintentar</button></div> : !rows.length ? <EmptyState filtered={activeFilters.some(filter => filter.key !== 'periodo')} title={filters.periodo ? 'No hay liquidaciones en este período' : 'Todavía no hay liquidaciones registradas'} description={filters.periodo ? 'Elegí otro período para consultar sus liquidaciones.' : 'Las liquidaciones que generes aparecerán aquí.'} onClear={clearSearchFilters} /> : <>
         <div className="hidden xl:block">
-          <table className="w-full table-fixed border-collapse text-left" data-testid="liquidation-history-table">
+          <table className="ui-table table-fixed border-collapse" data-testid="liquidation-history-table">
             <caption className="sr-only">Historial de liquidaciones</caption>
             <colgroup><col className="w-[10%]" /><col className="w-[25%]" /><col className="w-[24%]" /><col className="w-[21%]" /><col className="w-[20%]" /></colgroup>
             <thead className="border-b border-gray-200 bg-gray-50 text-xs font-bold uppercase tracking-wide text-gray-700">

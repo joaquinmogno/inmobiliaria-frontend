@@ -37,15 +37,15 @@ export default function ContractInternalNote({ note, canEdit, onSave }: {
 
     return <section aria-labelledby="contract-internal-note-title" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm print:hidden sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 id="contract-internal-note-title" className="flex items-center gap-2 text-base font-black text-amber-950">
+            <h2 id="contract-internal-note-title" className="flex items-center gap-2 text-base font-semibold text-amber-950">
                 <ExclamationTriangleIcon className="h-5 w-5 shrink-0" aria-hidden="true" />NOTA INTERNA (IMPORTANTE)
             </h2>
             {canEdit && <div className="flex flex-wrap gap-2">
-                <button type="button" onClick={() => open('edit')} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-amber-400 bg-white px-3 text-sm font-bold text-amber-950 hover:bg-amber-100">
+                <button type="button" onClick={() => open('edit')} className="inline-flex min-h-[var(--ui-control-height)] items-center gap-2 rounded-xl border border-amber-400 bg-white px-3 text-sm font-bold text-amber-950 hover:bg-amber-100">
                     {note.texto ? <PencilSquareIcon className="h-5 w-5" aria-hidden="true" /> : <PlusIcon className="h-5 w-5" aria-hidden="true" />}
                     {note.texto ? 'Editar nota interna' : 'Agregar nota interna'}
                 </button>
-                {note.texto && <button type="button" onClick={() => open('delete')} data-danger-trigger="true" className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-red-300 bg-white px-3 text-sm font-bold text-red-800 hover:bg-red-50"><TrashIcon className="h-5 w-5" aria-hidden="true" />Eliminar nota interna</button>}
+                {note.texto && <button type="button" onClick={() => open('delete')} data-danger-trigger="true" className="inline-flex min-h-[var(--ui-control-height)] items-center gap-2 rounded-xl border border-red-300 bg-white px-3 text-sm font-bold text-red-800 hover:bg-red-50"><TrashIcon className="h-5 w-5" aria-hidden="true" />Eliminar nota interna</button>}
             </div>}
         </div>
         <p className="mt-2 text-sm text-amber-900">Recordatorio del equipo para este contrato. Se mantiene en los próximos meses hasta eliminarlo. No aparece en los comprobantes.</p>
@@ -75,8 +75,8 @@ export default function ContractInternalNote({ note, canEdit, onSave }: {
                             </>}
                         {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
                         <div className="flex flex-wrap justify-end gap-2 border-t border-gray-100 pt-4">
-                            <button type="button" onClick={close} disabled={saving} className="min-h-11 rounded-xl border border-gray-300 px-4 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancelar</button>
-                            <button type="submit" disabled={saving || (editor.mode === 'edit' && !editor.text.trim())} data-danger-confirm={editor.mode === 'delete' ? 'true' : undefined} className={`min-h-11 rounded-xl px-4 text-sm font-bold text-white disabled:opacity-50 ${editor.mode === 'delete' ? 'bg-red-700 hover:bg-red-800' : 'bg-amber-800 hover:bg-amber-900'}`}>
+                            <button type="button" onClick={close} disabled={saving} className="min-h-[var(--ui-control-height)] rounded-xl border border-gray-300 px-4 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancelar</button>
+                            <button type="submit" disabled={saving || (editor.mode === 'edit' && !editor.text.trim())} data-danger-confirm={editor.mode === 'delete' ? 'true' : undefined} className={`min-h-[var(--ui-control-height)] rounded-xl px-4 text-sm font-bold text-white disabled:opacity-50 ${editor.mode === 'delete' ? 'bg-red-700 hover:bg-red-800' : 'bg-amber-800 hover:bg-amber-900'}`}>
                                 {saving ? 'Guardando…' : editor.mode === 'delete' ? 'Confirmar eliminación' : 'Guardar nota interna'}
                             </button>
                         </div>

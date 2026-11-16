@@ -22,9 +22,7 @@ test('el Administrador restablece una contraseña temporal sin exponer enlaces',
   await page.locator('#login-password').fill('Password!2026');
   await page.getByRole('button', { name: /Ingresar a mi cuenta/i }).click();
   await page.goto('/usuarios');
-  const targetCard = page.getByRole('article', { name: 'Usuario' });
-  await targetCard.getByRole('button', { name: 'Acciones' }).click();
-  await page.getByRole('menuitem', { name: 'Cambiar contraseña' }).click();
+  await page.getByRole('button', { name: 'Cambiar contraseña de Usuario', exact: true }).click();
   await page.getByLabel('Nueva contraseña temporal', { exact: true }).fill('NuevaTemporal!2026');
   await page.getByRole('button', { name: 'Restablecer' }).click();
   expect(sentPassword).toBe('NuevaTemporal!2026');

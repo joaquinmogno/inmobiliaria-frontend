@@ -30,7 +30,9 @@ test('stack real: instalación única, readiness, CSP, sesión y CSRF', async ({
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   const csp = documentResponse?.headers()['content-security-policy'] || '';
   expect(csp).not.toContain('accounts.google.com');
-  expect(csp).toContain("frame-src 'none'");
+  expect(csp).toContain('frame-src blob:;');
+  expect(csp).toContain("object-src 'none'");
+  expect(csp).toContain("frame-ancestors 'none'");
   expect(csp).toContain('connect-src');
 
   const login = await request.post('/api/auth/login', {

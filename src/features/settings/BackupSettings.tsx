@@ -83,7 +83,7 @@ export default function BackupSettings({ refreshToken }: { refreshToken: number 
     return (
         <section className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             <div className="space-y-6 lg:col-span-1">
-                <div className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-6 shadow-sm">
+                <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
                     <h2 className="mb-4 flex items-center text-lg font-semibold text-gray-900">
                         <ShieldCheckIcon className="mr-2 h-5 w-5 text-indigo-600" />
                         Acciones de Respaldo
@@ -122,8 +122,8 @@ export default function BackupSettings({ refreshToken }: { refreshToken: number 
             </div>
 
             <div className="lg:col-span-2">
-                <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-                    <div className="border-b border-gray-100 p-4 sm:p-6"><h2 className="text-lg font-semibold text-gray-900">Backups Existentes</h2></div>
+                <div className="overflow-hidden ui-panel">
+                    <div className="border-b border-gray-100 p-4"><h2 className="text-lg font-semibold text-gray-900">Backups Existentes</h2></div>
                     <div className="overflow-x-auto">
                         <div className="divide-y divide-gray-100 2xl:hidden">
                             {loading ? <LoadingState compact label="Cargando backups…" /> : backups.length === 0
@@ -131,12 +131,12 @@ export default function BackupSettings({ refreshToken }: { refreshToken: number 
                                 : backups.map(file => (
                                     <article key={file.name} className="p-4">
                                         <div className="flex items-start justify-between gap-3">
-                                            <div className="min-w-0"><p className="break-all text-sm font-black text-gray-900">{file.name}</p><p className="mt-1 text-xs text-content-muted">{formatDateTime(file.date)} · {formatSize(file.size)}</p></div>
+                                            <div className="min-w-0"><p className="break-all text-sm font-semibold text-gray-900">{file.name}</p><p className="mt-1 text-xs text-content-muted">{formatDateTime(file.date)} · {formatSize(file.size)}</p></div>
                                             <span className={`shrink-0 rounded px-2 py-1 text-xs font-bold ${file.type === 'db' ? 'bg-blue-100 text-blue-800' : 'bg-emerald-100 text-emerald-800'}`}>{file.type === 'db' ? 'DB' : 'Archivos'}</span>
                                         </div>
                                         <div className="mt-3 grid grid-cols-2 gap-2">
-                                            <button onClick={() => void downloadBackup(file)} disabled={actionLoading === `download:${file.name}`} className="min-h-11 rounded-xl bg-indigo-50 px-3 text-xs font-bold text-indigo-700 disabled:opacity-50">{actionLoading === `download:${file.name}` ? 'Descargando...' : 'Descargar'}</button>
-                                            <button onClick={() => void deleteBackup(file)} data-danger-trigger="true" className="destructive-action min-h-11 rounded-xl px-3 text-xs font-bold transition-colors">Eliminar</button>
+                                            <button onClick={() => void downloadBackup(file)} disabled={actionLoading === `download:${file.name}`} className="min-h-[var(--ui-control-height)] rounded-xl bg-indigo-50 px-3 text-xs font-bold text-indigo-700 disabled:opacity-50">{actionLoading === `download:${file.name}` ? 'Descargando...' : 'Descargar'}</button>
+                                            <button onClick={() => void deleteBackup(file)} data-danger-trigger="true" className="destructive-action min-h-[var(--ui-control-height)] rounded-xl px-3 text-xs font-bold transition-colors">Eliminar</button>
                                         </div>
                                     </article>
                                 ))}
@@ -153,8 +153,8 @@ export default function BackupSettings({ refreshToken }: { refreshToken: number 
                                             <td className="px-6 py-4 text-content-muted">{formatSize(file.size)}</td>
                                             <td className="whitespace-nowrap px-6 py-4 text-content-muted">{formatDateTime(file.date)}</td>
                                             <td className="sticky right-0 z-10 whitespace-nowrap bg-white px-6 py-4 text-right shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.65)]">
-                                                <button onClick={() => void downloadBackup(file)} disabled={actionLoading === `download:${file.name}`} className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-indigo-600 hover:bg-indigo-50 disabled:opacity-50" title="Descargar">{actionLoading === `download:${file.name}` ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <ArrowDownTrayIcon className="h-5 w-5" />}</button>
-                                                <button onClick={() => void deleteBackup(file)} data-danger-trigger="true" className="destructive-icon-action inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors" title="Eliminar"><TrashIcon className="h-5 w-5" /></button>
+                                                <button onClick={() => void downloadBackup(file)} disabled={actionLoading === `download:${file.name}`} className="inline-flex h-[var(--ui-control-height)] w-[var(--ui-control-height)] items-center justify-center rounded-lg text-indigo-600 hover:bg-indigo-50 disabled:opacity-50" title="Descargar">{actionLoading === `download:${file.name}` ? <ArrowPathIcon className="h-5 w-5 animate-spin" /> : <ArrowDownTrayIcon className="h-5 w-5" />}</button>
+                                                <button onClick={() => void deleteBackup(file)} data-danger-trigger="true" className="destructive-icon-action inline-flex h-[var(--ui-control-height)] w-[var(--ui-control-height)] items-center justify-center rounded-lg transition-colors" title="Eliminar"><TrashIcon className="h-5 w-5" /></button>
                                             </td>
                                         </tr>
                                     ))}

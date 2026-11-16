@@ -65,7 +65,7 @@ export default function RoleEditorDialog({
                     maxLength={80}
                     value={form.nombre}
                     onChange={event => onFormChange({ ...form, nombre: event.target.value })}
-                    className="mt-1 min-h-11 w-full rounded-xl border border-gray-300 px-3"
+                    className="mt-1 min-h-[var(--ui-control-height)] w-full rounded-xl border border-gray-300 px-3"
                   />
                 </label>
                 <label className="block text-sm font-bold">
@@ -74,7 +74,7 @@ export default function RoleEditorDialog({
                     maxLength={240}
                     value={form.descripcion || ''}
                     onChange={event => onFormChange({ ...form, descripcion: event.target.value })}
-                    className="mt-1 min-h-11 w-full rounded-xl border border-gray-300 px-3"
+                    className="mt-1 min-h-[var(--ui-control-height)] w-full rounded-xl border border-gray-300 px-3"
                   />
                 </label>
               </div>
@@ -139,8 +139,8 @@ export default function RoleEditorDialog({
             </div>
 
             <footer className="flex shrink-0 flex-col-reverse gap-2 border-t border-gray-200 bg-white px-4 py-4 sm:flex-row sm:justify-end sm:px-6">
-              <button type="button" onClick={onClose} className="min-h-11 rounded-xl px-4 font-semibold text-gray-700 hover:bg-gray-100">Cancelar</button>
-              <button disabled={submitting} className="min-h-11 rounded-xl bg-indigo-600 px-5 font-bold text-white hover:bg-indigo-700 disabled:opacity-50">
+              <button type="button" onClick={onClose} className="min-h-[var(--ui-control-height)] rounded-xl px-4 font-semibold text-gray-700 hover:bg-gray-100">Cancelar</button>
+              <button disabled={submitting} className="min-h-[var(--ui-control-height)] rounded-xl bg-indigo-600 px-5 font-bold text-white hover:bg-indigo-700 disabled:opacity-50">
                 {submitting ? 'Guardando…' : 'Guardar rol'}
               </button>
             </footer>

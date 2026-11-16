@@ -89,7 +89,7 @@ export default function LiquidationAdjustmentModal({
         <div className="fixed inset-0 overflow-hidden p-4">
           <div className="flex h-full min-h-0 items-center justify-center">
             <Dialog.Panel className="ui-modal-enter modal-scroll max-h-full w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-              <Dialog.Title className="text-xl font-black text-gray-950">Emitir ajuste de liquidación</Dialog.Title>
+              <Dialog.Title className="text-xl font-semibold text-gray-950">Emitir ajuste de liquidación</Dialog.Title>
               <p className="mt-1 text-sm text-gray-600">El ajuste conserva su motivo e historial. Si reduce una liquidación ya cobrada, definí cómo se resuelve el excedente.</p>
               <form onSubmit={submit} className="mt-5 space-y-4">
                 <label className="block text-sm font-bold">Tipo
@@ -102,7 +102,7 @@ export default function LiquidationAdjustmentModal({
                   <input required maxLength={255} value={concepto} onChange={event => setConcepto(event.target.value)} className="mt-1 w-full rounded-lg border p-2" />
                 </label>
                 <fieldset className="grid gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4 sm:grid-cols-2">
-                  <legend className="px-1 text-sm font-black text-gray-900">Importes documentados ({moneda})</legend>
+                  <legend className="px-1 text-sm font-semibold text-gray-900">Importes documentados ({moneda})</legend>
                   <p className="sm:col-span-2 text-xs text-gray-600">Informá una o ambas partes. Los importes siempre son positivos: la nota de crédito reduce y la de débito aumenta los saldos.</p>
                   <label className="block text-sm font-bold">Inquilino
                     <input min="0" step="0.01" type="number" inputMode="decimal" value={montoInquilino} onChange={event => setMontoInquilino(event.target.value)} placeholder="0,00" className="mt-1 w-full rounded-lg border bg-white p-2" />
@@ -117,7 +117,7 @@ export default function LiquidationAdjustmentModal({
 
                 {excess > 0 && (
                   <fieldset className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                    <legend className="px-1 text-sm font-black text-amber-950">El inquilino quedará con {moneda} {excess.toLocaleString('es-AR', { minimumFractionDigits: 2 })} a favor</legend>
+                    <legend className="px-1 text-sm font-semibold text-amber-950">El inquilino quedará con {moneda} {excess.toLocaleString('es-AR', { minimumFractionDigits: 2 })} a favor</legend>
                     <p className="text-xs text-amber-900">El importe ya fue cobrado. Elegí su destino para que no quede una diferencia sin resolver.</p>
                     <label className="block text-sm font-bold">Resolver como
                       <select value={destinoCredito} onChange={event => { setDestinoCredito(event.target.value as CreditDestination); setLiquidacionDestinoId(''); }} className="mt-1 w-full rounded-lg border bg-white p-2">

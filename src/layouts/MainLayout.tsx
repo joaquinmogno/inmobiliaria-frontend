@@ -60,7 +60,7 @@ export default function MainLayout() {
   const mobileBackgroundInert = isMobileMenuOpen && !isDesktop;
 
   return (
-    <div className="relative flex h-dvh w-full overflow-hidden bg-gray-100">
+    <div className="relative flex h-dvh w-full overflow-hidden bg-workspace">
       <a
         href="#main-content"
         onClick={() => window.requestAnimationFrame(() => mainRef.current?.focus())}
@@ -90,7 +90,7 @@ export default function MainLayout() {
           aria-label="Contenido principal"
           aria-hidden={mobileBackgroundInert || undefined}
           inert={mobileBackgroundInert || undefined}
-          className="min-w-0 flex-1 bg-gray-100 overflow-y-auto overflow-x-hidden p-4 sm:p-6 w-full focus:outline-none"
+          className="min-w-0 flex-1 bg-workspace overflow-y-auto overflow-x-hidden p-4 sm:p-5 w-full focus:outline-none"
         >
           <Suspense key={location.pathname} fallback={<LoadingState label="Cargando página…" />}>
             <div className="ui-page-enter" data-page-content>

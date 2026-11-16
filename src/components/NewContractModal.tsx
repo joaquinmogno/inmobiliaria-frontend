@@ -382,8 +382,8 @@ export default function NewContractModal({
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-[0.98]"
                         >
-                            <Dialog.Panel className="flex max-h-[100dvh] w-full max-w-3xl transform flex-col overflow-hidden rounded-t-2xl bg-white text-left align-middle shadow-xl transition-all sm:max-h-[90dvh] sm:rounded-2xl">
-                                <div className="shrink-0 flex justify-between items-center border-b border-gray-100 p-4 sm:p-6">
+                            <Dialog.Panel className="flex max-h-[100dvh] w-full max-w-4xl transform flex-col overflow-hidden rounded-t-2xl bg-white text-left align-middle shadow-xl transition-all sm:max-h-[90dvh] sm:rounded-2xl">
+                                <div className="shrink-0 flex justify-between items-center border-b border-gray-100 p-4 sm:p-5">
                                     <Dialog.Title
                                         as="h3"
                                         className="text-xl font-bold leading-6 text-gray-900"
@@ -399,7 +399,7 @@ export default function NewContractModal({
                                     </button>
                                 </div>
 
-                                <form id="contract-form" ref={formRef} onSubmit={handleSubmit} className="modal-scroll flex-1 p-4 sm:p-6 space-y-6">
+                                <form id="contract-form" ref={formRef} onSubmit={handleSubmit} className="modal-scroll flex-1 p-4 sm:p-5 space-y-4">
                                     <FormError message={formError} />
                                     {renewingContract && (
                                         <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-950">
@@ -409,7 +409,7 @@ export default function NewContractModal({
                                     )}
                                     <div><h3 className="text-base font-semibold text-slate-900">Datos principales del contrato</h3><p className="mt-1 text-sm text-slate-600">Completá los campos obligatorios (*). Después podés agregar acuerdos, observaciones y documentos.</p></div>
                                     {/* ─── Sección Inmueble ─── */}
-                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                    <div className="ui-form-section">
                                         <div className="flex justify-between items-center mb-3">
                                             <h4 className="text-sm font-semibold text-indigo-900 uppercase tracking-wide">
                                                 Datos del Inmueble
@@ -497,7 +497,7 @@ export default function NewContractModal({
                                     </div>
 
                                     {/* ─── Propietarios & Inquilinos ─── */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <ContractPartyFields
                                             validation={validation}
                                             kind="owner"
@@ -524,7 +524,7 @@ export default function NewContractModal({
                                     {renewingContract && <p className="mt-2 rounded-lg bg-violet-50 p-3 text-xs text-violet-900">La renovación conserva al mismo inquilino. Si va a ocupar el inmueble otra persona, elegí «Nuevo contrato · otro inquilino» para mantener separados ambos historiales.</p>}
 
                                     {/* ─── Condiciones Económicas ─── */}
-                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                    <div className="ui-form-section">
                                         <h4 className="text-sm font-semibold text-indigo-900 mb-3 uppercase tracking-wide">
                                             Condiciones Económicas
                                         </h4>
@@ -580,7 +580,7 @@ export default function NewContractModal({
                                                 step="0.01"
                                                 value={formData.porcentajeHonorarios}
                                                 onChange={event => setFormData(current => ({ ...current, porcentajeHonorarios: event.target.value, pagaHonorarios: 'PROPIETARIO' }))}
-                                                className="mt-3 min-h-11 w-full max-w-40 rounded-lg border border-indigo-200 bg-white px-3 text-sm font-bold text-gray-900"
+                                                className="mt-3 min-h-[var(--ui-control-height)] w-full max-w-40 rounded-lg border border-indigo-200 bg-white px-3 text-sm font-bold text-gray-900"
                                             />
                                             <FieldError id="contract-management-fee-rate" message={validation.errors['contract-management-fee-rate']} />
                                             <output
@@ -595,7 +595,7 @@ export default function NewContractModal({
                                     </div>
 
                                     {/* ─── Administración ─── */}
-                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100 flex items-center justify-between">
+                                    <div className="ui-form-section flex items-center justify-between">
                                         <div>
                                             <h4 className="text-sm font-semibold text-indigo-900 uppercase tracking-wide">
                                                 Administración
@@ -620,7 +620,7 @@ export default function NewContractModal({
                                     </div>
 
                                     {/* ─── Vigencia y Fechas ─── */}
-                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                    <div className="ui-form-section">
                                         <h4 className="text-sm font-semibold text-indigo-900 mb-3 uppercase tracking-wide">
                                             Vigencia y Fechas *
                                         </h4>
@@ -721,7 +721,7 @@ export default function NewContractModal({
 		                                        </div>
 
 		                                    {/* ─── Tipo de Ajuste ─── */}
-	                                    {formData.requiereActualizacion && <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
+	                                    {formData.requiereActualizacion && <div className="ui-form-section">
 	                                        <h4 className="text-sm font-semibold text-indigo-900 mb-3 uppercase tracking-wide">
 	                                            Tipo de Ajuste
                                         </h4>
@@ -800,7 +800,7 @@ export default function NewContractModal({
                                                                         onChange={event => updateServiceExpense(index, { concepto: event.target.value })}
                                                                         maxLength={120}
                                                                         placeholder="Ej.: mantenimiento de pileta"
-                                                                        className="mt-2 min-h-11 w-full rounded-lg border border-gray-300 px-3 text-sm text-gray-900 focus:border-indigo-500 focus:ring-indigo-500"
+                                                                        className="mt-2 min-h-[var(--ui-control-height)] w-full rounded-lg border border-gray-300 px-3 text-sm text-gray-900 focus:border-indigo-500 focus:ring-indigo-500"
                                                                     />
                                                                 )}
                                                             </div>
@@ -821,7 +821,7 @@ export default function NewContractModal({
                                                             <button
                                                                 type="button"
                                                                 onClick={() => removeServiceExpense(index)}
-                                                                className="flex min-h-11 items-center justify-center rounded-lg border border-red-200 px-3 text-sm font-medium text-red-700 hover:bg-red-50"
+                                                                className="flex min-h-[var(--ui-control-height)] items-center justify-center rounded-lg border border-red-200 px-3 text-sm font-medium text-red-700 hover:bg-red-50"
                                                                 aria-label={`Quitar ${serviceExpense.concepto || 'servicio o gasto'}`}
                                                             >
                                                                 <XMarkIcon className="h-4 w-4" />
@@ -1050,7 +1050,7 @@ export default function NewContractModal({
                                             type="button"
                                             onClick={onClose}
                                             disabled={isSubmitting}
-                                            className="min-h-11 flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:flex-none"
+                                            className="min-h-[var(--ui-control-height)] flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:flex-none"
                                         >
                                             Cancelar
                                         </button>
@@ -1059,7 +1059,7 @@ export default function NewContractModal({
                                                 type="button"
                                                 onClick={handleSaveDraft}
                                                 disabled={isSubmitting}
-                                                className="min-h-11 flex-1 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 sm:flex-none"
+                                                className="min-h-[var(--ui-control-height)] flex-1 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 sm:flex-none"
                                             >
                                                 {isSubmitting ? 'Guardando...' : 'Guardar borrador'}
                                             </button>

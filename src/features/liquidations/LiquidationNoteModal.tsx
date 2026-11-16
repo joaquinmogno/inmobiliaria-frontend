@@ -54,9 +54,9 @@ export default function LiquidationNoteModal({ note, recipient, confirmed, onClo
                         </div>
                         {confirmed && <p className="rounded-xl bg-indigo-50 p-3 text-sm text-indigo-900">Al guardar o quitar la nota se emitirá una nueva versión del comprobante. Las versiones anteriores se conservan sin cambios.</p>}
                         <div className="flex flex-wrap justify-end gap-2 border-t border-gray-100 pt-4">
-                            {note && <button type="button" disabled={saving} onClick={() => void save(null)} className="min-h-11 rounded-xl border border-red-300 px-3 text-sm font-bold text-red-800 hover:bg-red-50 disabled:opacity-50">Quitar nota</button>}
-                            <button type="button" disabled={saving} onClick={close} className="min-h-11 rounded-xl border border-gray-300 px-4 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancelar</button>
-                            <button type="submit" disabled={saving || !text.trim()} className="min-h-11 rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50">{saving ? 'Guardando…' : 'Guardar nota'}</button>
+                            {note && <button type="button" disabled={saving} onClick={() => void save(null)} className="min-h-[var(--ui-control-height)] rounded-xl border border-red-300 px-3 text-sm font-bold text-red-800 hover:bg-red-50 disabled:opacity-50">Quitar nota</button>}
+                            <button type="button" disabled={saving} onClick={close} className="min-h-[var(--ui-control-height)] rounded-xl border border-gray-300 px-4 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancelar</button>
+                            <button type="submit" disabled={saving || !text.trim()} className="min-h-[var(--ui-control-height)] rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50">{saving ? 'Guardando…' : 'Guardar nota'}</button>
                         </div>
                     </form>
                 </DialogPanel>

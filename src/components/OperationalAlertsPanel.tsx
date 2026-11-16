@@ -109,32 +109,32 @@ export default function OperationalAlertsPanel() {
         return null;
     };
 
-    return <section id="alertas-operativas" aria-labelledby="operational-alerts-title" className="rounded-2xl border border-indigo-100 bg-white p-3 shadow-sm sm:p-4">
+    return <section id="alertas-operativas" aria-labelledby="operational-alerts-title" className="ui-panel p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-                <div className="flex items-center gap-2"><BellAlertIcon className="h-5 w-5 text-indigo-700" /><h2 id="operational-alerts-title" className="text-lg font-bold text-gray-950">Alertas y seguimiento operativo</h2></div>
+                <div className="flex items-center gap-2"><BellAlertIcon className="h-5 w-5 text-indigo-700" /><h2 id="operational-alerts-title" className="ui-section-title">Alertas y seguimiento operativo</h2></div>
                 <p className="mt-1 text-sm text-content-muted">Asigná un responsable, dejá una nota y conservá el historial de cada prioridad.</p>
             </div>
-            <button type="button" onClick={() => void load()} className="min-h-11 rounded-xl bg-gray-100 px-4 text-sm font-bold text-gray-800 hover:bg-gray-200">Actualizar</button>
+            <button type="button" onClick={() => void load()} className="ui-button ui-button-secondary">Actualizar</button>
         </div>
 
         {loading ? <LoadingState compact label="Cargando alertas…" />
             : alerts.length === 0 ? <div className="mt-3 flex items-center gap-3 rounded-xl border border-dashed border-gray-300 bg-gray-50 p-3"><CheckCircleIcon className="h-6 w-6 shrink-0 text-emerald-600" /><p className="text-sm font-bold text-gray-800">No hay alertas operativas activas.</p></div>
-                : <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                    {alerts.map(alert => <article key={alert.clave} className={`rounded-xl border p-4 ${alert.prioridad === 'ALTA' ? 'border-red-200 bg-red-50/60' : 'border-gray-200 bg-gray-50'}`}>
+                : <div className="mt-3 divide-y divide-slate-200">
+                    {alerts.map(alert => <article key={alert.clave} className={"grid gap-x-4 gap-y-2 py-3 md:grid-cols-[minmax(0,1fr)_auto]"}>
                         <div className="flex items-start justify-between gap-3">
-                            <div><p className="text-2xl font-black text-gray-950">{alert.cantidad}</p><h3 className="mt-1 font-bold text-gray-950">{alert.titulo}</h3></div>
-                            <span className={`rounded-full px-2.5 py-1 text-xs font-black ${alert.prioridad === 'ALTA' ? 'bg-red-200 text-red-900' : 'bg-indigo-100 text-indigo-900'}`}>{alert.prioridad === 'ALTA' ? 'Prioridad alta' : 'Prioridad media'}</span>
+                            <div className="flex items-center gap-3"><p className="text-xl font-semibold tabular-nums text-gray-950">{alert.cantidad}</p><h3 className="text-sm font-semibold text-gray-950">{alert.titulo}</h3></div>
+                            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${alert.prioridad === 'ALTA' ? 'bg-red-200 text-red-900' : 'bg-indigo-100 text-indigo-900'}`}>{alert.prioridad === 'ALTA' ? 'Prioridad alta' : 'Prioridad media'}</span>
                         </div>
-                        <p className="mt-2 text-sm text-gray-700">{alert.descripcion}</p>
-                        {alert.gestion && <div className="mt-3 rounded-lg border border-white/80 bg-white/75 p-3 text-sm">
+                        <p className="text-sm text-gray-600 md:col-start-1">{alert.descripcion}</p>
+                        {alert.gestion && <div className="rounded-md border border-slate-200 bg-slate-50 p-2 text-sm md:col-start-1">
                             <div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2 py-0.5 text-xs font-bold ${managementTone[alert.gestion.estado]}`}>{statusLabels[alert.gestion.estado]}</span>{alert.gestion.responsable && <span className="inline-flex items-center gap-1 text-xs font-semibold text-gray-700"><UserCircleIcon className="h-4 w-4" />{alert.gestion.responsable.nombreCompleto}</span>}</div>
                             {alert.gestion.proximaRevision && <p className="mt-2 text-xs text-gray-700">Próxima revisión: {formatDate(alert.gestion.proximaRevision)}</p>}
                             {alert.gestion.registros[0] && <p className="mt-2 line-clamp-2 text-xs text-gray-600">Última gestión: {alert.gestion.registros[0].observacion || statusLabels[alert.gestion.registros[0].estado]} · {alert.gestion.registros[0].usuario.nombreCompleto}</p>}
                         </div>}
-                        <div className="mt-4 flex flex-wrap gap-2">
-                            <Link to={alert.enlace} className="inline-flex min-h-11 items-center rounded-xl bg-indigo-700 px-4 text-sm font-bold text-white hover:bg-indigo-800">Ver casos filtrados</Link>
-                            <button type="button" onClick={() => openManagement(alert)} className="inline-flex min-h-11 items-center rounded-xl border border-gray-300 bg-white px-4 text-sm font-bold text-gray-800 hover:bg-gray-100">{alert.gestion ? 'Actualizar gestión' : 'Asignar y registrar'}</button>
+                        <div className="flex flex-wrap items-start gap-2 md:col-start-2 md:row-start-1 md:row-span-3">
+                            <Link to={alert.enlace} className="ui-button ui-button-secondary">Ver casos filtrados</Link>
+                            <button type="button" onClick={() => openManagement(alert)} className="ui-button ui-button-secondary">{alert.gestion ? 'Actualizar gestión' : 'Asignar y registrar'}</button>
                         </div>
                     </article>)}
                 </div>}

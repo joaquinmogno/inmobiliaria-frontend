@@ -49,7 +49,7 @@ test('el sidebar usa un drawer sin reducir el contenido hasta escritorio amplio'
   await page.setViewportSize({ width: 1280, height: 768 });
   await expect(page.locator('header button.xl\\:hidden')).toBeHidden();
   await expect(page.locator('aside')).toHaveCSS('position', 'relative');
-  await expect.poll(async () => (await page.locator('main').boundingBox())?.width).toBe(1024);
+  await expect.poll(async () => (await page.locator('main').boundingBox())?.width).toBe(1040);
 });
 
 test('la gestión de usuarios usa tarjetas y acciones accesibles en mobile', async ({ page }) => {

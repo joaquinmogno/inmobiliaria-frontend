@@ -41,10 +41,10 @@ export default function BankAccountsSettings({ refreshToken }: { refreshToken: n
             <p className="mt-1 text-sm text-gray-600">Definí dónde se registran las transferencias y cheques. Las cuentas inactivas se conservan para el historial.</p>
         </div>
         <form onSubmit={submit} className="grid gap-3 rounded-xl bg-gray-50 p-4 sm:grid-cols-5">
-            <input required maxLength={100} value={form.banco} onChange={event => setForm({ ...form, banco: event.target.value })} placeholder="Banco o billetera" className="min-h-11 rounded-lg border border-gray-300 bg-white px-3 text-sm sm:col-span-2" />
-            <input required maxLength={100} value={form.nombre} onChange={event => setForm({ ...form, nombre: event.target.value })} placeholder="Nombre de la cuenta" className="min-h-11 rounded-lg border border-gray-300 bg-white px-3 text-sm sm:col-span-2" />
+            <input required maxLength={100} value={form.banco} onChange={event => setForm({ ...form, banco: event.target.value })} placeholder="Banco o billetera" className="min-h-[var(--ui-control-height)] rounded-lg border border-gray-300 bg-white px-3 text-sm sm:col-span-2" />
+            <input required maxLength={100} value={form.nombre} onChange={event => setForm({ ...form, nombre: event.target.value })} placeholder="Nombre de la cuenta" className="min-h-[var(--ui-control-height)] rounded-lg border border-gray-300 bg-white px-3 text-sm sm:col-span-2" />
             <AppSelect ariaLabel="Moneda de cuenta" value={form.moneda} onChange={value => setForm({ ...form, moneda: value as Moneda })} options={[{ value: 'ARS', label: 'ARS' }, { value: 'USD', label: 'USD' }]} />
-            {editing && <label className="flex min-h-11 items-center gap-2 text-sm font-medium text-gray-700 sm:col-span-2"><input type="checkbox" checked={form.activa} onChange={event => setForm({ ...form, activa: event.target.checked })} /> Activa para nuevos movimientos</label>}
+            {editing && <label className="flex min-h-[var(--ui-control-height)] items-center gap-2 text-sm font-medium text-gray-700 sm:col-span-2"><input type="checkbox" checked={form.activa} onChange={event => setForm({ ...form, activa: event.target.checked })} /> Activa para nuevos movimientos</label>}
             <div className="ui-page-actions sm:col-span-5 sm:justify-start">
                 <button disabled={saving} type="submit" className="ui-button ui-button-primary"><PlusIcon className="h-4 w-4" />{editing ? 'Guardar cambios' : 'Agregar cuenta'}</button>
                 {editing && <button type="button" onClick={reset} className="ui-button ui-button-secondary">Cancelar</button>}
@@ -54,7 +54,7 @@ export default function BankAccountsSettings({ refreshToken }: { refreshToken: n
             {accounts.length === 0 && <p className="p-4 text-sm text-gray-600">Todavía no hay cuentas bancarias creadas.</p>}
             {accounts.map(account => <div key={account.id} className="flex items-center justify-between gap-3 p-4">
                 <div><p className="font-bold text-gray-900">{account.banco} — {account.nombre}</p><p className="text-sm text-gray-600">{account.moneda} · {account.esHistorica ? 'Histórica' : account.activa ? 'Activa' : 'Inactiva'}</p></div>
-                {!account.esHistorica && <button type="button" onClick={() => { setEditing(account); setForm({ nombre: account.nombre, banco: account.banco, moneda: account.moneda, activa: account.activa }); }} className="inline-flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-indigo-700 hover:bg-indigo-50"><PencilSquareIcon className="h-4 w-4" />Editar</button>}
+                {!account.esHistorica && <button type="button" onClick={() => { setEditing(account); setForm({ nombre: account.nombre, banco: account.banco, moneda: account.moneda, activa: account.activa }); }} className="inline-flex min-h-[var(--ui-control-height)] items-center gap-2 rounded-lg px-3 text-sm font-semibold text-indigo-700 hover:bg-indigo-50"><PencilSquareIcon className="h-4 w-4" />Editar</button>}
             </div>)}
         </div>
     </section>;
