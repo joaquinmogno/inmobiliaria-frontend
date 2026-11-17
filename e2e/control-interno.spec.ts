@@ -173,7 +173,7 @@ test('las acciones son íconos accesibles y permanecen en una sola línea', asyn
     await page.setViewportSize({ width: 1366, height: 900 });
     const table = page.getByRole('table', { name: 'Planilla mensual del control interno' });
     const buttons = table.getByRole('button');
-    await expect(buttons).toHaveCount(3);
+    await expect(buttons).toHaveCount(4);
     for (const button of await buttons.all()) {
         await expect(button).toHaveText('');
         await expect(button).toHaveAttribute('title', /.+/);
@@ -192,7 +192,7 @@ test('permite elegir la cuenta de origen del pago y la muestra en la planilla', 
     await dialog.getByLabel('Importe *', { exact: true }).fill('200000');
     await dialog.getByRole('button', { name: /^Medio de pago \(opcional\):/ }).click();
     await page.getByRole('option', { name: 'Transferencia', exact: true }).click();
-    await dialog.getByRole('button', { name: /^Cuenta de origen \(opcional\):/ }).click();
+    await dialog.getByRole('button', { name: /^Banco \/ cuenta de origen \*:/ }).click();
     await page.getByRole('option', { name: 'Nación · Cuenta principal (ARS)', exact: true }).click();
     await dialog.getByRole('button', { name: 'Guardar movimiento' }).click();
     await expect(dialog).not.toBeVisible();

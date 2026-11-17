@@ -1,3 +1,5 @@
+import { useAuth } from '../context/AuthContext';
+import { hasPermission } from '../utils/permissions';
 import FieldError, { useFieldValidation } from './FieldError';
 import { Fragment, useState, useEffect, useRef } from "react";
 import { Dialog, Transition } from "@headlessui/react";
@@ -32,6 +34,8 @@ import {
     CONTRACT_SERVICE_EXPENSE_SUGGESTIONS,
     emptyContractParty,
     getContractFormIssue,
+    getContractPhoneIssue,
+    getContractPhoneUpdates,
     selectExistingParty,
     type ContractParty,
     type ContractServiceExpense
@@ -65,6 +69,8 @@ export default function NewContractModal({
     onSaveDraft,
     onDeleteDraftAttachment
 }: NewContractModalProps) {
+    const { user } = useAuth();
+    const canEditExistingPhone = Boolean(editingContract) && hasPermission(user, 'personas.editar');
     const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
     // false = manual entry (default); true = searching existing
     const [searchingExistingProperty, setSearchingExistingProperty] = useState(false);
@@ -291,7 +297,8 @@ export default function NewContractModal({
         if (isSubmitting) return;
         setFormError("");
 
-        const validationError = getContractFormIssue(formData, owners, tenants);
+        const validationError = getContractFormIssue(formData, owners, tenants)
+            || (editingContract ? getContractPhoneIssue(editingContract, owners, tenants) : null);
         if (validationError) {
             validation.showErrors({ [validationError.field]: validationError.message });
             return;
@@ -300,6 +307,7 @@ export default function NewContractModal({
         validation.reset();
         const dataToSave = {
             ...buildContractPayload(formData, selectedProperty, owners, tenants),
+            ...(editingContract ? { telefonosPersonas: getContractPhoneUpdates(editingContract, owners, tenants) } : {}),
             ...(renewingContract ? { contratoAnteriorId: renewingContract.id } : {}),
             ...(draft ? { borradorId: draft.id, borradorVersion: draft.version } : {})
         };
@@ -503,6 +511,7 @@ export default function NewContractModal({
                                             kind="owner"
                                             parties={owners}
                                             editing={!!editingContract}
+                                            canEditExistingPhone={canEditExistingPhone}
                                             searching={searchingExistingOwner}
                                             onSearchingChange={setSearchingExistingOwner}
                                             onAdd={addOwner}
@@ -514,6 +523,7 @@ export default function NewContractModal({
                                             kind="tenant"
                                             parties={tenants}
                                             editing={!!editingContract || !!renewingContract}
+                                            canEditExistingPhone={canEditExistingPhone}
                                             searching={searchingExistingTenant}
                                             onSearchingChange={setSearchingExistingTenant}
                                             onAdd={addTenant}

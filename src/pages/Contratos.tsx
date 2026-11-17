@@ -223,11 +223,21 @@ export default function Contratos() {
   const [showDrafts, setShowDrafts] = useState(false);
   const [openingDraftId, setOpeningDraftId] = useState<number | null>(null);
 
-  const handleEdit = (contract: Contract) => {
-    setRenewingContract(null);
-    setActiveDraft(null);
-    setEditingContract(contract);
-    setIsModalOpen(true);
+  const [openingContractId, setOpeningContractId] = useState<number | null>(null);
+  const handleEdit = async (contract: Contract) => {
+    if (openingContractId !== null) return;
+    setOpeningContractId(contract.id);
+    try {
+      const current = await contractsService.getById(contract.id);
+      setRenewingContract(null);
+      setActiveDraft(null);
+      setEditingContract(current);
+      setIsModalOpen(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'No se pudo cargar el contrato para editar.');
+    } finally {
+      setOpeningContractId(null);
+    }
   };
 
   const handleCloseModal = () => {
@@ -277,6 +287,7 @@ export default function Contratos() {
       if (editingContract) {
         // Update Logic
         formData.append('version', String(editingContract.version));
+        if (data.telefonosPersonas?.length) formData.append('telefonosPersonas', JSON.stringify(data.telefonosPersonas));
         const contract = await contractsService.update(editingContract.id, formData);
         if (contract.estado !== 'PAPELERA') savedStatus = contract.estado;
 
@@ -503,6 +514,7 @@ export default function Contratos() {
   return (
     <div className="ui-page">
       {preparingRenewal && <p role="status" className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-900">Cargando datos para la renovación…</p>}
+      {openingContractId !== null && <p role="status" className="text-sm text-gray-600">Cargando contrato…</p>}
       {/* Header & Actions */}
       <div className="ui-page-header">
         <div>
@@ -768,7 +780,8 @@ export default function Contratos() {
                               <MenuItem>
                                 {({ focus }) => (
                                   <button
-                                    onClick={() => handleEdit(contract)}
+                                    disabled={openingContractId !== null}
+                                    onClick={() => void handleEdit(contract)}
                                     className={`${focus ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
                                       } group flex w-full items-center gap-2 px-4 py-2.5 text-sm transition-colors`}
                                   >
@@ -892,7 +905,8 @@ export default function Contratos() {
                                         <MenuItem>
                                             {({ focus }) => (
                                                 <button
-                                                    onClick={() => handleEdit(contract)}
+                                                    disabled={openingContractId !== null}
+                                                    onClick={() => void handleEdit(contract)}
                                                     className={`${focus ? 'bg-blue-50 text-blue-700' : 'text-gray-700'} group flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors`}
                                                 >
                                                     <PencilSquareIcon className="w-5 h-5 text-blue-500" />

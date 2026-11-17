@@ -9,6 +9,7 @@ type Props = {
     kind: 'owner' | 'tenant';
     parties: ContractParty[];
     editing: boolean;
+    canEditExistingPhone?: boolean;
     searching: boolean;
     onSearchingChange: (searching: boolean) => void;
     onAdd: (person: Persona | null) => void;
@@ -17,7 +18,7 @@ type Props = {
 };
 
 export default function ContractPartyFields({
-    validation, kind, parties, editing, searching, onSearchingChange, onAdd, onUpdate, onRemove
+    validation, kind, parties, editing, canEditExistingPhone = false, searching, onSearchingChange, onAdd, onUpdate, onRemove
 }: Props) {
     const owner = kind === 'owner';
     const title = owner ? 'Propietarios' : 'Inquilinos';
@@ -48,7 +49,8 @@ export default function ContractPartyFields({
                             <input {...validation.inputProps(`${kind}-${index}-name`)} type="text" placeholder="Nombre Completo *" required className="ui-field" value={party.nombreCompleto} onChange={event => onUpdate(index, 'nombreCompleto', event.target.value)} disabled={!!party.id || editing} />
                             <FieldError id={`${kind}-${index}-name`} message={validation.errors[`${kind}-${index}-name`]} />
                             <label className="sr-only" htmlFor={`${owner ? 'owner' : 'tenant'}-${index}-phone`}>Teléfono de {singular.toLowerCase()} {index + 1}</label>
-                            <input id={`${owner ? 'owner' : 'tenant'}-${index}-phone`} type="text" placeholder="Teléfono" className="ui-field" value={party.telefono} onChange={event => onUpdate(index, 'telefono', event.target.value)} disabled={!!party.id || editing} />
+                            <input {...validation.inputProps(`${kind}-${index}-phone`)} type="tel" maxLength={40} placeholder="Teléfono" className="ui-field" value={party.telefono} onChange={event => onUpdate(index, 'telefono', event.target.value)} disabled={(!!party.id || editing) && !canEditExistingPhone} />
+                            <FieldError id={`${kind}-${index}-phone`} message={validation.errors[`${kind}-${index}-phone`]} />
                         </div>
                     </div>
                 ))}

@@ -49,14 +49,27 @@ export default function InternalMovementModal({ service = controlInternoService,
     const categories = [...new Set(['Oficina', 'Servicios', 'Mantenimiento', 'Publicidad', 'Otros', ...options.categorias, ...(record?.categoria ? [record.categoria] : [])])];
     const paymentMethods = [...new Set(['Efectivo', 'Transferencia', 'Cheque', 'Tarjeta', 'Otro', ...options.mediosPago, ...(record?.metodoPago ? [record.metodoPago] : [])])];
     const paymentAccounts = [...new Set([...(options.cuentasPago || []), ...(record?.cuentaPago ? [record.cuentaPago] : [])])];
-    const accountLabel = data.tipo === 'GASTO' ? 'Cuenta de origen (opcional)' : 'Cuenta de destino (opcional)';
-    const change = (key: keyof InternalMovementInput, value: string) => setData(current => ({ ...current, [key]: value }));
+    const paymentMethod = data.metodoPago?.trim().replace(/[_\s]+/g, ' ').toLowerCase();
+    const requiresBankAccount = paymentMethod === 'transferencia' || paymentMethod === 'transferencia bancaria';
+    const accountDirection = data.tipo === 'GASTO' ? 'origen' : 'destino';
+    const accountLabel = requiresBankAccount ? `Banco / cuenta de ${accountDirection} *` : `Cuenta de ${accountDirection} (opcional)`;
+    const change = (key: keyof InternalMovementInput, value: string) => {
+        if (key === 'metodoPago' || key === 'cuentaPago' || key === 'tipo') {
+            validation.clear('internal-payment-account');
+            validation.clear('internal-payment-account-name');
+        }
+        setData(current => ({ ...current, [key]: value }));
+    };
     const save = async (event: React.FormEvent) => {
         event.preventDefault();
         if (busy) return;
         if (files.length > 10) { setFileError('Seleccioná hasta 10 comprobantes por carga.'); document.getElementById('internal-receipts')?.focus(); return; }
         if (!data.detalle.trim()) { validation.showErrors({ 'internal-detail': 'Ingresá el detalle del movimiento.' }); return; }
         if (!(Number(data.monto) > 0) || Number(data.monto) > 999999999999.99) { validation.showErrors({ 'internal-amount': 'Ingresá un importe mayor a cero y de hasta 999.999.999.999,99.' }); return; }
+        if (requiresBankAccount && !data.cuentaPago?.trim()) {
+            validation.showErrors({ [customPaymentAccount ? 'internal-payment-account-name' : 'internal-payment-account']: `Indicá el banco o la cuenta de ${accountDirection} de la transferencia.` });
+            return;
+        }
         validation.reset(); setFileError(''); setBusy(true); setError('');
         try {
             const normalized = { ...data, monto: data.monto.replace(/\.$/, ''), detalle: data.detalle.trim(), categoria: data.categoria?.trim(), metodoPago: data.metodoPago?.trim(), cuentaPago: data.cuentaPago?.trim(), observaciones: data.observaciones?.trim() };
@@ -82,18 +95,22 @@ export default function InternalMovementModal({ service = controlInternoService,
                 <div><label htmlFor="internal-currency" className="text-sm font-bold text-gray-800">Moneda *</label><AppSelect id="internal-currency" ariaLabel="Moneda" value={data.moneda} onChange={value => change('moneda', value as Moneda)} options={[{ value: 'ARS', label: 'ARS' }, { value: 'USD', label: 'USD' }]} className="mt-1" /></div>
             </div>
             </fieldset>
-            <fieldset className="min-w-0 space-y-4 border-t border-slate-100 pt-4"><legend className="pr-2 text-base font-semibold text-slate-900">Información adicional · Opcional</legend>
+            <fieldset className="min-w-0 space-y-4 border-t border-slate-100 pt-4"><legend className="pr-2 text-base font-semibold text-slate-900">{requiresBankAccount ? 'Información adicional' : 'Información adicional · Opcional'}</legend>
             <div className="grid gap-3 sm:grid-cols-2">
                 <div><label htmlFor="internal-category" className="text-sm font-bold text-gray-800">Categoría (opcional)</label><AppSelect id="internal-category" ariaLabel="Categoría (opcional)" value={customCategory ? '__custom__' : data.categoria || ''} onChange={value => { setCustomCategory(value === '__custom__'); change('categoria', value === '__custom__' ? '' : value); }} options={[{ value: '', label: 'Sin categoría' }, ...categories.map(value => ({ value, label: value })), { value: '__custom__', label: 'Agregar categoría…' }]} className="mt-1" />{customCategory && <input aria-label="Nueva categoría" maxLength={80} value={data.categoria} onChange={event => change('categoria', event.target.value)} className={internalInputClass} placeholder="Nombre de la categoría" />}</div>
                 <div><label htmlFor="internal-payment-method" className="text-sm font-bold text-gray-800">Medio de pago (opcional)</label><AppSelect id="internal-payment-method" ariaLabel="Medio de pago (opcional)" value={customPaymentMethod ? '__custom__' : data.metodoPago || ''} onChange={value => { setCustomPaymentMethod(value === '__custom__'); change('metodoPago', value === '__custom__' ? '' : value); }} options={[{ value: '', label: 'Sin especificar' }, ...paymentMethods.map(value => ({ value, label: value })), { value: '__custom__', label: 'Agregar medio de pago…' }]} className="mt-1" />{customPaymentMethod && <input aria-label="Nuevo medio de pago" maxLength={80} value={data.metodoPago} onChange={event => change('metodoPago', event.target.value)} className={internalInputClass} placeholder="Nombre del medio de pago" />}</div>
             </div>
             <div>
                 <label htmlFor="internal-payment-account" className="text-sm font-bold text-gray-800">{accountLabel}</label>
-                <AppSelect id="internal-payment-account" ariaLabel={accountLabel} value={customPaymentAccount ? '__custom__' : data.cuentaPago ? `account:${data.cuentaPago}` : ''} onChange={value => {
+                <AppSelect {...validation.ariaProps('internal-payment-account')} ariaLabel={accountLabel} value={customPaymentAccount ? '__custom__' : data.cuentaPago ? `account:${data.cuentaPago}` : ''} onChange={value => {
                     setCustomPaymentAccount(value === '__custom__');
                     change('cuentaPago', value.startsWith('account:') ? value.slice(8) : '');
-                }} options={[{ value: '', label: 'Sin especificar' }, ...paymentAccounts.map(value => ({ value: `account:${value}`, label: value })), { value: '__custom__', label: 'Escribir otra cuenta…' }]} className="mt-1" />
-                {customPaymentAccount && <input aria-label="Nombre de la cuenta" maxLength={220} value={data.cuentaPago} onChange={event => change('cuentaPago', event.target.value)} className={internalInputClass} placeholder="Ej.: Banco Nación · Cuenta personal, o caja en efectivo" />}
+                }} options={[{ value: '', label: requiresBankAccount ? 'Seleccionar banco / cuenta' : 'Sin especificar' }, ...paymentAccounts.map(value => ({ value: `account:${value}`, label: value })), { value: '__custom__', label: requiresBankAccount ? 'Escribir otro banco / cuenta…' : 'Escribir otra cuenta…' }]} className="mt-1" />
+                <FieldError id="internal-payment-account" message={validation.errors['internal-payment-account']} />
+                {customPaymentAccount && <>
+                    <input {...validation.inputProps('internal-payment-account-name')} aria-label={requiresBankAccount ? 'Nombre del banco / cuenta' : 'Nombre de la cuenta'} required={requiresBankAccount} maxLength={220} value={data.cuentaPago} onChange={event => change('cuentaPago', event.target.value)} className={internalInputClass} placeholder={requiresBankAccount ? 'Ej.: Banco Nación · Cuenta personal' : 'Ej.: Banco Nación · Cuenta personal, o caja en efectivo'} />
+                    <FieldError id="internal-payment-account-name" message={validation.errors['internal-payment-account-name']} />
+                </>}
                 <p className="mt-1 text-xs text-gray-600">{data.tipo === 'GASTO' ? 'Identifica desde dónde se hizo el pago.' : 'Identifica dónde se recibió el dinero.'} Es informativo: no modifica saldos de caja ni bancos.</p>
             </div>
             <label className="block text-sm font-bold text-gray-800">Observaciones (opcional)<textarea rows={2} maxLength={2000} value={data.observaciones} onChange={event => change('observaciones', event.target.value)} className={internalInputClass} /></label>

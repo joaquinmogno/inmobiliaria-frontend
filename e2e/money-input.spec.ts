@@ -4,10 +4,10 @@ import { parseNumber, formatNumber } from '../src/utils/number';
 import { formatCurrency } from '../src/utils/currency';
 
 test('separa formato de edición, valor canónico y presentación de centavos', () => {
-    for (const [input, expected] of [['1000,50', 1000.5], ['1.000,50', 1000.5], ['1000.50', 1000.5], ['0,01', 0.01], ['0', 0], ['12,5', 12.5], ['99.999.999,99', 99999999.99], [' 1000,50\t', 1000.5]] as const) {
+    for (const [input, expected] of [['1.000', 1000], ['150.000', 150000], ['5.000.000', 5000000], ['1000,50', 1000.5], ['1.000,50', 1000.5], ['1000.50', 1000.5], ['0,01', 0.01], ['0', 0], ['12,5', 12.5], ['99.999.999,99', 99999999.99], [' 1000,50\t', 1000.5]] as const) {
         expect(parseNumber(input)).toEqual({ value: expected });
     }
-    for (const input of ['1.000', '1,000', '1,000.50', '1000,', '1.00,50', '1e3', '$100', '100000000', '0,001']) expect(parseNumber(input).error, input).toBeTruthy();
+    for (const input of ['1,000', '1,000.50', '1000,', '1.00,50', '1.0000', '1e3', '$100', '100000000', '0,001']) expect(parseNumber(input).error, input).toBeTruthy();
     expect(parseNumber('2,5', 0).error).toBeTruthy();
     expect(parseNumber('12', 0)).toEqual({ value: 12 });
     expect(formatNumber('1000.50')).toBe('1.000,50');
@@ -47,7 +47,7 @@ async function setup(page: Page) {
     return { movements, writes };
 }
 
-for (const [input, expected, moneda] of [['1000,50', 1000.5, 'ARS'], ['1.000,50', 1000.5, 'ARS'], ['1000.50', 1000.5, 'USD'], ['0,01', 0.01, 'ARS']] as const) {
+for (const [input, expected, moneda] of [['150000', 150000, 'ARS'], ['5000000', 5000000, 'ARS'], ['5000000,25', 5000000.25, 'USD'], ['1000,50', 1000.5, 'ARS'], ['1000.50', 1000.5, 'USD'], ['0,01', 0.01, 'ARS']] as const) {
     test(`Caja conserva ${input} ${moneda} al confirmar, enviar y recargar`, async ({ page }) => {
         const state = await setup(page);
         await page.goto('/cajachica');
@@ -60,7 +60,7 @@ for (const [input, expected, moneda] of [['1000,50', 1000.5, 'ARS'], ['1.000,50'
         const amount = page.locator('#cash-movement-amount');
         await amount.fill('');
         await amount.pressSequentially(input);
-        await expect(amount).toHaveValue(input);
+        await expect(amount).toHaveValue(formatNumber(expected));
         await amount.press('Tab');
         await expect(amount).toHaveValue(formatNumber(expected));
         await page.getByRole('button', { name: 'Guardar', exact: true }).click();
@@ -81,7 +81,7 @@ test('Caja bloquea formatos inválidos, negativos, cero y exceso de precisión s
     await page.locator('#cash-movement-concept').fill('Prueba centavos');
     const amount = page.locator('#cash-movement-amount');
     await amount.fill('1000,50');
-    for (const input of ['1.000', '1000,', '0,001', '-10,50', '0', '100000000', 'abc', '   ']) {
+    for (const input of ['1.00,50', '1,000.50', '0,001', '-10,50', '0', '100000000', 'abc', '   ']) {
         await amount.fill(input);
         await page.getByRole('button', { name: 'Guardar', exact: true }).click();
         expect(await amount.evaluate((el: HTMLInputElement) => el.validity.valid), input).toBe(false);
@@ -91,10 +91,12 @@ test('Caja bloquea formatos inválidos, negativos, cero y exceso de precisión s
     await amount.fill('1000.50');
     await amount.press('Tab');
     await amount.focus();
-    await expect(amount).toHaveValue('1000,5');
+    await expect(amount).toHaveValue('1.000,50');
     await amount.press('End');
+    await amount.press('Backspace');
+    await expect(amount).toHaveValue('1.000,5');
     await amount.press('0');
-    await expect(amount).toHaveValue('1000,50');
+    await expect(amount).toHaveValue('1.000,50');
     await page.getByRole('button', { name: 'Guardar', exact: true }).click();
     await expect(page.getByText(/¿Querés registrar/)).toContainText('$1.000,50');
 });
@@ -113,6 +115,81 @@ test('Cobro precargado conserva centavos y aplica el límite de saldo', async ({
     await page.locator('button[form=tenant-payment-form]').click();
     await expect.poll(() => writes.length).toBe(1);
     expect(JSON.parse(writes[0]).monto).toBe(1000.5);
+});
+
+for (const width of [1366, 390]) {
+    test(`Los miles se actualizan al escribir, borrar y reemplazar dígitos (${width}px)`, async ({ page }, testInfo) => {
+        await page.setViewportSize({ width, height: 900 });
+        await setup(page);
+        await page.goto('/cajachica');
+        await page.getByRole('button', { name: 'Nuevo Movimiento', exact: true }).click();
+        const amount = page.locator('#cash-movement-amount');
+        await expect(amount).toHaveAttribute('inputmode', 'decimal');
+        await amount.fill('');
+        for (const [keys, expected] of [['150', '150'], ['0', '1.500'], ['00', '150.000']] as const) {
+            await amount.pressSequentially(keys);
+            await expect(amount).toHaveValue(expected);
+        }
+        await amount.press('Backspace');
+        await expect(amount).toHaveValue('15.000');
+
+        await amount.fill('1234567');
+        await amount.evaluate((input: HTMLInputElement) => input.setSelectionRange(3, 3));
+        await amount.press('9');
+        await expect(amount).toHaveValue('12.934.567');
+        await amount.press('Backspace');
+        await expect(amount).toHaveValue('1.234.567');
+        await amount.press('Delete');
+        await expect(amount).toHaveValue('124.567');
+
+        await amount.fill('1234567');
+        await amount.evaluate((input: HTMLInputElement) => input.setSelectionRange(6, 6));
+        await amount.press('Backspace');
+        await expect(amount).toHaveValue('123.567');
+        await amount.fill('1234567');
+        await amount.evaluate((input: HTMLInputElement) => input.setSelectionRange(5, 5));
+        await amount.press('Delete');
+        await expect(amount).toHaveValue('123.467');
+
+        await amount.fill('1234567');
+        await amount.evaluate((input: HTMLInputElement) => input.setSelectionRange(2, 5));
+        await amount.press('9');
+        await expect(amount).toHaveValue('19.567');
+        await amount.press('8');
+        await expect(amount).toHaveValue('198.567');
+
+        await amount.fill('');
+        await amount.pressSequentially('5000000,');
+        await expect(amount).toHaveValue('5.000.000,');
+        await amount.pressSequentially('00');
+        await expect(amount).toHaveValue('5.000.000,00');
+        expect(await amount.evaluate((input: HTMLInputElement) => input.validity.valid)).toBe(true);
+        await page.screenshot({ path: testInfo.outputPath(`miles-automaticos-${width}.png`) });
+        await amount.fill('');
+        await expect(amount).toHaveValue('');
+        expect(await amount.evaluate((input: HTMLInputElement) => input.validity.valueMissing)).toBe(true);
+    });
+}
+
+test('Pegar importes con puntos, coma o decimal de planilla conserva el valor enviado', async ({ page, context }) => {
+    const { movements } = await setup(page);
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.goto('/cajachica');
+    await page.getByRole('button', { name: 'Nuevo Movimiento', exact: true }).click();
+    await page.locator('#cash-movement-concept').fill('Importe pegado');
+    const amount = page.locator('#cash-movement-amount');
+    for (const [pasted, displayed] of [['1.000', '1.000'], ['150.000', '150.000'], [' 5.000.000,50 ', '5.000.000,50'], ['5000000.50', '5.000.000,50']] as const) {
+        await amount.fill('');
+        await page.evaluate(value => navigator.clipboard.writeText(value), pasted);
+        await amount.press('ControlOrMeta+V');
+        await expect(amount).toHaveValue(displayed);
+        expect(await amount.evaluate((input: HTMLInputElement) => input.validity.valid)).toBe(true);
+    }
+    await page.getByRole('button', { name: 'Guardar', exact: true }).click();
+    await expect(page.getByText(/¿Querés registrar/)).toContainText('$5.000.000,50');
+    await page.getByRole('button', { name: 'Registrar', exact: true }).click();
+    await expect.poll(() => movements.length).toBe(1);
+    expect(movements[0].monto).toBe(5000000.5);
 });
 
 

@@ -4,6 +4,7 @@ import type { Property } from '../../services/properties.service';
 import type { Moneda } from '../../utils/currency';
 import { validateAttachmentFile, validateMainContractFile } from '../../utils/documentFiles';
 import { addDaysToDateInput, addMonthsToDateInput, toDateInputValue } from '../../utils/date';
+import { parsePhoneNumberFromString } from 'libphonenumber-js';
 
 export type ContractParty = { id?: number; nombreCompleto: string; telefono: string };
 export type ContractServiceExpense = {
@@ -64,6 +65,28 @@ export type ContractDraftData = {
 };
 
 export const emptyContractParty = (): ContractParty => ({ nombreCompleto: '', telefono: '' });
+
+export const getContractPhoneUpdates = (contract: Contract, owners: ContractParty[], tenants: ContractParty[]) => {
+    const existing = new Map([...contract.propietarios, ...contract.inquilinos].map(party => [party.persona.id, party.persona]));
+    return [...owners, ...tenants].flatMap(party => {
+        const person = party.id ? existing.get(party.id) : undefined;
+        if (!person || party.telefono.trim() === (person.telefono || '').trim()) return [];
+        return [{ personaId: person.id, version: person.version, telefono: party.telefono.trim() || null }];
+    });
+};
+
+export const getContractPhoneIssue = (contract: Contract, owners: ContractParty[], tenants: ContractParty[]) => {
+    const updates = getContractPhoneUpdates(contract, owners, tenants);
+    for (const [kind, parties] of [['owner', owners], ['tenant', tenants]] as const) {
+        for (const [index, party] of parties.entries()) {
+            const update = updates.find(item => item.personaId === party.id);
+            if (update?.telefono && !parsePhoneNumberFromString(update.telefono, 'AR')?.isValid()) {
+                return { field: `${kind}-${index}-phone`, message: 'Ingresá un teléfono válido con código de área.' };
+            }
+        }
+    }
+    return null;
+};
 
 const isEmptyParty = (party: ContractParty) =>
     !party.id && !party.nombreCompleto.trim() && !party.telefono.trim();

@@ -16,7 +16,7 @@ for (const { slug, title } of clients) {
             const attachment = { id: 20, nombreArchivo: `recibo-${slug}.pdf`, tipoContenido: 'application/pdf', tamano: 20, fechaCreacion: '2026-11-04T17:00:00Z', creadoPor: user };
             const sample = {
                 id: 1, version: 1, fecha: '2026-11-04', tipo: 'GASTO', detalle: `Luz de ${title}`, monto: '2500.50', moneda: 'ARS',
-                categoria: `Servicios de ${title}`, metodoPago: null, cuentaPago: `Cuenta personal de ${title}`, observaciones: null,
+                categoria: `Servicios de ${title}`, metodoPago: null as string | null, cuentaPago: `Cuenta personal de ${title}`, observaciones: null,
                 fechaCreacion: '2026-11-04T17:00:00Z', fechaActualizacion: '2026-11-04T17:00:00Z',
                 anuladoEn: null as string | null, motivoAnulacion: null as string | null, creadoPor: user, actualizadoPor: null, anuladoPor: null, adjuntos: [attachment]
             };
@@ -46,7 +46,7 @@ for (const { slug, title } of clients) {
                     body = { data: [{ ...sample, id: 99, detalle: 'Gasto privado de oficina', cuentaPago: 'Cuenta interna' }], meta: { page: 1, limit: 25, total: 1, totalPages: 1 }, periodo: url.searchParams.get('periodo'), resumen: [] };
                 } else if (path === `/api/${slug}` && request.method() === 'POST') {
                     const field = (name: string) => request.postData()?.split(`name="${name}"\r\n\r\n`)[1]?.split('\r\n')[0] || '';
-                    const record = { ...sample, id: 2, detalle: field('detalle'), monto: field('monto'), adjuntos: [] };
+                    const record = { ...sample, id: 2, detalle: field('detalle'), monto: field('monto'), metodoPago: field('metodoPago'), cuentaPago: field('cuentaPago'), adjuntos: [] };
                     records.push(record);
                     body = record;
                 } else if (path === `/api/${slug}/1` && request.method() === 'PUT') {
@@ -135,6 +135,93 @@ for (const { slug, title } of clients) {
             await expect(dialog).not.toBeVisible();
             expect(JSON.parse(requests.find(request => request.path.endsWith('/1/anular'))?.body || '{}')).toMatchObject({ version: 3, motivo: 'Cargado por duplicado' });
             expect(requests.some(request => request.path.startsWith('/api/control-interno') || request.path.includes('/cajachica'))).toBe(false);
+        });
+
+        test('transferencia exige banco al crear y permite escribir uno nuevo', async ({ page }) => {
+            if (slug === 'daniel') await page.setViewportSize({ width: 390, height: 844 });
+            const requests = await setup(page);
+            const writes = () => requests.filter(request => request.path === `/api/${slug}` && request.method === 'POST');
+            await page.getByRole('button', { name: 'Agregar movimiento', exact: true }).click();
+            const dialog = page.getByRole('dialog', { name: `Agregar movimiento de ${title}` });
+            await dialog.getByLabel('Detalle de lo pagado o recibido').fill('Reparación del baño');
+            await dialog.getByLabel('Importe *', { exact: true }).fill('300000');
+            await dialog.locator('#internal-payment-method').click();
+            await page.getByRole('option', { name: 'Transferencia', exact: true }).click();
+            const account = dialog.getByRole('button', { name: /^Banco \/ cuenta de origen \*:/ });
+            await dialog.getByRole('button', { name: 'Guardar movimiento' }).click();
+            await expect(account).toHaveAttribute('aria-invalid', 'true');
+            await expect(account).toBeFocused();
+            await expect(dialog.getByRole('alert')).toContainText('Indicá el banco o la cuenta de origen de la transferencia.');
+            expect(writes()).toHaveLength(0);
+            expect((await new AxeBuilder({ page }).include('#internal-movement-form').analyze()).violations).toEqual([]);
+
+            await account.click();
+            await page.getByRole('option', { name: 'Escribir otro banco / cuenta…', exact: true }).click();
+            const name = dialog.getByLabel('Nombre del banco / cuenta', { exact: true });
+            await expect(name).toHaveAttribute('required');
+            await dialog.getByRole('button', { name: 'Guardar movimiento' }).click();
+            await expect(name).toBeFocused();
+            expect(writes()).toHaveLength(0);
+            await name.fill('   ');
+            await dialog.getByRole('button', { name: 'Guardar movimiento' }).click();
+            await expect(name).toHaveAttribute('aria-invalid', 'true');
+            expect(writes()).toHaveLength(0);
+            await name.fill('  Banco Nación · Cuenta personal  ');
+            await dialog.getByRole('button', { name: 'Guardar movimiento' }).click();
+            await expect(dialog).not.toBeVisible();
+            expect(writes()).toHaveLength(1);
+            expect(writes()[0].body).toContain('name="cuentaPago"\r\n\r\nBanco Nación · Cuenta personal\r\n');
+            await expect(page.getByText('Cuenta de origen: Banco Nación · Cuenta personal', { exact: true }).filter({ visible: true })).toBeVisible();
+        });
+
+        test('editar una transferencia exige conservar o elegir una cuenta', async ({ page }) => {
+            const requests = await setup(page);
+            const writes = () => requests.filter(request => request.method === 'PUT');
+            await page.getByRole('button', { name: 'Editar', exact: true }).filter({ visible: true }).first().click();
+            const dialog = page.getByRole('dialog', { name: `Editar movimiento de ${title}` });
+            await dialog.locator('#internal-payment-method').click();
+            await page.getByRole('option', { name: 'Transferencia', exact: true }).click();
+            const account = dialog.locator('#internal-payment-account');
+            await expect(account).toContainText(`Cuenta personal de ${title}`);
+            await account.click();
+            await page.getByRole('option', { name: 'Seleccionar banco / cuenta', exact: true }).click();
+            await dialog.getByRole('button', { name: 'Guardar movimiento' }).click();
+            await expect(account).toHaveAttribute('aria-invalid', 'true');
+            expect(writes()).toHaveLength(0);
+            await account.click();
+            await page.getByRole('option', { name: `Cuenta personal de ${title}`, exact: true }).click();
+            await dialog.getByRole('button', { name: 'Guardar movimiento' }).click();
+            await expect(dialog).not.toBeVisible();
+            expect(JSON.parse(writes()[0].body || '{}')).toMatchObject({ metodoPago: 'Transferencia', cuentaPago: `Cuenta personal de ${title}`, version: 1 });
+
+            await page.getByRole('button', { name: 'Editar', exact: true }).filter({ visible: true }).first().click();
+            await expect(account).toContainText(`Cuenta personal de ${title}`);
+            await expect(dialog.locator('#internal-payment-method')).toContainText('Transferencia');
+        });
+
+        test('los ingresos por transferencia exigen destino y efectivo vuelve a dejar la cuenta opcional', async ({ page }) => {
+            const requests = await setup(page);
+            const writes = () => requests.filter(request => request.path === `/api/${slug}` && request.method === 'POST');
+            await page.getByRole('button', { name: 'Agregar movimiento', exact: true }).click();
+            const dialog = page.getByRole('dialog', { name: `Agregar movimiento de ${title}` });
+            await dialog.getByLabel('Detalle de lo pagado o recibido').fill('Ingreso de prueba');
+            await dialog.getByLabel('Importe *', { exact: true }).fill('300000');
+            await dialog.locator('#internal-type').click();
+            await page.getByRole('option', { name: 'Ingreso', exact: true }).click();
+            await dialog.locator('#internal-payment-method').click();
+            await page.getByRole('option', { name: 'Transferencia', exact: true }).click();
+            await dialog.getByRole('button', { name: 'Guardar movimiento' }).click();
+            await expect(dialog.getByRole('button', { name: /^Banco \/ cuenta de destino \*:/ })).toHaveAttribute('aria-invalid', 'true');
+            await expect(dialog.getByRole('alert')).toContainText('Indicá el banco o la cuenta de destino de la transferencia.');
+            expect(writes()).toHaveLength(0);
+            await dialog.locator('#internal-payment-method').click();
+            await page.getByRole('option', { name: 'Efectivo', exact: true }).click();
+            await expect(dialog.getByRole('button', { name: /^Cuenta de destino \(opcional\):/ })).not.toHaveAttribute('aria-invalid');
+            await expect(dialog.getByRole('alert')).toHaveCount(0);
+            await dialog.getByRole('button', { name: 'Guardar movimiento' }).click();
+            await expect(dialog).not.toBeVisible();
+            expect(writes()).toHaveLength(1);
+            expect(writes()[0].body).toContain('name="metodoPago"\r\n\r\nEfectivo\r\n');
         });
 
         test(`los reportes conservan el nombre de ${title} y los filtros elegidos`, async ({ page }) => {

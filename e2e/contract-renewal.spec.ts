@@ -95,7 +95,7 @@ test('la búsqueda recordada y sus cambios no descartan la renovación pendiente
     const { release } = await setup(page, { held: true, persistedSearch: 'Cabildo' });
     await renew(page);
     await expect(page).toHaveURL(/\/contratos\?q=Cabildo$/);
-    await expect(page.getByRole('status')).toHaveText('Cargando datos para la renovación…');
+    await expect(page.getByRole('status').filter({ hasText: 'Cargando datos para la renovación…' })).toBeVisible();
     await page.getByRole('searchbox', { name: 'Buscar', exact: true }).fill('Cabildo 1532');
     await expect(page).toHaveURL(/q=Cabildo\+1532/);
     release();
@@ -123,7 +123,7 @@ test('cancelar consume la solicitud y no vuelve a abrirla al recargar o volver c
 test('cambiar el estado del listado durante la carga conserva la renovación y el filtro elegido', async ({ page }) => {
     const { release } = await setup(page, { held: true });
     await renew(page);
-    await expect(page.getByRole('status')).toHaveText('Cargando datos para la renovación…');
+    await expect(page.getByRole('status').filter({ hasText: 'Cargando datos para la renovación…' })).toBeVisible();
     await page.getByRole('button', { name: /^Filtrar contratos por estado:/ }).click();
     await page.getByRole('option', { name: /^Contratos finalizados\b/ }).click();
     await expect(page).toHaveURL(/estado=FINALIZADO/);
@@ -135,7 +135,7 @@ test('cambiar el estado del listado durante la carga conserva la renovación y e
 test('salir mientras se carga no abre el formulario tardíamente en otra pantalla', async ({ page }) => {
     const { requests, release } = await setup(page, { held: true });
     await renew(page);
-    await expect(page.getByRole('status')).toHaveText('Cargando datos para la renovación…');
+    await expect(page.getByRole('status').filter({ hasText: 'Cargando datos para la renovación…' })).toBeVisible();
     await page.goBack();
     await expect(page).toHaveURL(/\/liquidaciones\/contrato\/7$/);
     const response = page.waitForResponse(response => new URL(response.url()).pathname === '/api/contratos/7');
@@ -150,6 +150,8 @@ test('guardar crea una renovación vinculada al contrato anterior y no edita el 
     const { requests } = await setup(page);
     await renew(page);
     const dialog = await expectPreloaded(page);
+    await dialog.locator('#contract-rent-amount').focus();
+    await expect(dialog.locator('#contract-rent-amount')).toHaveValue('1.000');
     await dialog.locator('#contract-rent-amount').fill('1200');
     await dialog.getByRole('button', { name: 'Guardar contrato', exact: true }).click();
     await expect(page.getByText('Contrato creado correctamente', { exact: true })).toBeVisible();

@@ -132,6 +132,7 @@ export interface Contract {
         id: number;
         persona: {
             id: number;
+            version: number;
             nombreCompleto: string;
             telefono: string | null;
             cbu: string | null;
@@ -145,6 +146,7 @@ export interface Contract {
         id: number;
         persona: {
             id: number;
+            version: number;
             nombreCompleto: string;
             telefono: string | null;
             cbu: string | null;
