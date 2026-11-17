@@ -407,7 +407,7 @@ export default function NewContractModal({
                                             <p className="mt-1 text-indigo-800">Se copiaron el inmueble, las partes y las condiciones comerciales. Revisá las fechas e importes antes de guardar; no se trasladan liquidaciones, pagos, cuotas ni documentos.</p>
                                         </div>
                                     )}
-                                    <div><h3 className="text-base font-semibold text-slate-900">Datos principales del contrato</h3><p className="mt-1 text-sm text-slate-600">Completá los campos obligatorios (*). Después podés agregar acuerdos, observaciones y documentos.</p></div>
+                                    <div><h3 className="text-base font-semibold text-slate-900">Datos principales del contrato</h3></div>
                                     {/* ─── Sección Inmueble ─── */}
                                     <div className="ui-form-section">
                                         <div className="flex justify-between items-center mb-3">

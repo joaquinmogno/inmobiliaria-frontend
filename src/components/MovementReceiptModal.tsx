@@ -113,12 +113,10 @@ export default function MovementReceiptModal({ module, movementId, canIssue, clo
                     {row.motivo && <p className="mt-2 break-words text-gray-700">Motivo: {row.motivo}</p>}
                     <button type="button" onClick={() => void open(row.version)} disabled={Boolean(busy)} className="mt-2 min-h-[var(--ui-control-height)] rounded-lg border border-indigo-200 px-3 font-bold text-indigo-800 disabled:opacity-50" aria-label={`Ver PDF versión ${row.version}`}>Ver PDF / imprimir</button>
                 </li>)}</ul>
-                <p className="mt-2 text-xs text-gray-600">Podés descargar o imprimir el PDF y adjuntar la copia firmada en los comprobantes del movimiento.</p>
                 {allowed && !editing && <button type="button" disabled={Boolean(busy)} onClick={() => setEditing(true)} className="mt-3 min-h-[var(--ui-control-height)] rounded-xl border border-indigo-300 px-4 text-sm font-bold text-indigo-800">{context.versiones[0].estado === 'DESACTUALIZADO' ? 'Actualizar recibo' : 'Corregir recibo'}</button>}
             </section>}
             {!context.versiones.length && !allowed && <p className="text-sm text-gray-600">Este movimiento todavía no tiene un recibo emitido.</p>}
             {allowed && editing && <form id="movement-receipt-form" onSubmit={event => void showPreview(event)} className="space-y-4">
-                <p className="text-sm text-gray-600">Completá los datos que verá quien recibe el comprobante. La firma se agrega al imprimirlo.</p>
                 <fieldset disabled={Boolean(busy) || conflict} className="grid gap-4 sm:grid-cols-2">
                     <label className="block text-sm font-bold text-gray-800">Entrega el dinero *<input required maxLength={180} value={fields.pagador} onChange={event => change('pagador', event.target.value)} className={internalInputClass} /></label>
                     <label className="block text-sm font-bold text-gray-800">Recibe el dinero *<input required maxLength={180} value={fields.receptor} onChange={event => change('receptor', event.target.value)} className={internalInputClass} /></label>

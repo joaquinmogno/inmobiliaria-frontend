@@ -129,7 +129,7 @@ for (const [width, height] of [[1366, 768], [1440, 900]]) {
     await setupProductUI(page, { empty: true });
     for (const route of ['/contratos', '/liquidaciones', '/liquidaciones?view=HISTORIAL', '/pagos', '/cajachica', '/control-interno', '/teodoro', '/daniel']) {
       await page.goto(route);
-      await expect(page.getByRole('status').filter({ hasText: /No hay|Todavía no hay/ }).first()).toBeVisible();
+      await expect(page.getByRole('status').filter({ hasText: /No hay|Sin / }).first()).toBeVisible();
       await bounds(page);
       const search = page.getByRole('searchbox');
       if (await search.count()) {

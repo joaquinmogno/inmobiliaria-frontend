@@ -1,3 +1,4 @@
+import ContextHelp from '../components/ContextHelp';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
@@ -271,7 +272,7 @@ export default function CajaChica() {
     const paymentMethodLabel = MANUAL_CASH_PAYMENT_METHOD_OPTIONS.find(option => option.value === formData.metodoPago)?.label ?? formData.metodoPago;
     const movementTypeLabel = formData.tipo === 'EGRESO' ? 'un egreso' : 'un ingreso';
     const clearListFilters = () => { setSearchTerm(''); setTipoFilter(''); setEstadoFilter(''); setCuentaFilter(''); setCurrentPage(1); };
-    const emptyState = loadError ? <p role="alert" className="p-6 text-sm text-red-800">{loadError}</p> : <EmptyState filtered={Boolean(searchTerm.trim() || tipoFilter || estadoFilter || cuentaFilter)} title="Todavía no hay movimientos en este mes" description="Los ingresos y egresos del período aparecerán aquí." onClear={clearListFilters} action={canCreate ? { label: 'Crear el primer movimiento', onClick: () => setIsModalOpen(true) } : undefined} />;
+    const emptyState = loadError ? <p role="alert" className="p-6 text-sm text-red-800">{loadError}</p> : <EmptyState filtered={Boolean(searchTerm.trim() || tipoFilter || estadoFilter || cuentaFilter)} title="Sin movimientos este mes" onClear={clearListFilters} action={canCreate ? { label: 'Agregar movimiento', onClick: () => setIsModalOpen(true) } : undefined} />;
 
     const createConfirmationMessage = `¿Querés registrar ${movementTypeLabel} por ${paymentMethodLabel.toLowerCase()} de ${formatCurrency(Number(formData.monto), formData.moneda)} el día ${formatDate(formData.fecha)}?${formData.comprobantes.length ? ` Se adjuntarán ${formData.comprobantes.length} comprobante(s).` : ''}`;
 
@@ -408,9 +409,9 @@ export default function CajaChica() {
         <div className="ui-page pb-4">
             <header data-testid="cash-header" className="space-y-3">
             <div className="flex flex-col items-stretch justify-between gap-4 xl:flex-row xl:items-center">
-                <div>
+                <div className="flex items-center gap-2">
                     <h1 className="ui-title">Gestión Financiera</h1>
-                    <p className="text-sm text-content-muted">Caja por fecha real de movimiento. Los saldos se muestran al cierre del período elegido.</p>
+                    <ContextHelp label="Ayuda de gestión financiera"><p>Caja por fecha real de movimiento. Los saldos se muestran al cierre del período elegido.</p></ContextHelp>
                 </div>
                 <div className="ui-page-actions">
                     {canCreate && <button

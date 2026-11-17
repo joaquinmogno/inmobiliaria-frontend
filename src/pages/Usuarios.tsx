@@ -267,7 +267,7 @@ export default function Usuarios() {
   return (
     <div className="ui-page">
       <div className="ui-page-header">
-        <div><h1 className="ui-title">Usuarios y roles</h1><p className="mt-1 text-sm text-content-muted sm:text-base">Administrá quién ingresa y qué puede hacer cada rol.</p></div>
+        <div><h1 className="ui-title">Usuarios y roles</h1></div>
         <button onClick={tab === 'usuarios' ? openNewUser : openNewRole} className="ui-button ui-button-primary"><PlusIcon className="h-5 w-5" />{tab === 'usuarios' ? 'Nuevo usuario' : 'Nuevo rol'}</button>
       </div>
 
@@ -345,7 +345,7 @@ export default function Usuarios() {
           </tbody></table></div>
         </div>}
         {!loading && loadError && <div role="alert" className="ui-panel p-4 text-sm text-red-800">{loadError}<button type="button" className="ui-button ui-button-secondary ml-3" onClick={() => void load()}>Reintentar</button></div>}
-        {!loading && !loadError && users.length === 0 && <div className="ui-panel"><EmptyState filtered={Boolean(search.trim())} title="Todavía no hay usuarios registrados" description="Creá un usuario y asignale un rol para que pueda acceder al sistema." onClear={() => { setSearch(''); setPage(1); void load(1, ''); }} action={isAdmin ? { label: 'Crear el primer usuario', onClick: openNewUser } : undefined} /></div>}
+        {!loading && !loadError && users.length === 0 && <div className="ui-panel"><EmptyState filtered={Boolean(search.trim())} title="Sin usuarios registrados" onClear={() => { setSearch(''); setPage(1); void load(1, ''); }} action={isAdmin ? { label: 'Crear usuario', onClick: openNewUser } : undefined} /></div>}
         {loading && <p className="rounded-2xl border border-gray-100 bg-white p-10 text-center text-content-muted shadow-sm">Cargando...</p>}
         <ServerPagination page={page} totalPages={totalPages} total={total} pageSize={25} currentCount={users.length} onPageChange={setPage} />
       </>}

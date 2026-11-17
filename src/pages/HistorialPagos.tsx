@@ -215,7 +215,7 @@ export default function HistorialPagos() {
     ];
 
     const activeFilterCount = [monedaFilter, metodoFilter, cuentaFilter, estadoFilter, propietarioId, inquilinoId, desdeFilter, hastaFilter].filter(Boolean).length;
-    const emptyState = <EmptyState filtered={Boolean(searchTerm.trim()) || activeFilterCount > 0} title="Todavía no hay cobros registrados" description="Los cobros se registran desde la liquidación de cada contrato." onClear={clearFilters} action={hasPermission(user, 'pagos.crear') && hasPermission(user, 'liquidaciones.ver') ? { label: 'Ir a liquidaciones', onClick: () => navigate('/liquidaciones') } : undefined} />;
+    const emptyState = <EmptyState filtered={Boolean(searchTerm.trim()) || activeFilterCount > 0} title="Sin cobros registrados" onClear={clearFilters} action={hasPermission(user, 'pagos.crear') && hasPermission(user, 'liquidaciones.ver') ? { label: 'Ir a liquidaciones', onClick: () => navigate('/liquidaciones') } : undefined} />;
 
     const formatAddress = (propiedad: any) => {
         if (!propiedad) return "N/A";
@@ -237,7 +237,7 @@ export default function HistorialPagos() {
 
     return (
         <div className="ui-page">
-            <PageHeader title="Cobros de inquilinos" description="Registro histórico de todos los cobros recibidos" />
+            <PageHeader title="Cobros de inquilinos" />
 
             <FilterBar collapsibleOnMobile collapsibleOnDesktop context={<>Estado: {estadoFilter === "ANULADO" ? "Anulados" : estadoFilter === "VIGENTE" ? "Vigentes" : "Todos"} · {desdeFilter || hastaFilter ? `Período: ${desdeFilter ? formatDate(desdeFilter) : "Desde el inicio"} – ${hastaFilter ? formatDate(hastaFilter) : "Hasta hoy"}` : "Todos los períodos"}</>} activeFilterCount={activeFilterCount} query={searchTerm} onQueryChange={setSearchTerm} onClear={clearFilters} resultCount={totalItems} placeholder="Buscar por propiedad, inquilino u observaciones..." filters={<>
                 <div className="grid gap-3 min-[380px]:grid-cols-2 xl:grid-cols-4">

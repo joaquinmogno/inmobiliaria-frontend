@@ -1,3 +1,4 @@
+import ContextHelp from '../../components/ContextHelp';
 import { useEffect, useState } from 'react';
 import { PlusIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 import AppSelect from '../../components/AppSelect';
@@ -36,9 +37,9 @@ export default function BankAccountsSettings({ refreshToken }: { refreshToken: n
     };
 
     return <section className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm sm:p-6">
-        <div className="mb-6">
+        <div className="mb-6 flex items-center gap-2">
             <h2 className="text-lg font-bold text-gray-900">Cuentas bancarias</h2>
-            <p className="mt-1 text-sm text-gray-600">Definí dónde se registran las transferencias y cheques. Las cuentas inactivas se conservan para el historial.</p>
+            <ContextHelp label="Ayuda de cuentas bancarias"><p>Definí dónde se registran las transferencias y cheques. Las cuentas inactivas se conservan para el historial.</p></ContextHelp>
         </div>
         <form onSubmit={submit} className="grid gap-3 rounded-xl bg-gray-50 p-4 sm:grid-cols-5">
             <input required maxLength={100} value={form.banco} onChange={event => setForm({ ...form, banco: event.target.value })} placeholder="Banco o billetera" className="min-h-[var(--ui-control-height)] rounded-lg border border-gray-300 bg-white px-3 text-sm sm:col-span-2" />
@@ -51,7 +52,7 @@ export default function BankAccountsSettings({ refreshToken }: { refreshToken: n
             </div>
         </form>
         <div className="mt-5 divide-y divide-gray-100 rounded-xl border border-gray-200">
-            {accounts.length === 0 && <p className="p-4 text-sm text-gray-600">Todavía no hay cuentas bancarias creadas.</p>}
+            {accounts.length === 0 && <p className="p-4 text-sm text-gray-600">Sin cuentas bancarias</p>}
             {accounts.map(account => <div key={account.id} className="flex items-center justify-between gap-3 p-4">
                 <div><p className="font-bold text-gray-900">{account.banco} — {account.nombre}</p><p className="text-sm text-gray-600">{account.moneda} · {account.esHistorica ? 'Histórica' : account.activa ? 'Activa' : 'Inactiva'}</p></div>
                 {!account.esHistorica && <button type="button" onClick={() => { setEditing(account); setForm({ nombre: account.nombre, banco: account.banco, moneda: account.moneda, activa: account.activa }); }} className="inline-flex min-h-[var(--ui-control-height)] items-center gap-2 rounded-lg px-3 text-sm font-semibold text-indigo-700 hover:bg-indigo-50"><PencilSquareIcon className="h-4 w-4" />Editar</button>}

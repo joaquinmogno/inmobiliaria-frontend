@@ -36,7 +36,7 @@ test('los filtros móviles de cobros conservan su selección al plegar y recarga
   await page.reload();
   await expect(toggle).toHaveText(/2 activos/);
   await page.getByRole('button', { name: 'Limpiar filtros', exact: true }).filter({ visible: true }).click();
-  await expect(page.getByText('Todavía no hay cobros registrados').filter({ visible: true })).toBeVisible();
+  await expect(page.getByText('Sin cobros registrados').filter({ visible: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Ir a liquidaciones' }).filter({ visible: true })).toBeVisible();
   await expect.poll(() => requests.filter(r => r.path === '/api/pagos').at(-1)?.query).not.toMatch(/moneda=|estado=/);
   await page.setViewportSize({ width: 1366, height: 900 });
@@ -57,7 +57,7 @@ test('limpiar filtros internos conserva el mes y la consulta no ofrece acciones 
   await expect(page.getByRole('button', { name: /^Filtros/ })).toHaveText(/1 activo/);
   await page.getByRole('button', { name: /^Filtros/ }).click();
   await page.getByRole('button', { name: 'Limpiar filtros', exact: true }).click();
-  await expect(page.getByText('Todavía no hay movimientos en este mes')).toBeVisible();
+  await expect(page.getByText('Sin movimientos este mes')).toBeVisible();
   await expect(page.getByRole('button', { name: /Crear el primer|Agregar movimiento/ })).toHaveCount(0);
   await expect.poll(() => requests.filter(r => r.path === '/api/control-interno').at(-1)?.query).toMatch(/periodo=2026-07&estado=VIGENTES/);
   await expect(page.getByText('Período: julio de 2026')).toBeVisible();
@@ -68,15 +68,15 @@ test('personas distingue búsqueda vacía y registro inicial sin ofrecer creaci�
   await page.goto('/personas?q=Inexistente');
   await expect(page.getByText('No hay resultados con estos filtros').filter({ visible: true })).toBeVisible();
   await page.getByRole('button', { name: 'Limpiar filtros', exact: true }).filter({ visible: true }).click();
-  await expect(page.getByText('Todavía no hay personas registradas').filter({ visible: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: /Crear la primera|Nueva persona/ })).toHaveCount(0);
+  await expect(page.getByText('Sin personas registradas').filter({ visible: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: /Agregar persona|Nueva persona/ })).toHaveCount(0);
 });
 
 test('persona muestra errores vinculados al campo y permite guardar desde el pie fijo en celular', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
   const requests = await setup(page);
   await page.goto('/personas');
-  await page.getByRole('button', { name: 'Crear la primera persona' }).filter({ visible: true }).click();
+  await page.getByRole('button', { name: 'Agregar persona' }).filter({ visible: true }).click();
   const save = page.getByRole('button', { name: 'Guardar persona', exact: true });
   await save.click();
   await expect(page.locator('#person-name')).toHaveAttribute('aria-invalid', 'true');

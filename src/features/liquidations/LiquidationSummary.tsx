@@ -50,12 +50,11 @@ export default function LiquidationSummary({ liquidacion, summaries, canEdit, on
                 <h2 className="text-xs font-bold text-gray-600">Alquiler mensual</h2>
                 <p data-testid="liquidation-summary-amount" className={`${moneyClass} text-gray-950`}>{formatCurrency(Number(liquidacion.montoAlquilerBase), liquidacion.moneda)}</p>
                 {canEdit && <button type="button" onClick={onEditRent} className="ui-button ui-button-secondary mt-2 px-2 text-xs"><PencilSquareIcon className="h-4 w-4" />Editar alquiler</button>}
-                <p className="mt-2 text-xs text-gray-600">{liquidacion.alquilerExcepcional ? 'Importe manual de este período' : 'Alquiler vigente precargado'}</p>
+                {liquidacion.alquilerExcepcional && <p className="mt-2 text-xs text-gray-600">Importe manual de este período</p>}
             </div>
             <div data-testid="liquidation-summary-card" className={cardClass}>
                 <h2 className="text-xs font-bold text-gray-600">Otros conceptos netos</h2>
                 {summaries.map(summary => <p key={summary.moneda} className={`${moneyClass} text-gray-950`}>{formatCurrency(summary.netoACobrar - (summary.moneda === liquidacion.moneda ? Number(liquidacion.montoAlquilerBase) + (liquidacion.pagaHonorarios === 'INQUILINO' ? Number(liquidacion.montoHonorarios) : 0) : 0), summary.moneda)}</p>)}
-                <p className="mt-2 text-xs text-gray-600">Ingresos y descuentos adicionales</p>
             </div>
             <div data-testid="liquidation-summary-card" className={cardClass}>
                 <h2 className="text-xs font-bold text-gray-600">Honorarios {liquidacion.porcentajeHonorarios != null ? `${liquidacion.porcentajeHonorarios}%` : '(fijos)'}</h2>
@@ -66,15 +65,12 @@ export default function LiquidationSummary({ liquidacion, summaries, canEdit, on
             <div data-testid="liquidation-summary-card" className={cardClass}>
                 <h2 className="text-xs font-bold text-gray-600">Total a cobrar al inquilino</h2>
                 {summaries.map(summary => <p data-testid="liquidation-summary-amount" key={summary.moneda} className={`${moneyClass} text-gray-950`}>{formatCurrency(summary.netoACobrar, summary.moneda)}</p>)}
-                <p className="mt-2 text-xs text-gray-600">Total de este período</p>
             </div>
             <div data-testid="liquidation-summary-card" className={`${cardClass} bg-slate-50`}>
                 <h2 className="text-xs font-bold text-slate-700">Neto propietario</h2>
                 {summaries.map(summary => <p data-testid="liquidation-summary-amount" key={summary.moneda} className={`${moneyClass} text-slate-950`}>{formatCurrency(summary.montoPropietario, summary.moneda)}</p>)}
-                <p className="mt-2 text-xs text-slate-700">Luego de honorarios y descuentos</p>
             </div>
         </div>
-        {summaries.length > 1 && <p className="mt-2 text-xs font-semibold text-indigo-800">Pesos y dólares se administran por separado. Cada importe conserva su moneda.</p>}
         {liquidacion.estado === 'CONFIRMADA' && <div data-testid="liquidation-lifecycle" className="mt-3 grid gap-3 border-t border-gray-100 pt-3 text-xs sm:grid-cols-2">
             <div><p className="font-bold text-indigo-800">Cobro inquilino · {settlementStatusLabel(liquidacion.estadoCobroInquilino)}</p>{summaries.map(summary => <p key={summary.moneda} className="mt-1 text-gray-700">Cobrado {formatCurrency(summary.cobradoInquilino, summary.moneda)} · Saldo <strong>{formatCurrency(summary.saldoInquilino, summary.moneda)}</strong></p>)}</div>
             <div><p className="font-bold text-orange-800">Pago propietario · {settlementStatusLabel(liquidacion.estadoPagoPropietario)}</p>{summaries.map(summary => <p key={summary.moneda} className="mt-1 text-gray-700">Entregado {formatCurrency(summary.pagadoPropietario, summary.moneda)} · Saldo <strong>{formatCurrency(summary.saldoPropietario, summary.moneda)}</strong>{summary.capitalPropioExpuesto > 0 && <span className="block font-bold text-rose-800">Capital propio expuesto: {formatCurrency(summary.capitalPropioExpuesto, summary.moneda)}</span>}</p>)}</div>

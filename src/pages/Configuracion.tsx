@@ -26,7 +26,6 @@ export default function Configuracion() {
             <header className="ui-page-header">
                 <div>
                     <h1 className="ui-title">Configuración del Sistema</h1>
-                    <p className="mt-1 text-sm text-gray-600 ">Gestión de respaldos y seguridad de datos.</p>
                 </div>
                 <button
                     onClick={() => setRefreshToken(current => current + 1)}

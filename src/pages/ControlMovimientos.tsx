@@ -1,3 +1,4 @@
+import ContextHelp from '../components/ContextHelp';
 import FilterBar from '../components/FilterBar';
 import EmptyState from '../components/EmptyState';
 import LoadingState from '../components/LoadingState';
@@ -19,19 +20,19 @@ const emptyOptions: InternalOptions = { categorias: [], mediosPago: [], cuentasP
 
 const sections = {
     INTERNO: {
-        title: 'Control interno', description: 'Gastos y movimientos de control personal, organizados por mes.',
+        title: 'Control interno',
         totalsLabel: 'del control interno', movementLabel: 'movimiento interno', listLabel: 'Planilla de movimientos internos',
         service: controlInternoService, receiptModule: 'control-interno',
         permissions: { create: 'control_interno.crear', edit: 'control_interno.editar', cancel: 'control_interno.anular', report: 'control_interno.reportes' }
     },
     TEODORO: {
-        title: 'Teodoro', description: 'Ingresos, gastos y pagos de Teodoro, organizados por mes.',
+        title: 'Teodoro',
         totalsLabel: 'de Teodoro', movementLabel: 'movimiento de Teodoro', listLabel: 'Planilla de movimientos de Teodoro',
         service: teodoroService, receiptModule: 'teodoro',
         permissions: { create: 'teodoro.crear', edit: 'teodoro.editar', cancel: 'teodoro.anular', report: 'teodoro.reportes' }
     },
     DANIEL: {
-        title: 'Daniel', description: 'Ingresos, gastos y pagos de Daniel, organizados por mes.',
+        title: 'Daniel',
         totalsLabel: 'de Daniel', movementLabel: 'movimiento de Daniel', listLabel: 'Planilla de movimientos de Daniel',
         service: danielService, receiptModule: 'daniel',
         permissions: { create: 'daniel.crear', edit: 'daniel.editar', cancel: 'daniel.anular', report: 'daniel.reportes' }
@@ -115,7 +116,7 @@ function MovementControlPage({ ambito }: { ambito: MovementControlScope }) {
 
     return <div className="ui-page pb-8">
         <header className="ui-page-header">
-            <div><h1 className="ui-title flex items-center gap-2"><ClipboardDocumentListIcon className="h-5 w-5 text-indigo-600" />{section.title}</h1><p className="mt-1 text-sm text-gray-600">{section.description}</p><p className="mt-1 text-xs text-indigo-800">Estos registros no modifican la caja, las liquidaciones ni los cobros de la aplicación.</p></div>
+            <div className="flex items-center gap-2"><h1 className="ui-title flex items-center gap-2"><ClipboardDocumentListIcon className="h-5 w-5 text-indigo-600" />{section.title}</h1><ContextHelp label={`Ayuda de ${section.title}`}><p>Estos registros no modifican la caja, las liquidaciones ni los cobros de la aplicación.</p><p>Los anulados no suman a los totales.</p>{canReport && <p>Los reportes incluyen todos los registros del mes que coinciden con los filtros, aunque la planilla tenga varias páginas. El Excel también incluye observaciones y nombres de comprobantes.</p>}</ContextHelp></div>
             <div className="ui-page-actions">
                 {canCreate && <button type="button" onClick={() => setEditor({ record: null })} className="ui-button ui-button-primary"><PlusIcon className="h-5 w-5" />Agregar movimiento</button>}
                 {canReport && <div className="grid grid-cols-2 gap-2 sm:flex">
@@ -151,16 +152,15 @@ function MovementControlPage({ ambito }: { ambito: MovementControlScope }) {
         {error && <div role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-800">{error}<button type="button" onClick={changed} className="ml-3 min-h-[var(--ui-control-height)] font-bold underline">Reintentar</button></div>}
 
         <section aria-label={section.listLabel} className="ui-panel overflow-hidden" aria-busy={loading}>
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3"><h2 className="font-semibold text-gray-950">Movimientos del mes</h2><p className="text-xs text-gray-600">{loading ? 'Cargando…' : `${response?.meta.total || 0} registros`} · Los anulados no suman a los totales.</p></div>
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 py-3"><h2 className="font-semibold text-gray-950">Movimientos del mes</h2><p className="text-xs text-gray-600">{loading ? 'Cargando…' : `${response?.meta.total || 0} registros`}</p></div>
             {loading && <LoadingState compact label={`Cargando movimientos ${section.totalsLabel}…`} />}
-            {!loading && !error && response?.data.length === 0 && <EmptyState filtered={Boolean(filters.search?.trim()) || activeFilterCount > 0} title="Todavía no hay movimientos en este mes" description="Elegí otro período o registrá el primer ingreso o gasto del mes." onClear={clearFilters} action={canCreate ? { label: 'Crear el primer movimiento', onClick: () => setEditor({ record: null }) } : undefined} />}
+            {!loading && !error && response?.data.length === 0 && <EmptyState filtered={Boolean(filters.search?.trim()) || activeFilterCount > 0} title="Sin movimientos este mes" onClear={clearFilters} action={canCreate ? { label: 'Agregar movimiento', onClick: () => setEditor({ record: null }) } : undefined} />}
             {!loading && !error && !!response?.data.length && <>
                 <div className="divide-y divide-gray-100 lg:hidden">{response.data.map(record => <article key={record.id} aria-label={record.detalle} className="space-y-3 p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0">{recordDetails(record)}<p className="mt-1 text-xs text-gray-600">{formatDate(record.fecha)} · {record.tipo === 'GASTO' ? 'Gasto' : 'Ingreso'} · {record.categoria || 'Sin categoría'}</p></div><p className={`shrink-0 text-sm font-bold text-right tabular-nums ${record.tipo === 'GASTO' ? 'text-red-800' : 'text-emerald-800'}`}>{formatCurrency(Number(record.monto), record.moneda)}</p></div><p className="text-xs text-gray-600">{record.metodoPago || 'Medio sin especificar'} · Cargó {record.creadoPor.nombreCompleto} · {formatDateTime(record.fechaCreacion)}</p>{actions(record)}</article>)}</div>
                 <div className="hidden overflow-x-auto lg:block"><table className="ui-table tabular-nums w-full min-w-[65rem] text-left text-sm" aria-label={`Planilla mensual ${section.totalsLabel}`}><thead className="bg-gray-50 text-xs uppercase text-gray-600"><tr>{['Fecha', 'Detalle', 'Categoría / medio', 'Importe', 'Usuario / carga', 'Acciones'].map(label => <th key={label} scope="col" className={`px-4 py-3 font-semibold ${label === 'Importe' ? 'text-right' : ''}`}>{label}</th>)}</tr></thead><tbody className="divide-y divide-gray-100">{response.data.map(record => <tr key={record.id} className={`align-top ${record.anuladoEn ? 'bg-gray-50' : 'hover:bg-indigo-50/20'}`}><td className="whitespace-nowrap px-4 py-4">{formatDate(record.fecha)}<p className="mt-1 text-xs font-bold text-gray-600">{record.tipo === 'GASTO' ? 'Gasto' : 'Ingreso'} · #{record.id}</p></td><td className="min-w-56 max-w-sm px-4 py-4">{recordDetails(record)}</td><td className="max-w-48 break-words px-4 py-4">{record.categoria || 'Sin categoría'}<p className="mt-1 text-xs text-gray-600">{record.metodoPago || 'Sin especificar'}</p></td><td className={`whitespace-nowrap px-4 py-4 font-bold text-right tabular-nums ${record.tipo === 'GASTO' ? 'text-red-800' : 'text-emerald-800'}`}>{formatCurrency(Number(record.monto), record.moneda)}</td><td className="max-w-44 break-words px-4 py-4 text-xs text-gray-700"><p className="font-bold">{record.creadoPor.nombreCompleto}</p><p>{formatDateTime(record.fechaCreacion)}</p>{record.actualizadoPor && <p className="mt-1">Editó {record.actualizadoPor.nombreCompleto} · {formatDateTime(record.fechaActualizacion)}</p>}</td><td className="min-w-44 px-4 py-4">{actions(record)}</td></tr>)}</tbody></table></div>
             </>}
             {!loading && !error && response && <ServerPagination page={response.meta.page} totalPages={response.meta.totalPages} total={response.meta.total} pageSize={response.meta.limit} currentCount={response.data.length} onPageChange={setPage} />}
         </section>
-        {canReport && <p className="text-xs text-gray-600">Los reportes incluyen todos los registros del mes que coinciden con los filtros, aunque la planilla tenga varias páginas. El Excel también incluye observaciones y nombres de comprobantes.</p>}
 
         {editor && <InternalMovementModal service={service} movementLabel={section.movementLabel} key={editor.record?.id || 'new'} record={editor.record} period={filters.periodo} options={options} close={() => setEditor(null)} saved={() => { toast.success(editor.record ? 'Movimiento actualizado' : 'Movimiento guardado'); changed(); }} />}
         {receipts && <InternalReceiptsModal service={service} key={receipts.id} record={receipts} canEdit={canEdit} close={() => setReceipts(null)} changed={changed} />}

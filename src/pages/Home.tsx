@@ -1,3 +1,4 @@
+import ContextHelp from '../components/ContextHelp';
 import PageHeader from '../components/PageHeader';
 import MetricCard from '../components/MetricCard';
 import { currentMonthInput, formatDate, formatMonthYear, todayDateInput } from '../utils/date';
@@ -181,7 +182,6 @@ export default function Home() {
   const kpiCards = [
     {
       label: "Propiedades registradas",
-      criterion: "Todas, con o sin contrato",
       visible: canViewDashboard,
       value: kpis?.propiedadesTotal ?? "-",
       icon: HomeModernIcon,
@@ -189,7 +189,6 @@ export default function Home() {
     },
     {
       label: "Contratos Activos",
-      criterion: "Incluye gestión única",
       visible: canViewContractReports,
       value: kpis?.contratosActivos ?? "-",
       icon: DocumentTextIcon,
@@ -197,7 +196,6 @@ export default function Home() {
     },
     {
       label: "Pendiente de cobro · ARS",
-      criterion: "Saldo / facturado del mes",
       visible: canViewDelinquencyReports,
       value: kpis?.devengado && canViewFinancialReports ? `${kpis.morosidad.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%` : "—",
       icon: ChartBarIcon,
@@ -209,19 +207,23 @@ export default function Home() {
   return (
     <div className="ui-page">
       
-      <PageHeader title={`Panel de ${user?.inmobiliaria?.nombre || "Gestión"}`} description={`Inventario actual, pendientes de todos los períodos y finanzas de ${reportMonth}.`} />
+      <PageHeader title={`Panel de ${user?.inmobiliaria?.nombre || "Gestión"}`} help={
+        <ContextHelp label="Ayuda de los indicadores del panel">
+          <p>Inventario al {formatDate(todayDateInput())}: propiedades de todo el registro y contratos en estado ACTIVO. Pendiente de cobro: saldo de inquilinos / facturado en ARS de {reportMonth}, incluidas deudas aún no vencidas.{!kpis?.devengado && !loadingKpis && canViewDelinquencyReports && ' Porcentaje no disponible sin el reporte financiero.'}</p>
+          <p>Todas las propiedades, con o sin contrato. Los contratos activos incluyen los de gestión única.</p>
+        </ContextHelp>
+      } />
 
       {/* Indicadores operativos: las cifras financieras se muestran una sola vez y separadas por moneda. */}
       <section aria-labelledby="operational-summary-title">
         <h2 id="operational-summary-title" className="sr-only">Resumen operativo</h2>
       <div data-testid="dashboard-operational-kpis" className="grid grid-cols-1 min-[380px]:grid-cols-2 sm:grid-cols-3 gap-3">
-        {kpiCards.filter(card => card.visible).map(card => <MetricCard key={card.label} label={card.label} value={card.value} description={card.criterion} loading={loadingKpis} />)}
+        {kpiCards.filter(card => card.visible).map(card => <MetricCard key={card.label} label={card.label} value={card.value} loading={loadingKpis} />)}
 	      </div>
-      <p className="mt-2 text-xs text-gray-600">Inventario al {formatDate(todayDateInput())}: propiedades de todo el registro y contratos en estado ACTIVO. Pendiente de cobro: saldo de inquilinos / facturado en ARS de {reportMonth}, incluidas deudas aún no vencidas.{!kpis?.devengado && !loadingKpis && canViewDelinquencyReports && ' Porcentaje no disponible sin el reporte financiero.'}</p>
       </section>
 
       {canViewDashboard && kpis?.operacion && <section aria-labelledby="priority-actions-title" className="ui-panel p-4">
-        <div><h2 id="priority-actions-title" className="ui-section-title">Prioridades operativas</h2><p className="mt-1 text-xs leading-5 text-content-muted">Liquidaciones confirmadas de todos los períodos; vencimientos de contratos activos en los próximos 60 días.</p></div>
+        <div className="flex items-center justify-between gap-2"><h2 id="priority-actions-title" className="ui-section-title">Prioridades operativas</h2><ContextHelp label="Ayuda de prioridades operativas"><p>Liquidaciones confirmadas de todos los períodos; vencimientos de contratos activos en los próximos 60 días.</p></ContextHelp></div>
         <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
           {[
             { label: 'Liquidaciones vencidas', value: kpis.operacion.alquileresVencidos, tone: 'text-red-800', action: () => navigate('/liquidaciones?view=HISTORIAL&vencidas=true') },
@@ -243,8 +245,8 @@ export default function Home() {
 	      {canViewFinancialReports && kpis?.porMoneda && (
 	        <section data-testid="dashboard-financial-summary" aria-labelledby="financial-summary-title" className="ui-panel p-4">
 	          <div className="mb-3">
-	            <h2 id="financial-summary-title" className="ui-section-title">Resumen financiero por moneda</h2>
-	            <p className="mt-1 text-xs leading-5 text-content-muted">Período: {reportMonth}. Devengado usa el período de la liquidación; caja usa la fecha real de cada movimiento. Los saldos de esos documentos incluyen cobros y créditos aplicados hasta hoy. Los importes no se combinan entre ARS y USD.</p>
+	            <div className="flex items-center justify-between gap-2"><h2 id="financial-summary-title" className="ui-section-title">Resumen financiero por moneda</h2><ContextHelp label="Ayuda del resumen financiero"><p>Devengado usa el período de la liquidación; caja usa la fecha real de cada movimiento. Los saldos de esos documentos incluyen cobros y créditos aplicados hasta hoy. Los importes no se combinan entre ARS y USD.</p></ContextHelp></div>
+	            <p className="mt-1 text-xs text-content-muted">Período: {reportMonth}</p>
 	          </div>
 	        <div className="grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr))]">
 	          {(["ARS", "USD"] as Moneda[]).map(moneda => {

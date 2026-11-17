@@ -88,7 +88,6 @@ export default function Papelera() {
           </div>
           <div>
             <h1 className="ui-title">Papelera de Contratos</h1>
-            <p className="text-gray-600 text-xs">Contratos eliminados y archivados</p>
           </div>
         </div>
       </div>
@@ -104,9 +103,6 @@ export default function Papelera() {
             </div>
 
             <h2 className="text-xl font-bold text-gray-900 mb-2">La papelera está vacía</h2>
-            <p className="text-gray-600 text-sm mb-5">
-              No hay contratos eliminados. Los contratos que elimines aparecerán aquí y podrás restaurarlos o eliminarlos permanentemente.
-            </p>
 
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3.5 text-left">
               <div className="flex gap-2.5">

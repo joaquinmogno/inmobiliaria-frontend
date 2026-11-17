@@ -166,19 +166,19 @@ for (const [width, height] of [[1280, 720], [1366, 768]]) {
         await page.setViewportSize({ width, height });
         await setup(page, { empty: true });
         await page.goto(route);
-        await expect(page.getByText('Todavía no hay movimientos en este mes', { exact: true })).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Crear el primer movimiento' })).toBeVisible();
+        await expect(page.getByText('Sin movimientos este mes', { exact: true })).toBeVisible();
+        await expect(page.getByRole('status').getByRole('button', { name: 'Agregar movimiento', exact: true })).toBeVisible();
         const month = page.getByLabel('Mes', { exact: true });
         await month.fill('2026-09');
         const search = page.getByRole('searchbox', { name: 'Buscar por detalle, cuenta u observaciones' });
         await search.focus();
         await page.keyboard.type('sin coincidencias');
         await expect(page.getByText('No hay resultados con estos filtros', { exact: true })).toBeVisible();
-        await expect(page.getByRole('button', { name: 'Crear el primer movimiento' })).toHaveCount(0);
+        await expect(page.getByRole('status').getByRole('button', { name: 'Agregar movimiento', exact: true })).toHaveCount(0);
         await keyboardActivate(page.getByRole('button', { name: 'Limpiar filtros', exact: true }));
         await expect(search).toHaveValue('');
         await expect(month).toHaveValue('2026-09');
-        await expect(page.getByText('Todavía no hay movimientos en este mes', { exact: true })).toBeVisible();
+        await expect(page.getByText('Sin movimientos este mes', { exact: true })).toBeVisible();
         await noPageOverflow(page);
     });
 }

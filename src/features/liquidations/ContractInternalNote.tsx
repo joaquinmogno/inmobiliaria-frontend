@@ -1,3 +1,4 @@
+import ContextHelp from '../../components/ContextHelp';
 import { useState, type FormEvent } from 'react';
 import { DialogTitle } from '@headlessui/react';
 import { ExclamationTriangleIcon, PencilSquareIcon, PlusIcon, TrashIcon, XMarkIcon } from '@heroicons/react/24/outline';
@@ -37,9 +38,9 @@ export default function ContractInternalNote({ note, canEdit, onSave }: {
 
     return <section aria-labelledby="contract-internal-note-title" className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm print:hidden sm:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 id="contract-internal-note-title" className="flex items-center gap-2 text-base font-semibold text-amber-950">
+            <div className="flex items-center gap-2"><h2 id="contract-internal-note-title" className="flex items-center gap-2 text-base font-semibold text-amber-950">
                 <ExclamationTriangleIcon className="h-5 w-5 shrink-0" aria-hidden="true" />NOTA INTERNA (IMPORTANTE)
-            </h2>
+            </h2><ContextHelp label="Ayuda de la nota interna"><p>Recordatorio del equipo para este contrato. Se mantiene en los próximos meses hasta eliminarlo. No aparece en los comprobantes.</p></ContextHelp></div>
             {canEdit && <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => open('edit')} className="inline-flex min-h-[var(--ui-control-height)] items-center gap-2 rounded-xl border border-amber-400 bg-white px-3 text-sm font-bold text-amber-950 hover:bg-amber-100">
                     {note.texto ? <PencilSquareIcon className="h-5 w-5" aria-hidden="true" /> : <PlusIcon className="h-5 w-5" aria-hidden="true" />}
@@ -48,7 +49,6 @@ export default function ContractInternalNote({ note, canEdit, onSave }: {
                 {note.texto && <button type="button" onClick={() => open('delete')} data-danger-trigger="true" className="inline-flex min-h-[var(--ui-control-height)] items-center gap-2 rounded-xl border border-red-300 bg-white px-3 text-sm font-bold text-red-800 hover:bg-red-50"><TrashIcon className="h-5 w-5" aria-hidden="true" />Eliminar nota interna</button>}
             </div>}
         </div>
-        <p className="mt-2 text-sm text-amber-900">Recordatorio del equipo para este contrato. Se mantiene en los próximos meses hasta eliminarlo. No aparece en los comprobantes.</p>
         {note.texto && <>
             <p className="mt-3 whitespace-pre-wrap break-words text-sm font-medium text-amber-950 [overflow-wrap:anywhere]">{note.texto}</p>
             {note.actualizadaEn && <p className="mt-3 text-xs text-amber-900">Actualizada por {note.actualizadaPor?.nombreCompleto || 'Usuario no disponible'} · {formatDateTime(note.actualizadaEn)}</p>}
@@ -66,10 +66,9 @@ export default function ContractInternalNote({ note, canEdit, onSave }: {
                         {editor.mode === 'delete'
                             ? <p className="text-sm text-gray-700">La nota dejará de mostrarse en todas las liquidaciones de este contrato, incluidas las próximas. La eliminación quedará registrada en auditoría.</p>
                             : <>
-                                <p id="internal-note-help" className="text-sm text-gray-700">Esta aclaración es solo para el equipo y se mantiene cada mes hasta que la eliminen.</p>
                                 <div>
                                     <label htmlFor="internal-note-text" className="mb-1 block text-sm font-bold text-gray-800">Texto de la nota interna</label>
-                                    <textarea id="internal-note-text" required maxLength={3000} rows={6} value={editor.text} disabled={saving} onChange={event => setEditor({ ...editor, text: event.target.value })} aria-describedby="internal-note-help internal-note-counter" placeholder="Ej.: Pedir el comprobante de expensas antes de confirmar. Consultar si hubo uso del SUM." className="block w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-amber-600 focus:ring-2 focus:ring-amber-600 disabled:opacity-60" />
+                                    <textarea id="internal-note-text" required maxLength={3000} rows={6} value={editor.text} disabled={saving} onChange={event => setEditor({ ...editor, text: event.target.value })} aria-describedby="internal-note-counter" placeholder="Ej.: Pedir el comprobante de expensas antes de confirmar. Consultar si hubo uso del SUM." className="block w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-amber-600 focus:ring-2 focus:ring-amber-600 disabled:opacity-60" />
                                     <p id="internal-note-counter" className="mt-1 text-right text-xs text-gray-600">{editor.text.length}/3000 caracteres</p>
                                 </div>
                             </>}

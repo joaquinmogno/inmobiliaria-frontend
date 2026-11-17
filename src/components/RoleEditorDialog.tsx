@@ -48,9 +48,6 @@ export default function RoleEditorDialog({
             <DialogTitle className="text-xl font-bold text-gray-900">
               {editingRole ? 'Editar rol' : 'Crear rol'}
             </DialogTitle>
-            <p className="mt-1 text-sm text-content-muted">
-              Definí los datos del rol y abrí solamente los módulos que necesites configurar.
-            </p>
           </header>
 
           <form onSubmit={onSubmit} className="flex min-h-0 flex-1 flex-col">

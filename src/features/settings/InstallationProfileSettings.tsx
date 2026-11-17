@@ -1,3 +1,4 @@
+import ContextHelp from '../../components/ContextHelp';
 import { useEffect, useState } from 'react';
 import { BuildingOfficeIcon, IdentificationIcon, PhotoIcon } from '@heroicons/react/24/outline';
 import AppSelect from '../../components/AppSelect';
@@ -165,11 +166,10 @@ export default function InstallationProfileSettings({ refreshToken }: { refreshT
         <section className="overflow-hidden ui-panel">
             <div className="flex flex-col gap-2 border-b border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h2 className="flex items-center text-lg font-semibold text-gray-900">
+                    <div className="flex items-center gap-2"><h2 className="flex items-center text-lg font-semibold text-gray-900">
                         <BuildingOfficeIcon className="mr-2 h-5 w-5 text-indigo-600" />
                         Perfil institucional
-                    </h2>
-                    <p className="mt-1 text-sm text-content-muted">Estos datos se usan en comprobantes, reportes y comunicaciones.</p>
+                    </h2><ContextHelp label="Ayuda del perfil institucional"><p>Estos datos se usan en comprobantes, reportes y comunicaciones.</p><p>El nombre comercial es el único dato obligatorio para operar.</p></ContextHelp></div>
                 </div>
                 {success && <span className="text-sm font-medium text-status-success">✓ Cambios guardados</span>}
             </div>
@@ -179,7 +179,6 @@ export default function InstallationProfileSettings({ refreshToken }: { refreshT
 
                 <fieldset>
                     <legend className="flex items-center text-base font-semibold text-gray-900"><BuildingOfficeIcon className="mr-2 h-5 w-5 text-indigo-600" />Identidad y contacto</legend>
-                    <p className="mt-1 text-sm text-content-muted">El nombre comercial es el único dato obligatorio para operar.</p>
                     <div className="mt-4 grid gap-4 md:grid-cols-2">
                         <label className="block text-sm font-medium text-gray-700">Nombre comercial *
                             <input id="installation-name" required maxLength={140} value={profile.nombre} onChange={event => setProfile(current => ({ ...current, nombre: event.target.value }))} className={inputClass} />

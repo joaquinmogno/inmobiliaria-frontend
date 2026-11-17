@@ -1,3 +1,4 @@
+import ContextHelp from '../../components/ContextHelp';
 import MetricCard from '../../components/MetricCard';
 import CurrencyAmounts from '../../components/CurrencyAmounts';
 import LiquidationStates from './LiquidationStates';
@@ -81,16 +82,11 @@ export default function MonthlyLiquidationWorkspace() {
 
   return <section aria-labelledby="monthly-workspace-title" className="space-y-3">
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div><h2 id="monthly-workspace-title" className="ui-section-title">Liquidaciones de {formatMonthYear(`${workspace.period}-01`)}</h2><p className="mt-1 text-sm text-gray-600">Contratos administrados del período · una fila por contrato, no por inmueble.</p></div>
+      <div className="flex items-center gap-2"><h2 id="monthly-workspace-title" className="ui-section-title">Liquidaciones de {formatMonthYear(`${workspace.period}-01`)}</h2><ContextHelp label="Ayuda de los indicadores del mes"><p>Se cuentan contratos administrados no eliminados que corresponden a {formatMonthYear(`${workspace.period}-01`)} por sus fechas de inicio, fin y entrega de llaves. Incluye borradores, omitidos y casos a revisar; no cuenta propiedades únicas. Los indicadores no cambian al buscar o filtrar.</p><p>Mora al {formatDate(todayDateInput())}: contratos de este listado con liquidaciones confirmadas vencidas y cobro pendiente o parcial, de cualquier período. Los demás indicadores corresponden al mes seleccionado. Cobros y pagos pendientes incluyen parciales; pendientes de liquidar incluye casos listos y a revisar.</p></ContextHelp></div>
       <input aria-label="Mes de trabajo" type="month" value={workspace.period} onChange={event => workspace.setPeriod(event.target.value)} className="ui-field sm:w-48" />
     </div>
 
     {workspace.loading ? <LoadingState label="Cargando el mes…" /> : !workspace.preparation ? <div role="alert" className="ui-panel p-5 text-sm text-red-800">No se pudo cargar el período.<button type="button" className="ui-button ui-button-secondary ml-3" onClick={() => void workspace.load()}>Reintentar</button></div> : <>
-      <details className="text-xs text-gray-600">
-        <summary className="cursor-pointer py-1.5 font-semibold">Criterios del conteo · Mora al {formatDate(todayDateInput())}, de cualquier período</summary>
-        <p className="text-xs text-gray-600">Se cuentan contratos administrados no eliminados que corresponden a {formatMonthYear(`${workspace.period}-01`)} por sus fechas de inicio, fin y entrega de llaves. Incluye borradores, omitidos y casos a revisar; no cuenta propiedades únicas. Los indicadores no cambian al buscar o filtrar.</p>
-        <p className="mt-2 text-xs text-gray-600">Mora al {formatDate(todayDateInput())}: contratos de este listado con liquidaciones confirmadas vencidas y cobro pendiente o parcial, de cualquier período. Los demás indicadores corresponden al mes seleccionado. Cobros y pagos pendientes incluyen parciales; pendientes de liquidar incluye casos listos y a revisar.</p>
-      </details>
       <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
         {cards.map(card => <MetricCard key={card.label} label={card.label} value={card.value} onClick={() => setFilter(card.filter)} selected={filter === card.filter} />)}
       </div>
@@ -121,7 +117,7 @@ export default function MonthlyLiquidationWorkspace() {
               </span>
             </button>;
           })}
-          {!rows.length && <EmptyState filtered={Boolean(search.trim()) || filter !== 'TODAS'} title="No hay contratos para liquidar en este mes" description="Elegí otro período o agregá un contrato administrado para comenzar." onClear={() => { setSearch(''); setFilter('TODAS'); }} action={hasPermission(user, 'contratos.ver') && hasPermission(user, 'contratos.crear') ? { label: 'Crear un contrato', onClick: () => navigate('/contratos', { state: { openNewContractModal: true } }) } : undefined} />}
+          {!rows.length && <EmptyState filtered={Boolean(search.trim()) || filter !== 'TODAS'} title="Sin contratos para liquidar este mes" onClear={() => { setSearch(''); setFilter('TODAS'); }} action={hasPermission(user, 'contratos.ver') && hasPermission(user, 'contratos.crear') ? { label: 'Crear contrato', onClick: () => navigate('/contratos', { state: { openNewContractModal: true } }) } : undefined} />}
         </div>
       </div>
     </>}

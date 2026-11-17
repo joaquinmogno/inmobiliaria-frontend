@@ -133,8 +133,13 @@ test('un conflicto conserva el texto para reintentar y no cierra la ventana', as
 test('solo lectura permite consultar sin editar y la impresión oculta la nota interna', async ({ page }) => {
     await setup(page, { text: 'Recordatorio privado del equipo', readOnly: true });
     await expect(panel(page)).toContainText('Recordatorio privado del equipo');
-    await expect(panel(page).getByRole('button')).toHaveCount(0);
+    await expect(panel(page).getByRole('button', { name: /Agregar nota interna|Editar nota interna|Eliminar nota interna/ })).toHaveCount(0);
+    await panel(page).getByRole('button', { name: 'Ayuda de la nota interna', exact: true }).click();
+    const help = page.getByRole('region', { name: 'Ayuda de la nota interna', exact: true });
+    await expect(help).toBeVisible();
+    await expect(help).toContainText('Se mantiene en los próximos meses hasta eliminarlo.');
     await page.emulateMedia({ media: 'print' });
+    await expect(help).not.toBeVisible();
     await expect(page.locator('section[aria-labelledby="contract-internal-note-title"]')).not.toBeVisible();
     await expect(page.getByRole('region', { name: 'Aclaraciones', exact: true })).toBeVisible();
 });

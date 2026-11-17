@@ -93,9 +93,6 @@ const Login = () => {
             </div>
             
             <div className="space-y-6">
-                <p className="text-lg text-slate-300 leading-relaxed max-w-md">
-                Sistema integral de gestión de propiedades, contratos y liquidaciones para administradores inmobiliarios.
-                </p>
                 <div className="flex flex-col gap-4">
                 {[
                     'Gestión de contratos automatizada',
@@ -145,7 +142,6 @@ const Login = () => {
                  <LockClosedIcon className="w-8 h-8 text-white" />
               </div>
               <h1 className="text-3xl font-black tracking-tight text-white mb-2">Bienvenido</h1>
-              <p className="text-slate-400 text-sm font-medium">Ingresá tus credenciales para continuar</p>
             </div>
 
             {passwordChanged && (

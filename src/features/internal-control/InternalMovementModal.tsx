@@ -71,7 +71,6 @@ export default function InternalMovementModal({ service = controlInternoService,
         <button type="submit" form="internal-movement-form" disabled={busy} className="ui-button ui-button-primary min-w-0 flex-1 sm:flex-none">{busy ? 'Guardando…' : 'Guardar movimiento'}</button>
     </>}>
         <form id="internal-movement-form" onSubmit={event => void save(event)} className="space-y-4">
-            <p className="text-sm text-gray-600">Completá los datos obligatorios (*). La información adicional es opcional.</p>
             <fieldset className="min-w-0 space-y-4"><legend className="mb-3 text-base font-semibold text-slate-900">Datos del movimiento</legend>
             <div className="grid gap-3 sm:grid-cols-2">
                 <div className="min-w-0"><label className="text-sm font-bold text-gray-800">Fecha *<input {...validation.inputProps('internal-date')} type="date" required value={data.fecha} onChange={event => change('fecha', event.target.value)} className={internalInputClass} /></label><FieldError id="internal-date" message={validation.errors['internal-date']} /></div>

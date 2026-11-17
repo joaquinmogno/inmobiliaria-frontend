@@ -100,7 +100,7 @@ export default function AuditLogSettings({ refreshToken }: { refreshToken: numbe
         void loadLogs(1, true);
     };
 
-    const empty = <EmptyState filtered={filtered} title="Todavía no hay eventos de auditoría" description="Las operaciones registradas aparecerán aquí." onClear={clearFilters} />;
+    const empty = <EmptyState filtered={filtered} title="Sin eventos de auditoría" onClear={clearFilters} />;
     const failure = <div role="alert" className="p-4 text-sm text-red-800">No se pudo cargar la auditoría. Los filtros se conservaron.<button type="button" onClick={() => void loadLogs(page)} className="ui-button ui-button-secondary ml-3">Reintentar</button></div>;
     return (
         <section className="overflow-hidden ui-panel">

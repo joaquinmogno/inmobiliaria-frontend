@@ -1,4 +1,4 @@
-import { CheckCircleIcon, ShieldCheckIcon, XCircleIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { PERMISSION_GROUPS, PERMISSION_LABELS } from '../utils/permissions';
 
@@ -10,11 +10,10 @@ export default function MiAcceso() {
   return (
     <div className="ui-page">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div><h1 className="ui-title">Mi acceso</h1><p className="mt-1 text-sm text-content-muted sm:text-base">Permisos actuales para {user?.fullName || 'tu usuario'}.</p></div>
+        <div><h1 className="ui-title">Mi acceso</h1></div>
         <div className="rounded-xl border border-gray-100 bg-white px-4 py-3 text-left shadow-sm sm:text-right"><p className="text-xs font-semibold uppercase text-content-muted">Acceso</p><p className="font-bold text-gray-900">{isAdmin ? 'Administrador' : user?.rol?.nombre || 'Sin rol'}</p></div>
       </div>
 
-      {isAdmin && <div className="flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 p-5 text-indigo-800"><ShieldCheckIcon className="h-7 w-7" /><div><p className="font-bold">Acceso total</p><p className="text-sm">Tu cuenta administradora puede acceder a todas las funciones, usuarios, backups y auditoría.</p></div></div>}
 
       <div className="grid gap-5 lg:grid-cols-2">
         {PERMISSION_GROUPS.filter(group => isAdmin || !['Usuarios', 'Configuración'].includes(group.title)).map(group => (

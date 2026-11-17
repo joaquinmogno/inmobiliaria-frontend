@@ -216,7 +216,6 @@ export default function LiquidationHistory() {
   return <section aria-labelledby="liquidation-history-title" className="space-y-4">
     <div>
       <h2 id="liquidation-history-title" className="ui-section-title">Historial de liquidaciones</h2>
-      <p className="mt-1 text-sm text-gray-700">Consultá períodos anteriores y encontrá operaciones por persona, propiedad, moneda o estado.</p>
     </div>
     <FilterBar query={search} onQueryChange={updateSearch} onClear={clear} resultCount={loading || loadError ? undefined : meta.total} placeholder="Propiedad, inquilino o propietario…"
       collapsibleOnDesktop activeFilterCount={activeFilters.filter(filter => filter.key !== 'q').length}
@@ -270,7 +269,7 @@ export default function LiquidationHistory() {
     <ActiveFilterChips filters={activeFilters} onClearAll={clear} />
 
     <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-      {loading ? <LoadingState compact label="Cargando historial…" /> : loadError ? <div role="alert" className="p-6 text-sm text-red-800"><p>No se pudo cargar el historial de liquidaciones. Los filtros se conservaron.</p><button type="button" className="ui-button ui-button-secondary mt-3" onClick={() => setRetry(value => value + 1)}>Reintentar</button></div> : !rows.length ? <EmptyState filtered={activeFilters.some(filter => filter.key !== 'periodo')} title={filters.periodo ? 'No hay liquidaciones en este período' : 'Todavía no hay liquidaciones registradas'} description={filters.periodo ? 'Elegí otro período para consultar sus liquidaciones.' : 'Las liquidaciones que generes aparecerán aquí.'} onClear={clearSearchFilters} /> : <>
+      {loading ? <LoadingState compact label="Cargando historial…" /> : loadError ? <div role="alert" className="p-6 text-sm text-red-800"><p>No se pudo cargar el historial de liquidaciones. Los filtros se conservaron.</p><button type="button" className="ui-button ui-button-secondary mt-3" onClick={() => setRetry(value => value + 1)}>Reintentar</button></div> : !rows.length ? <EmptyState filtered={activeFilters.some(filter => filter.key !== 'periodo')} title={filters.periodo ? 'Sin liquidaciones en este período' : 'Sin liquidaciones registradas'} onClear={clearSearchFilters} /> : <>
         <div className="hidden xl:block">
           <table className="ui-table table-fixed border-collapse" data-testid="liquidation-history-table">
             <caption className="sr-only">Historial de liquidaciones</caption>

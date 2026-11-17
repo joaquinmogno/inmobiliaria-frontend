@@ -1,3 +1,4 @@
+import ContextHelp from '../components/ContextHelp';
 import PageHeader from '../components/PageHeader';
 import { useSearchParams } from 'react-router-dom';
 import LiquidationHistory from '../features/liquidations/LiquidationHistory';
@@ -18,14 +19,16 @@ export default function Liquidaciones() {
   };
 
   return <div className="ui-page">
-    <PageHeader title="Liquidaciones" description="Prepará el mes, registrá cobros y completá los pagos a propietarios desde un flujo guiado." actions={
+    <PageHeader title="Liquidaciones" help={
+      <ContextHelp label="Ayuda de los estados de liquidación">
+        <p>Estados independientes: documento, cobro, pago al propietario y cierre administrativo. “Cobro y pago resueltos” no acredita cierre administrativo ni cierre de Caja.</p>
+      </ContextHelp>
+    } actions={
       <nav aria-label="Vistas de liquidaciones" className="ui-tabs">
         <button type="button" aria-current={view === 'MES' ? 'page' : undefined} onClick={() => selectView('MES')} className="ui-tab">Trabajo del mes</button>
         <button type="button" aria-current={view === 'HISTORIAL' ? 'page' : undefined} onClick={() => selectView('HISTORIAL')} className="ui-tab">Historial</button>
       </nav>
     } />
-
-    <p className="text-xs text-gray-600">Estados independientes: documento, cobro, pago al propietario y cierre administrativo. “Cobro y pago resueltos” no acredita cierre administrativo ni cierre de Caja.</p>
 
     {view === 'MES'
       ? <MonthlyLiquidationWorkspace />

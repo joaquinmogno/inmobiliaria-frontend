@@ -94,15 +94,15 @@ for (const [width, height] of [[1280, 720], [1366, 768], [390, 844]]) {
 test('historial distingue vacío, búsqueda sin coincidencias y error recuperable conservando período', async ({ page }) => {
   const state = await setup(page); state.historyEmpty = true;
   await page.goto('/liquidaciones?view=HISTORIAL&periodo=2026-10-01');
-  await expect(page.getByRole('status').filter({ hasText: 'No hay liquidaciones en este período' })).toBeVisible();
+  await expect(page.getByRole('status').filter({ hasText: 'Sin liquidaciones en este período' })).toBeVisible();
   await page.getByRole('searchbox').fill('inexistente');
   await expect(page.getByText('No hay resultados con estos filtros')).toBeVisible();
   await page.getByRole('button', { name: 'Limpiar filtros', exact: true }).click();
   await expect(page).toHaveURL(/periodo=2026-10-01/);
-  await expect(page.getByText('No hay liquidaciones en este período')).toBeVisible();
+  await expect(page.getByText('Sin liquidaciones en este período')).toBeVisible();
   state.historyError = true; await page.reload();
   await expect(page.getByRole('alert')).toContainText('No se pudo cargar el historial');
-  await expect(page.getByText('No hay liquidaciones en este período')).toHaveCount(0);
+  await expect(page.getByText('Sin liquidaciones en este período')).toHaveCount(0);
   state.historyError = false; state.historyEmpty = false;
   await page.getByRole('button', { name: 'Reintentar', exact: true }).click();
   await expect(page.getByTestId('liquidation-history-row').first()).toBeVisible();
@@ -145,7 +145,7 @@ for (const width of [1366, 1920]) {
     await page.getByRole('button', { name: 'Filtrar', exact: true }).click();
     await expect(page.getByText('No hay resultados con estos filtros').filter({ visible: true })).toBeVisible();
     await page.getByRole('button', { name: 'Limpiar filtros', exact: true }).filter({ visible: true }).click();
-    await expect(page.getByText('Todavía no hay eventos de auditoría').filter({ visible: true })).toBeVisible();
+    await expect(page.getByText('Sin eventos de auditoría').filter({ visible: true })).toBeVisible();
     state.auditError = true;
     await page.getByRole('button', { name: 'Filtrar', exact: true }).click();
     await expect(page.getByRole('alert').filter({ visible: true })).toContainText('No se pudo cargar la auditoría');

@@ -3,10 +3,11 @@ import { admin, fixture } from './fixtures/liquidation-currency';
 
 async function setup(page: Page) {
   await page.clock.setFixedTime(new Date('2026-11-16T15:00:00Z'));
+  const user = { ...admin, inmobiliaria: { ...admin.inmobiliaria, nombre: 'Inmobiliaria del Sur' } };
   await page.addInitScript(user => {
     localStorage.setItem('user', JSON.stringify(user));
     localStorage.setItem('loginTimestamp', String(Date.now()));
-  }, admin);
+  }, user);
   const base = fixture('USD', true);
   const liquidation = { ...base.liquidation, fechaLiquidacion: null, cerradoPorId: null, estadoPagoPropietario: 'PAGADO', resumenMonedas: base.liquidation.resumenMonedas.map(s => ({ ...s, pagadoPropietario: s.montoPropietario, saldoPropietario: 0 })) };
   const variants = [
@@ -24,7 +25,7 @@ async function setup(page: Page) {
     requests.push(`${route.request().method()} ${path}${url.search}`);
     const paged = (data: unknown[]) => ({ data, meta: { total: data.length, page: 1, limit: 25, totalPages: 1 } });
     let body: unknown = [];
-    if (path === '/api/auth/me') body = admin;
+    if (path === '/api/auth/me') body = user;
     else if (path === '/api/reportes/dashboard') body = { propiedades: { total: 4 }, contratos: { activos: 3 }, finanzas: { morosidad: 25, devengado: { periodo: '2026-11' } }, operacion: { alquileresVencidos: 2, cobrosPendientes: 2, pagosPropietarioPendientes: 1, contratosPorVencer: 1 } };
     else if (path === '/api/liquidaciones/preparacion') {
       const period = url.searchParams.get('periodo');
@@ -58,19 +59,33 @@ for (const [width, height] of [[1280, 720], [1366, 768], [390, 844]]) {
     await page.goto('/home');
     const cards = page.getByTestId('dashboard-operational-kpis');
     await expect(cards.locator(':scope > div').filter({ hasText: 'Propiedades registradas' })).toContainText('4');
-    await expect(cards).toContainText('Todas, con o sin contrato');
+    await expect(page.getByRole('heading', { name: 'Panel de Inmobiliaria del Sur', exact: true })).toBeVisible();
     await expect(cards).toContainText('25,0%');
-    await expect(page.getByText(/Inventario al 16\/11\/2026/)).toContainText('noviembre de 2026');
+    const inventory = page.getByText(/Inventario al 16\/11\/2026/);
+    await expect(inventory).not.toBeVisible();
+    const inventoryHelp = page.getByRole('button', { name: 'Ayuda de los indicadores del panel', exact: true });
+    await inventoryHelp.focus();
+    await page.keyboard.press('Enter');
+    await expect(inventory).toBeVisible();
+    await expect(inventory).toContainText('noviembre de 2026');
+    await noOverflow(page);
+    await page.keyboard.press('Escape');
+    await expect(inventory).not.toBeVisible();
+    await expect(inventoryHelp).toBeFocused();
     await noOverflow(page);
     await page.screenshot({ path: info.outputPath('inicio-criterios.png') });
     await page.goto('/liquidaciones');
     const total = page.getByRole('button', { name: '3 Contratos administrados del mes', exact: true });
     await expect(total).toBeVisible();
-    const criteria = page.locator('summary', { hasText: 'Criterios del conteo' });
+    const criteria = page.getByRole('button', { name: 'Ayuda de los indicadores del mes', exact: true });
+    await expect(page.getByText(/Se cuentan contratos administrados/)).not.toBeVisible();
     await criteria.focus(); await page.keyboard.press('Enter');
     await expect(page.getByText(/Se cuentan contratos administrados/)).toBeVisible();
     await expect(page.getByText(/Se cuentan contratos administrados/)).toContainText('no cuenta propiedades únicas');
-    await criteria.focus(); await page.keyboard.press('Enter');
+    await noOverflow(page);
+    await page.keyboard.press('Escape');
+    await expect(criteria).toBeFocused();
+    await expect(page.getByText(/Se cuentan contratos administrados/)).not.toBeVisible();
     await page.getByLabel('Mes de trabajo').fill('2026-10');
     await expect(page.getByRole('heading', { name: 'Liquidaciones de octubre de 2026' })).toBeVisible();
     await expect.poll(() => requests.at(-1)).toContain('periodo=2026-10-01');

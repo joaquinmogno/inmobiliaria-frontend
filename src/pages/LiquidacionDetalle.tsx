@@ -749,7 +749,6 @@ export default function LiquidacionDetalle() {
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                         <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-widest mb-1">Resumen Final</h4>
-                        <p className="text-gray-600 text-sm font-medium">Esta liquidación contempla todos los conceptos del período {formatPeriod(liquidacion.periodo)}</p>
                     </div>
                     <div className="text-right flex items-center gap-8 border-t sm:border-t-0 sm:border-l border-gray-200 sm:pl-8 pt-4 sm:pt-0 w-full sm:w-auto">
                         <div>

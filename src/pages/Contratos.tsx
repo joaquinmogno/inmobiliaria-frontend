@@ -33,12 +33,12 @@ import { requestConfirmation } from "../services/confirmation";
 
 type ContractListStatus = Exclude<EstadoContrato, 'PAPELERA'>;
 
-const contractListOptions: Array<{ value: ContractListStatus; label: string; description: string }> = [
-  { value: 'ACTIVO', label: 'Contratos activos', description: 'Contratos actualmente vigentes' },
-  { value: 'PROGRAMADO', label: 'Contratos programados', description: 'Contratos que comienzan próximamente' },
-  { value: 'EN_CIERRE', label: 'Contratos en cierre', description: 'Llaves entregadas; cierre financiero pendiente' },
-  { value: 'FINALIZADO', label: 'Contratos finalizados', description: 'Contratos cuya vigencia terminó' },
-  { value: 'RESCINDIDO', label: 'Contratos rescindidos', description: 'Contratos terminados anticipadamente' }
+const contractListOptions: Array<{ value: ContractListStatus; label: string }> = [
+  { value: 'ACTIVO', label: 'Contratos activos' },
+  { value: 'PROGRAMADO', label: 'Contratos programados' },
+  { value: 'EN_CIERRE', label: 'Contratos en cierre' },
+  { value: 'FINALIZADO', label: 'Contratos finalizados' },
+  { value: 'RESCINDIDO', label: 'Contratos rescindidos' }
 ];
 
 export default function Contratos() {
@@ -466,7 +466,7 @@ export default function Contratos() {
 
   const selectedList = contractListOptions.find(option => option.value === statusFilter)!;
   const clearListFilters = () => { setSearchTerm(''); updateStatusFilter('ACTIVO', true); setCurrentPage(1); };
-  const emptyState = isLoading ? <LoadingState compact label="Cargando contratos…" /> : loadError ? <div role="alert" className="p-6 text-sm text-red-800">{loadError}<button type="button" className="ui-button ui-button-secondary mt-3" onClick={() => void refreshData()}>Reintentar</button></div> : <EmptyState filtered={Boolean(searchTerm.trim() || alertFilter) || statusFilter !== 'ACTIVO'} title="Todavía no hay contratos activos" description="Los contratos vigentes aparecerán aquí. Podés consultar otros estados desde los filtros." onClear={clearListFilters} action={canCreate ? { label: 'Crear un contrato', onClick: () => { setEditingContract(null); setRenewingContract(null); setActiveDraft(null); setIsModalOpen(true); } } : undefined} />;
+  const emptyState = isLoading ? <LoadingState compact label="Cargando contratos…" /> : loadError ? <div role="alert" className="p-6 text-sm text-red-800">{loadError}<button type="button" className="ui-button ui-button-secondary mt-3" onClick={() => void refreshData()}>Reintentar</button></div> : <EmptyState filtered={Boolean(searchTerm.trim() || alertFilter) || statusFilter !== 'ACTIVO'} title="Sin contratos activos" onClear={clearListFilters} action={canCreate ? { label: 'Crear contrato', onClick: () => { setEditingContract(null); setRenewingContract(null); setActiveDraft(null); setIsModalOpen(true); } } : undefined} />;
 
 
 
@@ -509,9 +509,6 @@ export default function Contratos() {
           <h1 className="ui-title">
             {selectedList.label}
           </h1>
-          <p className="text-sm text-content-muted">
-            {alertFilter ? 'Mostrando contratos activos que vencen dentro de los próximos 60 días.' : selectedList.description}
-          </p>
         </div>
         <div className="ui-page-actions">
           {canCreate && (
@@ -619,7 +616,7 @@ export default function Contratos() {
       <ActiveFilterChips filters={[
         ...(searchTerm ? [{ key: 'q', label: `Búsqueda: ${searchTerm}`, onRemove: () => setSearchTerm('') }] : []),
         ...(statusFilter !== 'ACTIVO' ? [{ key: 'estado', label: `Estado: ${contractListOptions.find(option => option.value === statusFilter)?.label || statusFilter}`, onRemove: () => updateStatusFilter('ACTIVO') }] : []),
-        ...(alertFilter ? [{ key: 'alerta', label: 'Próximos a vencer', onRemove: () => updateStatusFilter('ACTIVO', true) }] : [])
+        ...(alertFilter ? [{ key: 'alerta', label: 'Próximos a vencer (60 días)', onRemove: () => updateStatusFilter('ACTIVO', true) }] : [])
       ]} onClearAll={() => { setSearchTerm(''); updateStatusFilter('ACTIVO', true); }} />
 
       {/* Contenedor Principal Tablas/Tarjetas */}

@@ -254,7 +254,7 @@ export default function Personas() {
         <FieldError id={id} message={validation.errors[id]} />
     </div>;
 
-    const emptyState = loadError ? <div role="alert" className="p-6 text-center text-sm text-red-800">{loadError}<button type="button" className="ui-button ui-button-secondary mt-3" onClick={() => void loadPersonas(debouncedSearch, currentPage)}>Reintentar</button></div> : <EmptyState filtered={Boolean(searchTerm.trim())} title="Todavía no hay personas registradas" description="Agregá inquilinos, propietarios y garantes para vincularlos a tus contratos." onClear={() => updateSearch('')} action={canCreate ? { label: 'Crear la primera persona', onClick: () => { setEditingPersona(null); resetForm(); setIsModalOpen(true); } } : undefined} />;
+    const emptyState = loadError ? <div role="alert" className="p-6 text-center text-sm text-red-800">{loadError}<button type="button" className="ui-button ui-button-secondary mt-3" onClick={() => void loadPersonas(debouncedSearch, currentPage)}>Reintentar</button></div> : <EmptyState filtered={Boolean(searchTerm.trim())} title="Sin personas registradas" onClear={() => updateSearch('')} action={canCreate ? { label: 'Agregar persona', onClick: () => { setEditingPersona(null); resetForm(); setIsModalOpen(true); } } : undefined} />;
 
     if (loading && personas.length === 0) return <LoadingState label="Cargando personas…" />;
 
@@ -263,7 +263,6 @@ export default function Personas() {
             <div className="ui-page-header mb-6">
                 <div>
                     <h1 className="ui-title">Personas</h1>
-                    <p className="mt-1 text-sm text-content-muted sm:text-base">Centraliza la información de inquilinos, propietarios y garantes</p>
                 </div>
                 {canCreate && <button
                     onClick={() => {
@@ -491,7 +490,6 @@ export default function Personas() {
                             )}
                             <fieldset className="min-w-0 space-y-4">
                                 <legend className="mb-3 text-base font-semibold text-slate-900">Datos principales</legend>
-                                <p className="text-sm text-slate-600">El nombre es obligatorio. Los demás datos son opcionales y podés completarlos después.</p>
                                 {personField('person-name', 'Nombre y Apellido / Razón Social *', 'nombreCompleto', 'text', true, 'Ej.: Juan Pérez')}
                                 <div className="grid gap-4 sm:grid-cols-2">
                                     {personField('person-document', 'DNI (opcional)', 'dni')}
