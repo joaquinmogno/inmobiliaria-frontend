@@ -203,9 +203,9 @@ const Sidebar = forwardRef<HTMLElement, SidebarProps>(function Sidebar({ mobileO
         </NavLink>}
 
         {/* Personas */}
-        {canViewInternalControl && <NavLink to="/control-interno" className={linkClass} title={!menuExpanded ? "Control interno" : undefined}>
+        {canViewInternalControl && <NavLink to="/control-interno" className={linkClass} title={!menuExpanded ? "Finanzas Ricardo" : undefined}>
           <ClipboardDocumentListIcon className="h-5 w-5 min-w-[20px]" />
-          <span className={`transition-opacity duration-150 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"}`}>Control interno</span>
+          <span className={`transition-opacity duration-150 ${menuExpanded ? "opacity-100" : "opacity-0 w-0"}`}>Finanzas Ricardo</span>
         </NavLink>}
 
         {canViewTeodoro && <NavLink to="/teodoro" className={linkClass} title={!menuExpanded ? "Teodoro" : undefined}>

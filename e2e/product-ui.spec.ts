@@ -31,7 +31,7 @@ for (const [width, height] of [[390, 844], [768, 1024], [1024, 768], [1280, 720]
       await page.goto(route);
       const search = page.getByRole('searchbox');
       await expect(search).toBeVisible();
-      await expect(page.getByText('Cargando movimientos del control interno…', { exact: true })).toHaveCount(0);
+      await expect(page.getByText('Cargando movimientos de Finanzas Ricardo…', { exact: true })).toHaveCount(0);
       const labelHeight = await search.evaluate(el => el.parentElement!.getBoundingClientRect().height);
       expect(labelHeight, route).toBeLessThan(64);
       await bounds(page);

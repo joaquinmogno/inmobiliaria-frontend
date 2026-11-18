@@ -20,7 +20,9 @@ export interface MovimientoCaja {
 	    moneda: Moneda;
     fecha: string;
     metodoPago: string;
-    cuenta: CuentaCaja;
+    cuenta: CuentaCaja | 'TARJETA';
+    tarjetaId?: number | null;
+    tarjetaDescripcion?: string | null;
     cuentaBancariaId?: number | null;
     cuentaBancaria?: Pick<CuentaBancaria, 'id' | 'banco' | 'nombre' | 'moneda'> | null;
     transferenciaInternaId?: number | null;
@@ -49,6 +51,7 @@ export interface MovimientoCaja {
 
 export interface CajaChicaResponse {
     data: MovimientoCaja[];
+    gastosTarjetaFiltrados?: Record<Moneda, number>;
     meta: {
         total: number;
         page: number;
@@ -79,6 +82,7 @@ export interface CajaChicaSummary {
 	        totalesPorMoneda: Record<Moneda, {
 	            totalIngresos: number;
 	            totalEgresos: number;
+            gastosTarjeta?: number;
 	            balance: number;
 	            balanceCaja: number;
 	            balanceBanco: number;
@@ -136,7 +140,8 @@ export const cajachicaService = {
     getAll: async (page: number = 1, limit: number = 50, tipo?: string, cuenta?: string, search?: string, mes?: number, anio?: number, estado?: 'REVERSIONES') => {
         const params: any = { page, limit };
         if (tipo) params.tipo = tipo;
-        if (cuenta?.startsWith('BANCO:')) params.cuentaBancariaId = cuenta.slice('BANCO:'.length);
+        if (cuenta?.startsWith('TARJETA:')) params.tarjetaId = cuenta.slice('TARJETA:'.length);
+        else if (cuenta?.startsWith('BANCO:')) params.cuentaBancariaId = cuenta.slice('BANCO:'.length);
         else if (cuenta) params.cuenta = cuenta;
         if (search) params.search = search;
         if (mes) params.mes = mes;
@@ -156,6 +161,7 @@ export const cajachicaService = {
 	        moneda?: Moneda;
         fecha: string;
         metodoPago: string;
+        tarjetaId?: number;
         cuentaBancariaId?: number;
         observaciones?: string;
         comprobantes?: File[];
@@ -167,6 +173,7 @@ export const cajachicaService = {
         formData.append('moneda', data.moneda || 'ARS');
         formData.append('fecha', data.fecha);
         formData.append('metodoPago', data.metodoPago);
+        if (data.tarjetaId) formData.append('tarjetaId', String(data.tarjetaId));
         if (data.cuentaBancariaId) formData.append('cuentaBancariaId', String(data.cuentaBancariaId));
         if (data.observaciones) formData.append('observaciones', data.observaciones);
         data.comprobantes?.forEach(file => formData.append('comprobantes', file));

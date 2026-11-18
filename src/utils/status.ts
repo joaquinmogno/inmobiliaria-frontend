@@ -1,5 +1,7 @@
 const STATUS_LABELS: Record<string, string> = {
   ACTIVO: 'Activo',
+  TARJETA_CREDITO: 'Tarjeta de crédito',
+  TARJETA: 'Tarjeta',
   ALQUILADO: 'En alquiler',
   BORRADOR: 'Borrador',
   CONFIRMADA: 'Confirmada',

@@ -47,6 +47,8 @@ export interface MovimientoPagoPropietario {
     fechaCreacion: string;
     metodoPago: string;
     cuenta: string;
+    tarjetaId?: number | null;
+    tarjetaDescripcion?: string | null;
     observaciones: string | null;
     motivoAnulacion: string | null;
     creadoPor: { id: number; nombreCompleto: string } | null;
@@ -149,7 +151,7 @@ export interface Liquidacion {
             destino: 'DEVOLUCION' | 'SALDO_A_FAVOR' | 'COMPENSACION';
             estado: 'DISPONIBLE' | 'APLICADO' | 'DEVUELTO';
             aplicaciones: Array<{ id: number; monto: number; fechaAplicacion: string; liquidacion: { id: number; periodo: string } }>;
-            movimientoDevolucion?: { id: number; fecha: string; metodoPago: string } | null;
+            movimientoDevolucion?: { id: number; fecha: string; metodoPago: string; tarjetaDescripcion?: string | null } | null;
         } | null;
     }>;
     aplicacionesCredito?: Array<{
@@ -302,7 +304,7 @@ export interface ContractLiquidationTimeline {
         resumenMonedas?: Liquidacion['resumenMonedas'];
         liquidacionId: number | null; total: number | null; cobrado: number; saldoInquilino: number; pagadoPropietario: number; saldoPropietario: number;
         fechaVencimiento: string | null; pagos: Array<{ moneda?: Moneda; monto: number; fechaPago: string; metodoPago: string }>;
-        pagosPropietario: Array<{ moneda?: Moneda; monto: number; fechaPago: string; metodoPago: string }>;
+        pagosPropietario: Array<{ moneda?: Moneda; monto: number; fechaPago: string; metodoPago: string; tarjetaDescripcion?: string | null }>;
         cuotas: Array<{ id: number; concepto: string; numeroCuota: number; cantidadCuotas: number; monto: number; estado: string; saldo: number }>;
         ajustes: Array<{ id: number; tipo: string; concepto: string; motivo: string; fechaCreacion: string }>;
         observacion: string | null; observaciones: string[];
@@ -418,7 +420,7 @@ export const liquidacionesService = {
         return api.patch<Liquidacion>(`/liquidaciones/${id}/confirmar`, { expectedVersion });
     },
 
-    pagarPropietario: async (id: number, data: { monto: number, moneda?: Moneda, fechaPago: string, metodoPago: string, cuentaBancariaId?: number, propietarioId: number, comprobante?: string, observaciones?: string, motivoAdelanto?: string, expectedVersion?: number }) => {
+    pagarPropietario: async (id: number, data: { monto: number, moneda?: Moneda, fechaPago: string, metodoPago: string, tarjetaId?: number, cuentaBancariaId?: number, propietarioId: number, comprobante?: string, observaciones?: string, motivoAdelanto?: string, expectedVersion?: number }) => {
         return api.patch<Liquidacion>(`/liquidaciones/${id}/pagar-propietario`, data);
     },
     crearAjuste: async (id: number, data: {
@@ -428,6 +430,7 @@ export const liquidacionesService = {
         liquidacionDestinoId?: number;
         fechaDevolucion?: string;
         metodoDevolucion?: string;
+        tarjetaIdDevolucion?: number;
         cuentaBancariaIdDevolucion?: number;
         observacionesDevolucion?: string;
     }) => api.post(`/liquidaciones/${id}/ajustes`, data),

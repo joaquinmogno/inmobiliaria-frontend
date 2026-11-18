@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import type { Moneda } from '../utils/currency';
-import { PAYMENT_METHOD_OPTIONS, type MetodoPago } from '../services/pagos.service';
+import { OUTGOING_PAYMENT_METHOD_OPTIONS, type OutgoingPaymentMethod } from '../services/credit-cards.service';
+import CreditCardSelector from './CreditCardSelector';
 import { todayDateInput, formatMonthYear } from '../utils/date';
 import { cuentasBancariasService, type CuentaBancaria } from '../services/cuentas-bancarias.service';
 
@@ -16,7 +17,8 @@ type AdjustmentPayload = {
   destinoCredito?: CreditDestination;
   liquidacionDestinoId?: number;
   fechaDevolucion?: string;
-  metodoDevolucion?: MetodoPago;
+  metodoDevolucion?: OutgoingPaymentMethod;
+  tarjetaIdDevolucion?: number;
   cuentaBancariaIdDevolucion?: number;
   observacionesDevolucion?: string;
 };
@@ -40,7 +42,9 @@ export default function LiquidationAdjustmentModal({
   const [destinoCredito, setDestinoCredito] = useState<CreditDestination>('SALDO_A_FAVOR');
   const [liquidacionDestinoId, setLiquidacionDestinoId] = useState('');
   const [fechaDevolucion, setFechaDevolucion] = useState(() => todayDateInput());
-  const [metodoDevolucion, setMetodoDevolucion] = useState<MetodoPago>('EFECTIVO');
+  const [metodoDevolucion, setMetodoDevolucion] = useState<OutgoingPaymentMethod>('EFECTIVO');
+  const [tarjetaIdDevolucion, setTarjetaIdDevolucion] = useState('');
+  const requiresBank = ['TRANSFERENCIA', 'CHEQUE'].includes(metodoDevolucion);
   const [observacionesDevolucion, setObservacionesDevolucion] = useState('');
   const [cuentaBancariaIdDevolucion, setCuentaBancariaIdDevolucion] = useState('');
   const [cuentasBancarias, setCuentasBancarias] = useState<CuentaBancaria[]>([]);
@@ -61,7 +65,7 @@ export default function LiquidationAdjustmentModal({
 
   const submit = (event: React.FormEvent) => {
     event.preventDefault();
-    if ((tenantAmount <= 0 && ownerAmount <= 0) || !canCompensate || (excess > 0 && destinoCredito === 'DEVOLUCION' && metodoDevolucion !== 'EFECTIVO' && !cuentaBancariaIdDevolucion)) return;
+    if ((tenantAmount <= 0 && ownerAmount <= 0) || !canCompensate || (excess > 0 && destinoCredito === 'DEVOLUCION' && (requiresBank ? !cuentaBancariaIdDevolucion : metodoDevolucion === 'TARJETA_CREDITO' && !tarjetaIdDevolucion))) return;
     const data: AdjustmentPayload = {
       tipo,
       concepto,
@@ -75,7 +79,8 @@ export default function LiquidationAdjustmentModal({
       if (destinoCredito === 'DEVOLUCION') {
         data.fechaDevolucion = fechaDevolucion;
         data.metodoDevolucion = metodoDevolucion;
-        if (metodoDevolucion !== 'EFECTIVO') data.cuentaBancariaIdDevolucion = Number(cuentaBancariaIdDevolucion);
+        if (metodoDevolucion === 'TARJETA_CREDITO') data.tarjetaIdDevolucion = Number(tarjetaIdDevolucion);
+        if (requiresBank) data.cuentaBancariaIdDevolucion = Number(cuentaBancariaIdDevolucion);
         data.observacionesDevolucion = observacionesDevolucion || undefined;
       }
     }
@@ -140,12 +145,13 @@ export default function LiquidationAdjustmentModal({
                           <input required type="date" max={todayDateInput()} value={fechaDevolucion} onChange={event => setFechaDevolucion(event.target.value)} className="mt-1 w-full rounded-lg border bg-white p-2" />
                         </label>
                         <label className="block text-sm font-bold">Medio
-                          <select value={metodoDevolucion} onChange={event => { setMetodoDevolucion(event.target.value as MetodoPago); if (event.target.value === 'EFECTIVO') setCuentaBancariaIdDevolucion(''); }} className="mt-1 w-full rounded-lg border bg-white p-2">
-                            {PAYMENT_METHOD_OPTIONS.map(method => <option key={method.value} value={method.value}>{method.label}</option>)}
+                          <select value={metodoDevolucion} onChange={event => { setMetodoDevolucion(event.target.value as OutgoingPaymentMethod); if (event.target.value === 'EFECTIVO') setCuentaBancariaIdDevolucion(''); }} className="mt-1 w-full rounded-lg border bg-white p-2">
+                            {OUTGOING_PAYMENT_METHOD_OPTIONS.map(method => <option key={method.value} value={method.value}>{method.label}</option>)}
                           </select>
                         </label>
                       </div>
-                      {metodoDevolucion !== 'EFECTIVO' && <label className="block text-sm font-bold">Cuenta bancaria de origen
+                      {metodoDevolucion === 'TARJETA_CREDITO' && <CreditCardSelector scope="CAJA" value={tarjetaIdDevolucion} onChange={setTarjetaIdDevolucion} />}
+                      {requiresBank && <label className="block text-sm font-bold">Cuenta bancaria de origen
                         <select required value={cuentaBancariaIdDevolucion} onChange={event => setCuentaBancariaIdDevolucion(event.target.value)} className="mt-1 w-full rounded-lg border bg-white p-2">
                           <option value="">Seleccionar cuenta</option>
                           {cuentasBancarias.filter(cuenta => cuenta.moneda === moneda).map(cuenta => <option key={cuenta.id} value={cuenta.id}>{cuenta.banco} — {cuenta.nombre}</option>)}
@@ -159,7 +165,7 @@ export default function LiquidationAdjustmentModal({
                 )}
                 <div className="flex justify-end gap-3">
                   <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 font-bold">Cancelar</button>
-                  <button disabled={!canCompensate || (tenantAmount <= 0 && ownerAmount <= 0) || (excess > 0 && destinoCredito === 'DEVOLUCION' && metodoDevolucion !== 'EFECTIVO' && !cuentaBancariaIdDevolucion)} className="rounded-lg bg-indigo-600 px-4 py-2 font-bold text-white disabled:cursor-not-allowed disabled:bg-gray-400">Emitir ajuste</button>
+                  <button disabled={!canCompensate || (tenantAmount <= 0 && ownerAmount <= 0) || (excess > 0 && destinoCredito === 'DEVOLUCION' && (requiresBank ? !cuentaBancariaIdDevolucion : metodoDevolucion === 'TARJETA_CREDITO' && !tarjetaIdDevolucion))} className="rounded-lg bg-indigo-600 px-4 py-2 font-bold text-white disabled:cursor-not-allowed disabled:bg-gray-400">Emitir ajuste</button>
                 </div>
               </form>
             </Dialog.Panel>

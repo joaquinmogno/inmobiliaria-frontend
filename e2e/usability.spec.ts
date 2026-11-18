@@ -10,7 +10,8 @@ async function setup(page: Page, permissions = allPermissions) {
     const url = new URL(req.url());
     requests.push({ path: url.pathname, method: req.method(), query: url.search, body: req.postData() });
     let body: unknown = [];
-    if (url.pathname === '/api/auth/me') body = user;
+    if (url.pathname.startsWith('/api/tarjetas/')) body = [];
+    else if (url.pathname === '/api/auth/me') body = user;
     else if (url.pathname === '/api/control-interno/opciones') body = { categorias: ['Oficina'], mediosPago: [], cuentasPago: [], usuarios: [] };
     else if (req.method() === 'POST') body = { id: 1 };
     else if (['/api/pagos', '/api/control-interno', '/api/personas', '/api/contratos'].includes(url.pathname)) body = { data: [], meta: { total: 0, page: 1, limit: 25, totalPages: 0 }, resumen: [] };
@@ -116,7 +117,7 @@ test('contrato muestra errores junto a los campos obligatorios y mantiene las ac
   await expect(dialog).not.toBeVisible();
 });
 
-test('control interno vincula un importe inválido con su campo y conserva los datos al corregirlo', async ({ page }) => {
+test('Finanzas Ricardo vincula un importe inválido con su campo y conserva los datos al corregirlo', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const requests = await setup(page);
   await page.goto('/control-interno');

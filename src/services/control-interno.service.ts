@@ -20,6 +20,8 @@ export interface InternalMovement {
     categoria: string | null;
     metodoPago: string | null;
     cuentaPago?: string | null;
+    tarjetaId?: number | null;
+    tarjetaDescripcion?: string | null;
     observaciones: string | null;
     fechaCreacion: string;
     fechaActualizacion: string;
@@ -37,6 +39,7 @@ export interface InternalFilters {
     moneda?: string;
     categoria?: string;
     metodoPago?: string;
+    tarjetaId?: string;
     creadoPorId?: string;
     estado?: 'VIGENTES' | 'ANULADOS' | 'TODOS';
 }
@@ -56,6 +59,7 @@ export interface InternalMovementInput {
     categoria?: string;
     metodoPago?: string;
     cuentaPago?: string;
+    tarjetaId?: string;
     observaciones?: string;
 }
 
@@ -79,7 +83,9 @@ const downloadResponse = async (response: Response, fallbackName: string) => {
 
 function createInternalControlService(slug: 'control-interno' | 'teodoro' | 'daniel') {
     const basePath = `/${slug}`;
+    const reportFilename = slug === 'control-interno' ? 'finanzas-ricardo' : slug;
     return {
+        cardScope: (slug === 'control-interno' ? 'INTERNO' : slug === 'teodoro' ? 'TEODORO' : 'DANIEL') as 'INTERNO' | 'TEODORO' | 'DANIEL',
         list: (filters: InternalFilters, page: number) => api.get<InternalList>(basePath, { params: { ...filters, page, limit: 25 } }),
         options: () => api.get<InternalOptions>(`${basePath}/opciones`),
         create: (data: InternalMovementInput, files: File[]) => {
@@ -98,7 +104,7 @@ function createInternalControlService(slug: 'control-interno' | 'teodoro' | 'dan
         cancel: (record: InternalMovement, motivo: string) => api.post<InternalMovement>(`${basePath}/${record.id}/anular`, { version: record.version, motivo }),
         export: async (format: 'excel' | 'pdf', filters: InternalFilters) => {
             const response = await binaryResponse(`${basePath}/reportes/${format}?${internalQueryString(filters)}`);
-            await downloadResponse(response, `${slug}-${filters.periodo}.${format === 'excel' ? 'xlsx' : 'pdf'}`);
+            await downloadResponse(response, `${reportFilename}-${filters.periodo}.${format === 'excel' ? 'xlsx' : 'pdf'}`);
         },
         printPdf: (filters: InternalFilters) => openAuthenticatedPdf(`${basePath}/reportes/pdf?${internalQueryString(filters)}`),
         openAttachment: async (attachment: InternalAttachment, download = false) => {

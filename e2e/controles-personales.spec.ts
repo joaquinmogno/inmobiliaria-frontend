@@ -28,7 +28,8 @@ for (const { slug, title } of clients) {
                 const path = url.pathname;
                 requests.push({ path, method: request.method(), body: request.postData(), query: url.search });
                 let body: unknown = {};
-                if (path.endsWith('/auth/me')) body = user;
+                if (path.startsWith('/api/tarjetas/')) body = [];
+        else if (path.endsWith('/auth/me')) body = user;
                 else if (path.endsWith('/opciones')) body = { categorias: path.startsWith(`/api/${slug}`) ? [`Servicios de ${title}`] : ['Oficina'], mediosPago: [], cuentasPago: path.startsWith(`/api/${slug}`) ? [`Cuenta personal de ${title}`] : ['Cuenta interna'], usuarios: [user] };
                 else if (path.startsWith(`/api/${slug}/reportes/`) || path === `/api/${slug}/adjuntos/20/archivo`) {
                     const excel = path.endsWith('/excel');
@@ -73,7 +74,7 @@ for (const { slug, title } of clients) {
             return requests;
         }
 
-        test(`Control interno no concede acceso a ${title}`, async ({ page }) => {
+        test(`Finanzas Ricardo no concede acceso a ${title}`, async ({ page }) => {
             const requests = await setup(page, ['control_interno.ver', 'control_interno.crear']);
             await expect(page.getByRole('heading', { name: 'Acceso denegado' })).toBeVisible();
             await expect(page.getByRole('link', { name: title, exact: true })).toHaveCount(0);
@@ -91,7 +92,7 @@ for (const { slug, title } of clients) {
             await page.setViewportSize({ width: 1440, height: 1000 });
             await setup(page, [`${slug}.ver`]);
             await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
-            await expect(page.getByRole('link', { name: 'Control interno', exact: true })).toHaveCount(0);
+            await expect(page.getByRole('link', { name: 'Finanzas Ricardo', exact: true })).toHaveCount(0);
             await expect(page.getByRole('link', { name: peer.title, exact: true })).toHaveCount(0);
             for (const name of ['Agregar movimiento', 'Editar', 'Anular', 'Excel', 'PDF']) await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
             await page.getByRole('button', { name: 'Comprobantes (1)' }).filter({ visible: true }).click();
@@ -249,8 +250,8 @@ for (const { slug, title } of clients) {
             await setup(page, [...permissions, 'control_interno.ver', `${peer.slug}.ver`]);
             await expect(page.getByRole('cell', { name: new RegExp(`Luz de ${title}`) })).toBeVisible();
             await page.getByLabel('Buscar por detalle, cuenta u observaciones').fill('Luz');
-            await page.getByRole('link', { name: 'Control interno', exact: true }).click();
-            await expect(page.getByRole('heading', { name: 'Control interno', exact: true })).toBeVisible();
+            await page.getByRole('link', { name: 'Finanzas Ricardo', exact: true }).click();
+            await expect(page.getByRole('heading', { name: 'Finanzas Ricardo', exact: true })).toBeVisible();
             await expect(page.getByRole('cell', { name: /Gasto privado de oficina/ })).toBeVisible();
             await expect(page.getByRole('cell', { name: new RegExp(`Luz de ${title}`) })).toHaveCount(0);
             await expect(page.getByLabel('Buscar por detalle, cuenta u observaciones')).toHaveValue('');

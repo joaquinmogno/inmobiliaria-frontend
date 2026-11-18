@@ -69,11 +69,11 @@ export const MODULE_PERMISSIONS = [
 export type PermissionKey = typeof MODULE_PERMISSIONS[number];
 
 export const PERMISSION_LABELS: Record<PermissionKey, string> = {
-  "control_interno.ver": "Ver control interno y comprobantes",
-  "control_interno.crear": "Cargar movimientos internos",
-  "control_interno.editar": "Editar movimientos internos",
-  "control_interno.anular": "Anular movimientos internos",
-  "control_interno.reportes": "Descargar reportes internos Excel y PDF",
+  "control_interno.ver": "Ver Finanzas Ricardo y comprobantes",
+  "control_interno.crear": "Cargar movimientos de Finanzas Ricardo",
+  "control_interno.editar": "Editar movimientos de Finanzas Ricardo",
+  "control_interno.anular": "Anular movimientos de Finanzas Ricardo",
+  "control_interno.reportes": "Descargar reportes de Finanzas Ricardo Excel y PDF",
   "teodoro.ver": "Ver Teodoro y comprobantes",
   "teodoro.crear": "Cargar movimientos de Teodoro",
   "teodoro.editar": "Editar movimientos de Teodoro",
@@ -135,7 +135,7 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
 };
 
 export const PERMISSION_GROUPS: Array<{ title: string; permissions: PermissionKey[] }> = [
-  { title: "Control interno", permissions: ["control_interno.ver", "control_interno.crear", "control_interno.editar", "control_interno.anular", "control_interno.reportes"] },
+  { title: "Finanzas Ricardo", permissions: ["control_interno.ver", "control_interno.crear", "control_interno.editar", "control_interno.anular", "control_interno.reportes"] },
   { title: "Teodoro", permissions: ["teodoro.ver", "teodoro.crear", "teodoro.editar", "teodoro.anular", "teodoro.reportes"] },
   { title: "Daniel", permissions: ["daniel.ver", "daniel.crear", "daniel.editar", "daniel.anular", "daniel.reportes"] },
   { title: "Contratos", permissions: ["contratos.ver", "contratos.crear", "contratos.editar", "contratos.eliminar", "contratos.archivos.ver", "contratos.restaurar"] },

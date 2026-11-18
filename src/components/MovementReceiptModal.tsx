@@ -102,7 +102,7 @@ export default function MovementReceiptModal({ module, movementId, canIssue, clo
             <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
                 <p className="break-words font-bold">{context.movimiento.concepto}</p>
                 <p className="mt-1 text-xl font-semibold">{formatCurrencyWithCents(Number(context.movimiento.monto), context.movimiento.moneda)} <span className="text-sm">{context.movimiento.moneda}</span></p>
-                <p className="mt-1">{formatDate(context.movimiento.fecha)} · {context.movimiento.metodoPago?.replace(/_/g, ' ') || 'Medio de pago no informado'}</p>
+                <p className="mt-1">{formatDate(context.movimiento.fecha)} · {context.movimiento.tarjetaDescripcion || context.movimiento.metodoPago?.replace(/_/g, ' ') || 'Medio de pago no informado'}</p>
             </div>
             {context.bloqueo && <p className="mb-4 rounded-xl bg-amber-50 p-3 text-sm text-amber-900">{context.bloqueo}</p>}
             {context.versiones.length > 0 && <section aria-label="Historial de recibos" className="mb-5">

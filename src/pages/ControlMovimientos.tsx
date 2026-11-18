@@ -1,3 +1,6 @@
+import CreditCardsModal from '../components/CreditCardsModal';
+import { useCreditCards } from '../hooks/useCreditCards';
+import { cardLabel } from '../services/credit-cards.service';
 import ContextHelp from '../components/ContextHelp';
 import FilterBar from '../components/FilterBar';
 import EmptyState from '../components/EmptyState';
@@ -20,8 +23,8 @@ const emptyOptions: InternalOptions = { categorias: [], mediosPago: [], cuentasP
 
 const sections = {
     INTERNO: {
-        title: 'Control interno',
-        totalsLabel: 'del control interno', movementLabel: 'movimiento interno', listLabel: 'Planilla de movimientos internos',
+        title: 'Finanzas Ricardo',
+        totalsLabel: 'de Finanzas Ricardo', movementLabel: 'movimiento de Finanzas Ricardo', listLabel: 'Planilla de movimientos de Finanzas Ricardo',
         service: controlInternoService, receiptModule: 'control-interno',
         permissions: { create: 'control_interno.crear', edit: 'control_interno.editar', cancel: 'control_interno.anular', report: 'control_interno.reportes' }
     },
@@ -47,6 +50,8 @@ export default function ControlMovimientos({ ambito = 'INTERNO' }: { ambito?: Mo
 }
 
 function MovementControlPage({ ambito }: { ambito: MovementControlScope }) {
+    const { cards, refresh: refreshCards, error: cardsError } = useCreditCards(ambito);
+    const [cardsOpen, setCardsOpen] = useState(false);
     const section = sections[ambito];
     const service = section.service;
     const { user } = useAuth();
@@ -67,9 +72,9 @@ function MovementControlPage({ ambito }: { ambito: MovementControlScope }) {
     const [receiptMovement, setReceiptMovement] = useState<number | null>(null);
     const [cancelRecord, setCancelRecord] = useState<InternalMovement | null>(null);
     const change = (key: keyof InternalFilters, value: string) => { setFilters(current => ({ ...current, [key]: value })); setPage(1); };
-    const activeFilterCount = [filters.tipo, filters.moneda, filters.categoria, filters.metodoPago, filters.creadoPorId, filters.estado !== 'VIGENTES' ? filters.estado : ''].filter(Boolean).length;
+    const activeFilterCount = [filters.tarjetaId, filters.tipo, filters.moneda, filters.categoria, filters.metodoPago, filters.creadoPorId, filters.estado !== 'VIGENTES' ? filters.estado : ''].filter(Boolean).length;
     const clearFilters = () => { setFilters({ periodo: filters.periodo, estado: 'VIGENTES' }); setPage(1); };
-    const changed = () => setRevision(current => current + 1);
+    const changed = () => { setRevision(current => current + 1); refreshCards(); };
 
     useEffect(() => {
         let active = true;
@@ -110,6 +115,7 @@ function MovementControlPage({ ambito }: { ambito: MovementControlScope }) {
     const recordDetails = (record: InternalMovement) => <>
         <p className="break-words font-bold text-gray-950">{record.detalle}</p>
         {record.observaciones && <p className="mt-1 whitespace-pre-wrap break-words text-xs text-gray-600">{record.observaciones}</p>}
+        {record.tarjetaDescripcion && <p className="mt-1 break-words text-xs font-semibold text-indigo-800">{record.tarjetaDescripcion}</p>}
         {record.cuentaPago && <p className="mt-1 break-words text-xs text-indigo-800 [overflow-wrap:anywhere]"><strong>{record.tipo === 'GASTO' ? 'Cuenta de origen' : 'Cuenta de destino'}:</strong> {record.cuentaPago}</p>}
         {record.anuladoEn && <p className="mt-2 rounded-lg bg-gray-100 p-2 text-xs text-gray-700"><strong>Anulado:</strong> {record.motivoAnulacion} · {record.anuladoPor?.nombreCompleto || 'Usuario'} · {formatDateTime(record.anuladoEn)}</p>}
     </>;
@@ -118,6 +124,7 @@ function MovementControlPage({ ambito }: { ambito: MovementControlScope }) {
         <header className="ui-page-header">
             <div className="flex items-center gap-2"><h1 className="ui-title flex items-center gap-2"><ClipboardDocumentListIcon className="h-5 w-5 text-indigo-600" />{section.title}</h1><ContextHelp label={`Ayuda de ${section.title}`}><p>Estos registros no modifican la caja, las liquidaciones ni los cobros de la aplicación.</p><p>Los anulados no suman a los totales.</p>{canReport && <p>Los reportes incluyen todos los registros del mes que coinciden con los filtros, aunque la planilla tenga varias páginas. El Excel también incluye observaciones y nombres de comprobantes.</p>}</ContextHelp></div>
             <div className="ui-page-actions">
+                {(canCreate || canEdit) && <button type="button" onClick={() => setCardsOpen(true)} className="ui-button ui-button-secondary">Tarjetas</button>}
                 {canCreate && <button type="button" onClick={() => setEditor({ record: null })} className="ui-button ui-button-primary"><PlusIcon className="h-5 w-5" />Agregar movimiento</button>}
                 {canReport && <div className="grid grid-cols-2 gap-2 sm:flex">
                     <button type="button" disabled={loading || !!error || !!reportBusy} onClick={() => void report('excel')} className="ui-button ui-button-secondary"><DocumentArrowDownIcon className="h-5 w-5" />{reportBusy === 'excel' ? 'Generando…' : 'Excel'}</button>
@@ -140,6 +147,7 @@ function MovementControlPage({ ambito }: { ambito: MovementControlScope }) {
                 <div><label htmlFor="internal-filter-category" className="block text-sm font-semibold text-slate-700">Categoría</label><AppSelect id="internal-filter-category" ariaLabel="Categoría" value={filters.categoria || ''} onChange={value => change('categoria', value)} options={[{ value: '', label: 'Todas las categorías' }, ...options.categorias.map(value => ({ value, label: value }))]} className="mt-1" /></div>
                 <div><label htmlFor="internal-filter-method" className="block text-sm font-semibold text-slate-700">Medio de pago</label><AppSelect id="internal-filter-method" ariaLabel="Medio de pago" value={filters.metodoPago || ''} onChange={value => change('metodoPago', value)} options={[{ value: '', label: 'Todos los medios' }, ...options.mediosPago.map(value => ({ value, label: value }))]} className="mt-1" /></div>
                 <div><label htmlFor="internal-filter-author" className="block text-sm font-semibold text-slate-700">Cargado por</label><AppSelect id="internal-filter-author" ariaLabel="Cargado por" value={filters.creadoPorId || ''} onChange={value => change('creadoPorId', value)} options={[{ value: '', label: 'Todos los usuarios' }, ...options.usuarios.map(person => ({ value: String(person.id), label: person.nombreCompleto }))]} className="mt-1" /></div>
+                <div><label htmlFor="internal-filter-card" className="block text-sm font-semibold text-slate-700">Tarjeta</label><AppSelect id="internal-filter-card" ariaLabel="Filtrar por tarjeta" value={filters.tarjetaId || ''} onChange={value => change('tarjetaId', value)} options={[{ value: '', label: 'Todas las tarjetas' }, ...cards.map(card => ({ value: String(card.id), label: `${cardLabel(card)}${card.activa ? '' : ' (inactiva)'}` }))]} className="mt-1" />{cardsError && <p role="alert" className="text-sm text-red-700">{cardsError}</p>}</div>
             </div></details>
         </>} />
 
@@ -162,6 +170,7 @@ function MovementControlPage({ ambito }: { ambito: MovementControlScope }) {
             {!loading && !error && response && <ServerPagination page={response.meta.page} totalPages={response.meta.totalPages} total={response.meta.total} pageSize={response.meta.limit} currentCount={response.data.length} onPageChange={setPage} />}
         </section>
 
+        {cardsOpen && <CreditCardsModal scope={ambito} close={() => setCardsOpen(false)} changed={changed} />}
         {editor && <InternalMovementModal service={service} movementLabel={section.movementLabel} key={editor.record?.id || 'new'} record={editor.record} period={filters.periodo} options={options} close={() => setEditor(null)} saved={() => { toast.success(editor.record ? 'Movimiento actualizado' : 'Movimiento guardado'); changed(); }} />}
         {receipts && <InternalReceiptsModal service={service} key={receipts.id} record={receipts} canEdit={canEdit} close={() => setReceipts(null)} changed={changed} />}
         {receiptMovement !== null && <MovementReceiptModal key={receiptMovement} module={section.receiptModule} movementId={receiptMovement} canIssue={canCreate || canEdit} close={() => setReceiptMovement(null)} />}

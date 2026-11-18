@@ -2,7 +2,8 @@ import FinancialRetryNotice from './FinancialRetryNotice';
 import { useState, Fragment, useEffect, useRef } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon, CalendarIcon, CreditCardIcon, ChatBubbleBottomCenterTextIcon } from "@heroicons/react/24/outline";
-import { PAYMENT_METHOD_OPTIONS, type MetodoPago } from "../services/pagos.service";
+import { OUTGOING_PAYMENT_METHOD_OPTIONS, type OutgoingPaymentMethod } from "../services/credit-cards.service";
+import CreditCardSelector from "./CreditCardSelector";
 import { formatCurrency, MONEDA_LABELS, type Moneda } from "../utils/currency";
 import AppSelect from "./AppSelect";
 import { todayDateInput } from "../utils/date";
@@ -13,7 +14,7 @@ interface OwnerPaymentModalProps {
     operationEndpoint?: string;
     isOpen: boolean;
     onClose: () => void;
-    onSave: (p: { monto: number, moneda: Moneda, fechaPago: string, metodoPago: MetodoPago, cuentaBancariaId?: number, propietarioId: number, comprobante?: string, observaciones?: string, motivoAdelanto?: string }) => Promise<boolean>;
+    onSave: (p: { monto: number, moneda: Moneda, fechaPago: string, metodoPago: OutgoingPaymentMethod, cuentaBancariaId?: number, tarjetaId?: number, propietarioId: number, comprobante?: string, observaciones?: string, motivoAdelanto?: string }) => Promise<boolean>;
     suggestedAmount?: number;
     moneda?: Moneda;
     owner: {
@@ -27,7 +28,7 @@ interface OwnerPaymentModalProps {
     disponibleCobrado?: number;
     capitalPropioExpuesto?: number;
     puedeAdelantar?: boolean;
-    agreedMethod?: MetodoPago | null;
+    agreedMethod?: OutgoingPaymentMethod | null;
     currencyBalances?: Array<{ moneda: Moneda; saldo: number; cobrado: number; capitalPropioExpuesto: number }>;
 }
 
@@ -35,7 +36,8 @@ export default function OwnerPaymentModal({ operationEndpoint, isOpen, onClose, 
     const [submitting, setSubmitting] = useState(false);
     const sending = useRef(false);
     const [fechaPago, setFechaPago] = useState(() => todayDateInput());
-    const [metodoPago, setMetodoPago] = useState<MetodoPago>("EFECTIVO");
+    const [metodoPago, setMetodoPago] = useState<OutgoingPaymentMethod>("EFECTIVO");
+    const [tarjetaId, setTarjetaId] = useState("");
     const [comprobante, setComprobante] = useState("");
     const [observaciones, setObservaciones] = useState("");
     const [monto, setMonto] = useState<number | "">(suggestedAmount || "");
@@ -43,6 +45,8 @@ export default function OwnerPaymentModal({ operationEndpoint, isOpen, onClose, 
     const [cuentas, setCuentas] = useState<CuentaBancaria[]>([]);
     const [cuentaBancariaId, setCuentaBancariaId] = useState("");
     const [monedaPago, setMonedaPago] = useState<Moneda>(moneda);
+    const requiresBank = ['TRANSFERENCIA', 'CHEQUE'].includes(metodoPago);
+    const missingSource = requiresBank ? !cuentaBancariaId : metodoPago === 'TARJETA_CREDITO' && !tarjetaId;
     const availableCurrencies = (currencyBalances?.filter(balance => balance.saldo > 0) || [{ moneda, saldo: suggestedAmount || 0, cobrado: disponibleCobrado, capitalPropioExpuesto }]);
     const activeBalance = availableCurrencies.find(balance => balance.moneda === monedaPago) || availableCurrencies[0];
     useEffect(() => { if (isOpen) cuentasBancariasService.getAll().then(setCuentas).catch(() => setCuentas([])); }, [isOpen]);
@@ -64,13 +68,14 @@ export default function OwnerPaymentModal({ operationEndpoint, isOpen, onClose, 
         e.preventDefault();
         if (sending.current) return;
         if (!owner) return;
-        if (metodoPago !== 'EFECTIVO' && !cuentaBancariaId) return;
+        if (missingSource) return;
         await savePayment({
             monto: Number(monto),
             moneda: monedaPago,
             fechaPago,
             metodoPago,
-            cuentaBancariaId: cuentaBancariaId ? Number(cuentaBancariaId) : undefined,
+            cuentaBancariaId: requiresBank && cuentaBancariaId ? Number(cuentaBancariaId) : undefined,
+            tarjetaId: metodoPago === 'TARJETA_CREDITO' && tarjetaId ? Number(tarjetaId) : undefined,
             propietarioId: owner.id,
             comprobante: comprobante.trim() || undefined,
             observaciones: observaciones || undefined,
@@ -87,6 +92,7 @@ export default function OwnerPaymentModal({ operationEndpoint, isOpen, onClose, 
         // Reset
         setObservaciones("");
         setComprobante("");
+        setTarjetaId('');
         } finally { sending.current = false; setSubmitting(false); }
     };
 
@@ -138,7 +144,7 @@ export default function OwnerPaymentModal({ operationEndpoint, isOpen, onClose, 
                                 <form id="owner-payment-form" onSubmit={handleSubmit} className="modal-scroll flex-1 p-4 space-y-4">
                                     <fieldset disabled={submitting} className="contents">
                                     <FinancialRetryNotice endpoint={operationEndpoint || '/liquidaciones/0/pagar-propietario'} disabled={submitting} onRetry={body => void savePayment(JSON.parse(body))} />
-                                    {metodoPago !== 'EFECTIVO' && <div>
+                                    {requiresBank && <div>
                                         <label htmlFor="owner-payment-bank" className="block text-xs font-semibold text-gray-600  mb-2">Cuenta desde donde se paga *</label>
                                         <AppSelect id="owner-payment-bank" required ariaLabel="Cuenta bancaria de origen" value={cuentaBancariaId} onChange={setCuentaBancariaId} options={[{ value: '', label: 'Seleccionar cuenta' }, ...cuentas.filter(c => c.moneda === monedaPago).map(c => ({ value: String(c.id), label: `${c.banco} — ${c.nombre}` }))]} buttonClassName="border-transparent bg-gray-50 font-bold" />
                                     </div>}
@@ -217,14 +223,15 @@ export default function OwnerPaymentModal({ operationEndpoint, isOpen, onClose, 
                                                 id="owner-payment-method"
                                                 ariaLabel="Método de pago"
                                                 value={metodoPago}
-                                                onChange={(value) => setMetodoPago(value as MetodoPago)}
+                                                onChange={(value) => { setMetodoPago(value as OutgoingPaymentMethod); setTarjetaId(''); setCuentaBancariaId(''); }}
                                                 icon={<CreditCardIcon className="h-4 w-4" />}
-                                                options={PAYMENT_METHOD_OPTIONS}
+                                                options={OUTGOING_PAYMENT_METHOD_OPTIONS}
                                                 buttonClassName="border-transparent bg-gray-50 font-bold"
                                             />
                                         </div>
                                     </div>
 
+                                    {metodoPago === 'TARJETA_CREDITO' && <CreditCardSelector scope="CAJA" value={tarjetaId} onChange={setTarjetaId} disabled={submitting} />}
                                     {metodoPago === 'TRANSFERENCIA' && (
                                         <section className={`rounded-xl border p-4 text-sm ${bankDestinationReady ? 'border-emerald-200 bg-emerald-50 text-emerald-950' : 'border-red-200 bg-red-50 text-red-950'}`} aria-live="polite">
                                             {bankDestinationReady ? <>
@@ -281,7 +288,7 @@ export default function OwnerPaymentModal({ operationEndpoint, isOpen, onClose, 
                                 <div className="ui-dialog-footer">
                                     <button
                                         type="submit" form="owner-payment-form"
-                                        disabled={submitting || !owner || !monto || Number(monto) <= 0 || (adelantoEstimado > 0 && (!puedeAdelantar || motivoAdelanto.trim().length < 5)) || (metodoPago === 'TRANSFERENCIA' && !bankDestinationReady) || (metodoPago !== 'EFECTIVO' && !cuentaBancariaId)}
+                                        disabled={submitting || !owner || !monto || Number(monto) <= 0 || (adelantoEstimado > 0 && (!puedeAdelantar || motivoAdelanto.trim().length < 5)) || (metodoPago === 'TRANSFERENCIA' && !bankDestinationReady) || (missingSource)}
                                         className="ui-button ui-button-primary flex-1"
                                     >
                                         {submitting ? "Registrando…" : "Confirmar Pago a Propietario"}

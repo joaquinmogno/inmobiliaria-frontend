@@ -38,7 +38,7 @@ export function InternalReceiptsModal({ service = controlInternoService, record:
     </InternalDialog>;
 }
 
-export function InternalCancelModal({ service = controlInternoService, movementLabel = 'movimiento interno', totalsLabel = 'del control interno', record, close, changed }: { service?: InternalControlService; movementLabel?: string; totalsLabel?: string; record: InternalMovement; close: () => void; changed: () => void }) {
+export function InternalCancelModal({ service = controlInternoService, movementLabel = 'movimiento de Finanzas Ricardo', totalsLabel = 'de Finanzas Ricardo', record, close, changed }: { service?: InternalControlService; movementLabel?: string; totalsLabel?: string; record: InternalMovement; close: () => void; changed: () => void }) {
     const [reason, setReason] = useState('');
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');

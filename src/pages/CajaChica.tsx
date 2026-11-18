@@ -1,3 +1,7 @@
+import CreditCardSelector from '../components/CreditCardSelector';
+import CreditCardsModal from '../components/CreditCardsModal';
+import { useCreditCards } from '../hooks/useCreditCards';
+import { cardLabel, OUTGOING_PAYMENT_METHOD_OPTIONS } from '../services/credit-cards.service';
 import ContextHelp from '../components/ContextHelp';
 import { Dialog, DialogPanel, DialogTitle } from '@headlessui/react';
 import EmptyState from '../components/EmptyState';
@@ -27,7 +31,6 @@ import { formatCurrency, formatSignedCurrency, type Moneda } from "../utils/curr
 import FilterBar, { persistFilter, readPersistedFilter } from "../components/FilterBar";
 import FormError, { useFormError } from "../components/FormError";
 import AppSelect from "../components/AppSelect";
-import { PAYMENT_METHOD_OPTIONS } from "../services/pagos.service";
 import ReversalModal from "../components/ReversalModal";
 import ConfirmationModal from "../components/ConfirmationModal";
 import { toast } from "react-hot-toast";
@@ -40,7 +43,7 @@ import { openAuthenticatedFile } from "../services/api";
 
 // Cheque se conserva para poder consultar registros históricos y otros flujos,
 // pero no es una opción de carga manual en caja.
-const MANUAL_CASH_PAYMENT_METHOD_OPTIONS = PAYMENT_METHOD_OPTIONS.filter(method => method.value !== 'CHEQUE');
+const MANUAL_CASH_PAYMENT_METHOD_OPTIONS = OUTGOING_PAYMENT_METHOD_OPTIONS.filter(method => method.value !== 'CHEQUE');
 
 const parsePeriod = (value: string | null) => {
     const match = value?.match(/^(\d{4})-(0[1-9]|1[0-2])$/);
@@ -57,6 +60,9 @@ const CASH_CLOSING_TARGETS: CashClosingTarget[] = [
 export default function CajaChica() {
     const { error: formError, setError: setFormError, reportError, formRef } = useFormError();
     const { user } = useAuth();
+    const { cards, refresh: refreshCards, error: cardsError } = useCreditCards('CAJA');
+    const [cardsOpen, setCardsOpen] = useState(false);
+    const [cardTotals, setCardTotals] = useState<Record<Moneda, number>>({ ARS: 0, USD: 0 });
     const canCreate = hasPermission(user, "caja_chica.crear");
     const canVoid = hasPermission(user, "caja_chica.eliminar");
     const canCloseCash = hasPermission(user, "caja_chica.cerrar");
@@ -74,7 +80,7 @@ export default function CajaChica() {
     const [estadoFilter, setEstadoFilter] = useState<'REVERSIONES' | ''>(() => searchParams.get('estado') === 'REVERSIONES' ? 'REVERSIONES' : '');
     const [cuentaFilter, setCuentaFilter] = useState(() => {
         const value = searchParams.get('cuenta') || '';
-        return value === 'CAJA' || value === 'BANCO' || /^BANCO:\d+$/.test(value) ? value : '';
+        return value === 'CAJA' || value === 'BANCO' || value === 'TARJETA' || /^(BANCO|TARJETA):\d+$/.test(value) ? value : '';
     });
     // Default a mes actual
     const [initialYear, initialMonth] = currentMonthInput().split("-").map(Number);
@@ -101,6 +107,7 @@ export default function CajaChica() {
         fecha: todayDateInput(),
         metodoPago: 'EFECTIVO',
         cuentaBancariaId: '',
+        tarjetaId: '',
         observaciones: '',
         comprobantes: [] as File[]
     });
@@ -134,7 +141,7 @@ export default function CajaChica() {
         }
         setTipoFilter(nextTipo === 'INGRESO' || nextTipo === 'EGRESO' ? nextTipo : '');
         setEstadoFilter(nextEstado === 'REVERSIONES' ? 'REVERSIONES' : '');
-        setCuentaFilter(nextCuenta === 'CAJA' || nextCuenta === 'BANCO' || /^BANCO:\d+$/.test(nextCuenta || '') ? nextCuenta! : '');
+        setCuentaFilter(nextCuenta === 'CAJA' || nextCuenta === 'BANCO' || nextCuenta === 'TARJETA' || /^(BANCO|TARJETA):\d+$/.test(nextCuenta || '') ? nextCuenta! : '');
         if (nextPeriod) {
             setSelectedMonth(nextPeriod.month);
             setSelectedYear(nextPeriod.year);
@@ -191,6 +198,7 @@ export default function CajaChica() {
                 estado || undefined
             );
             setMovimientos(response.data);
+            setCardTotals(response.gastosTarjetaFiltrados || { ARS: 0, USD: 0 });
             setTotal(response.meta.total);
             setTotalPages(response.meta.totalPages);
         } catch (error) {
@@ -207,6 +215,7 @@ export default function CajaChica() {
     const handleCreate = (e: React.FormEvent) => {
         e.preventDefault();
         setFormError("");
+        if (formData.metodoPago === 'TARJETA_CREDITO' && !formData.tarjetaId) { setFormError('Seleccioná la tarjeta de crédito utilizada.'); return; }
         setIsCreateConfirmationOpen(true);
     };
 
@@ -216,10 +225,12 @@ export default function CajaChica() {
                 ...formData,
                 tipo: formData.tipo as 'INGRESO' | 'EGRESO',
 	                moneda: formData.moneda as Moneda,
-	                cuentaBancariaId: formData.cuentaBancariaId ? Number(formData.cuentaBancariaId) : undefined,
+	                cuentaBancariaId: formData.metodoPago === 'TRANSFERENCIA' && formData.cuentaBancariaId ? Number(formData.cuentaBancariaId) : undefined,
+                    tarjetaId: formData.metodoPago === 'TARJETA_CREDITO' && formData.tarjetaId ? Number(formData.tarjetaId) : undefined,
 	                monto: Number(formData.monto)
             });
             setIsModalOpen(false);
+            refreshCards();
             refreshData(1, debouncedSearch, tipoFilter, estadoFilter, cuentaFilter, selectedMonth, selectedYear);
             cajachicaService.getSummary(selectedMonth, selectedYear).then(setMeta);
             setFormData({
@@ -230,6 +241,7 @@ export default function CajaChica() {
                 fecha: todayDateInput(),
                 metodoPago: 'EFECTIVO',
                 cuentaBancariaId: '',
+        tarjetaId: '',
                 observaciones: '',
                 comprobantes: []
             });
@@ -401,12 +413,13 @@ export default function CajaChica() {
             .map(cierre => ({ cuenta: 'BANCO' as const, moneda: cierre.moneda, label: `Banco general (cierre histórico) ${cierre.moneda}` }))
     ];
     const activeAccountsFor = (moneda: Moneda) => cuentasBancarias.filter(cuenta => cuenta.activa && cuenta.moneda === moneda);
-    const accountLabel = (movimiento: MovimientoCaja) => movimiento.cuenta === 'CAJA'
+    const accountLabel = (movimiento: MovimientoCaja) => movimiento.tarjetaDescripcion ? movimiento.tarjetaDescripcion : movimiento.cuenta === 'CAJA'
         ? 'Caja'
         : movimiento.cuentaBancaria ? `${movimiento.cuentaBancaria.banco} — ${movimiento.cuentaBancaria.nombre}` : 'Banco histórico';
 
     return (
         <div className="ui-page pb-4">
+            {cardsOpen && <CreditCardsModal scope="CAJA" close={() => setCardsOpen(false)} changed={refreshCards} />}
             <header data-testid="cash-header" className="space-y-3">
             <div className="flex flex-col items-stretch justify-between gap-4 xl:flex-row xl:items-center">
                 <div className="flex items-center gap-2">
@@ -414,6 +427,7 @@ export default function CajaChica() {
                     <ContextHelp label="Ayuda de gestión financiera"><p>Caja por fecha real de movimiento. Los saldos se muestran al cierre del período elegido.</p></ContextHelp>
                 </div>
                 <div className="ui-page-actions">
+                    {canCreate && <button type="button" onClick={() => setCardsOpen(true)} className="ui-button ui-button-secondary">Tarjetas</button>}
                     {canCreate && <button
                         onClick={() => setIsModalOpen(true)}
                         className="ui-button ui-button-primary w-full sm:w-auto"
@@ -444,6 +458,7 @@ export default function CajaChica() {
                             <div><dt className="text-xs text-gray-600">Banco: </dt><dd className="font-medium text-slate-900">{money(totals?.balanceBanco)}</dd></div>
                             <div><dt className="text-xs text-gray-600">Ingresos del mes: </dt><dd className="font-medium text-slate-900">{money(totals?.totalIngresos)}</dd></div>
                             <div><dt className="text-xs text-gray-600">Egresos del mes: </dt><dd className="font-medium text-slate-900">{money(totals?.totalEgresos)}</dd></div>
+                            <div><dt className="text-xs text-gray-600">Gastos con tarjeta del mes: </dt><dd className="font-medium text-slate-900">{money(totals?.gastosTarjeta || 0)}</dd></div>
                         </dl>
                         <p className="mt-1 text-xs text-gray-600">Excedente de cobros sobre pagos a dueños · mes: <strong>{money(totals?.fondosEnCustodia)}</strong></p>
                     </section>;
@@ -537,24 +552,28 @@ export default function CajaChica() {
                     className="w-full sm:w-52"
                 />
                 <AppSelect
-                    ariaLabel="Cuenta"
+                    ariaLabel="Cuenta o tarjeta"
                     value={cuentaFilter}
                     onChange={setCuentaFilter}
                     options={[
                         { value: "", label: "Todas las cuentas" },
                         { value: "CAJA", label: "Caja" },
                         { value: "BANCO", label: "Todos los bancos" },
+                        { value: "TARJETA", label: "Todas las tarjetas" },
+                        ...cards.map(card => ({ value: `TARJETA:${card.id}`, label: `${cardLabel(card)}${card.activa ? '' : ' (inactiva)'}` })),
                         ...cuentasBancarias.map(cuenta => ({ value: `BANCO:${cuenta.id}`, label: `${cuenta.banco} — ${cuenta.nombre}${cuenta.activa ? '' : ' (inactiva)'}` }))
                     ]}
                     className="w-full sm:w-44"
                 />
                 </div>
             </FilterBar>
+            {cardsError && <p role="alert" className="text-sm text-red-700">{cardsError}</p>}
+            {cuentaFilter.startsWith('TARJETA') && <p className="ui-panel p-3 text-sm font-semibold" aria-label="Gastos de las tarjetas filtradas">Gastos vigentes de la selección: {formatCurrency(cardTotals.ARS, 'ARS')} · {formatCurrency(cardTotals.USD, 'USD')}</p>}
             <ActiveFilterChips filters={[
                 ...(searchTerm ? [{ key: 'q', label: `Búsqueda: ${searchTerm}`, onRemove: () => setSearchTerm('') }] : []),
                 ...(tipoFilter ? [{ key: 'tipo', label: `Tipo: ${tipoFilter === 'INGRESO' ? 'Ingresos' : 'Egresos'}`, onRemove: () => setTipoFilter('') }] : []),
                 ...(estadoFilter ? [{ key: 'estado', label: 'Reversiones y anulados', onRemove: () => setEstadoFilter('') }] : []),
-                ...(cuentaFilter ? [{ key: 'cuenta', label: `Cuenta: ${cuentaFilter === 'CAJA' ? 'Caja' : cuentaFilter === 'BANCO' ? 'Todos los bancos' : cuentasBancarias.find(cuenta => `BANCO:${cuenta.id}` === cuentaFilter) ? `${cuentasBancarias.find(cuenta => `BANCO:${cuenta.id}` === cuentaFilter)!.banco} — ${cuentasBancarias.find(cuenta => `BANCO:${cuenta.id}` === cuentaFilter)!.nombre}` : 'Banco'}`, onRemove: () => setCuentaFilter('') }] : []),
+                ...(cuentaFilter ? [{ key: 'cuenta', label: `Cuenta: ${cuentaFilter === 'CAJA' ? 'Caja' : cuentaFilter === 'BANCO' ? 'Todos los bancos' : cuentaFilter.startsWith('TARJETA') ? cards.find(card => `TARJETA:${card.id}` === cuentaFilter) ? cardLabel(cards.find(card => `TARJETA:${card.id}` === cuentaFilter)!) : 'Todas las tarjetas' : cuentasBancarias.find(cuenta => `BANCO:${cuenta.id}` === cuentaFilter) ? `${cuentasBancarias.find(cuenta => `BANCO:${cuenta.id}` === cuentaFilter)!.banco} — ${cuentasBancarias.find(cuenta => `BANCO:${cuenta.id}` === cuentaFilter)!.nombre}` : 'Banco'}`, onRemove: () => setCuentaFilter('') }] : []),
                 ...(`${selectedYear}-${String(selectedMonth).padStart(2, '0')}` !== currentMonthInput() ? [{ key: 'periodo', label: `Período: ${String(selectedMonth).padStart(2, '0')}/${selectedYear}`, onRemove: () => { const [year, month] = currentMonthInput().split('-').map(Number); setSelectedYear(year); setSelectedMonth(month); } }] : [])
             ]} onClearAll={() => { const [year, month] = currentMonthInput().split('-').map(Number); setSearchTerm(''); setTipoFilter(''); setEstadoFilter(''); setCuentaFilter(''); setSelectedYear(year); setSelectedMonth(month); }} />
 
@@ -582,7 +601,7 @@ export default function CajaChica() {
                                     <span className={`ui-status border-transparent ${mov.tipo === 'INGRESO' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                                         {mov.tipo === 'INGRESO' ? 'Ingreso' : 'Egreso'}
                                     </span>
-                                    <span className={`ui-status border-transparent ${mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+                                    <span className={`ui-status max-w-xs whitespace-normal break-words border-transparent ${mov.cuenta === 'TARJETA' ? 'bg-indigo-100 text-indigo-800' : mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
                                         {accountLabel(mov)}
                                     </span>
                                     <span className="text-xs font-medium text-content-muted">{mov.creadoPor?.nombreCompleto || 'Sistema'}</span>
@@ -648,8 +667,8 @@ export default function CajaChica() {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`ui-status border-transparent ${mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
-                                            {mov.cuenta === 'BANCO' ? `🏦 ${accountLabel(mov)}` : '💵 Caja'}
+                                        <span className={`ui-status max-w-xs whitespace-normal break-words border-transparent ${mov.cuenta === 'TARJETA' ? 'bg-indigo-100 text-indigo-800' : mov.cuenta === 'BANCO' ? 'bg-blue-100 text-blue-800' : 'bg-amber-100 text-amber-800'}`}>
+                                            {mov.cuenta === 'TARJETA' ? `💳 ${accountLabel(mov)}` : mov.cuenta === 'BANCO' ? `🏦 ${accountLabel(mov)}` : '💵 Caja'}
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-right">
@@ -789,7 +808,7 @@ export default function CajaChica() {
                             <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-4">
                                 <div>
                                     <label htmlFor="cash-movement-type" className="block text-sm font-medium text-gray-700 mb-1">Tipo *</label>
-                                    <AppSelect id="cash-movement-type" required ariaLabel="Tipo de movimiento" value={formData.tipo} onChange={value => setFormData({ ...formData, tipo: value })} options={[{ value: "INGRESO", label: "Ingreso" }, { value: "EGRESO", label: "Egreso" }]} />
+                                    <AppSelect id="cash-movement-type" required ariaLabel="Tipo de movimiento" value={formData.tipo} onChange={value => setFormData({ ...formData, tipo: value, ...(value === 'INGRESO' && formData.metodoPago === 'TARJETA_CREDITO' ? { metodoPago: 'EFECTIVO', tarjetaId: '' } : {}) })} options={[{ value: "INGRESO", label: "Ingreso" }, { value: "EGRESO", label: "Egreso" }]} />
                                 </div>
                                 <div>
                                     <label htmlFor="cash-movement-date" className="block text-sm font-medium text-gray-700 mb-1">Fecha *</label>
@@ -824,10 +843,11 @@ export default function CajaChica() {
                             <div className="space-y-4">
                                 <div>
                                     <label htmlFor="cash-movement-payment-method" className="block text-sm font-medium text-gray-700 mb-1">Método de Pago *</label>
-                                    <AppSelect id="cash-movement-payment-method" required ariaLabel="Método de pago" value={formData.metodoPago} onChange={value => setFormData({ ...formData, metodoPago: value, cuentaBancariaId: value === 'EFECTIVO' ? '' : formData.cuentaBancariaId })} options={MANUAL_CASH_PAYMENT_METHOD_OPTIONS} />
+                                    <AppSelect id="cash-movement-payment-method" required ariaLabel="Método de pago" value={formData.metodoPago} onChange={value => setFormData({ ...formData, metodoPago: value, tarjetaId: '', cuentaBancariaId: value === 'TRANSFERENCIA' ? formData.cuentaBancariaId : '' })} options={MANUAL_CASH_PAYMENT_METHOD_OPTIONS.filter(method => formData.tipo === 'EGRESO' || method.value !== 'TARJETA_CREDITO')} />
                                 </div>
-                                {formData.metodoPago !== 'EFECTIVO' && <div>
-                                    <label htmlFor="cash-movement-bank-account" className="block text-sm font-medium text-gray-700 mb-1">Banco / cuenta donde ingresó *</label>
+                                {formData.metodoPago === 'TARJETA_CREDITO' && <CreditCardSelector scope="CAJA" value={formData.tarjetaId} onChange={value => setFormData({ ...formData, tarjetaId: value })} />}
+                                {formData.metodoPago === 'TRANSFERENCIA' && <div>
+                                    <label htmlFor="cash-movement-bank-account" className="block text-sm font-medium text-gray-700 mb-1">{formData.tipo === 'EGRESO' ? 'Banco / cuenta de origen *' : 'Banco / cuenta donde ingresó *'}</label>
                                     <AppSelect id="cash-movement-bank-account" required ariaLabel="Banco o cuenta" value={formData.cuentaBancariaId} onChange={value => setFormData({ ...formData, cuentaBancariaId: value })} options={[{ value: '', label: activeAccountsFor(formData.moneda).length ? 'Seleccionar cuenta' : 'No hay cuentas activas para esta moneda' }, ...activeAccountsFor(formData.moneda).map(cuenta => ({ value: String(cuenta.id), label: `${cuenta.banco} — ${cuenta.nombre}` }))]} />
                                     <p className="mt-1 text-xs text-content-muted">Administrá las cuentas desde Configuración.</p>
                                 </div>}
@@ -972,7 +992,7 @@ export default function CajaChica() {
             <ReversalModal
                 isOpen={Boolean(selectedMovement)}
                 title="Anular movimiento de caja"
-                description={selectedMovement ? `Se registrará la contrapartida de ${formatCurrency(Number(selectedMovement.monto), selectedMovement.moneda)} en ${selectedMovement.cuenta === "BANCO" ? "banco" : "caja"}.` : ""}
+                description={selectedMovement ? `Se registrará la contrapartida de ${formatCurrency(Number(selectedMovement.monto), selectedMovement.moneda)} en ${accountLabel(selectedMovement)}.` : ""}
                 onClose={() => setSelectedMovement(null)}
                 onConfirm={handleVoid}
             />

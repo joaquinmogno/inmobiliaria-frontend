@@ -4,7 +4,7 @@ export type ReceiptModule = 'cajachica' | 'control-interno' | 'teodoro' | 'danie
 export type ReceiptFields = { pagador: string; receptor: string; documentoReceptor: string; inmueble: string; descripcion: string };
 export type ReceiptInput = ReceiptFields & { motivo: string; huellaMovimiento: string; ultimaVersion: number };
 export type ReceiptContext = {
-    movimiento: { id: number; tipo: 'INGRESO' | 'EGRESO'; concepto: string; monto: string; moneda: 'ARS' | 'USD'; fecha: string; metodoPago: string | null };
+    movimiento: { id: number; tipo: 'INGRESO' | 'EGRESO'; concepto: string; monto: string; moneda: 'ARS' | 'USD'; fecha: string; metodoPago: string | null; tarjetaDescripcion?: string | null };
     huellaMovimiento: string; ultimaVersion: number; puedeEmitir: boolean; bloqueo: string | null; numero: string | null;
     datos: ReceiptFields;
     versiones: { version: number; fechaEmision: string; creadoPor: string; motivo: string | null; estado: 'VIGENTE' | 'ANULADO' | 'REEMPLAZADO' | 'DESACTUALIZADO' }[];
